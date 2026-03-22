@@ -425,12 +425,19 @@ def apply_forcing(baseline, forcing):
     """
     Apply a forcing perturbation to baseline parameters.
     Returns perturbed parameter set.
+    Raises ValueError if forcing variable is not recognized.
     """
     p = dict(baseline)
     keys = FORCING_PARAM_MAP.get(forcing.variable, [forcing.variable])
-    for key in keys:
-        if key in p:
-            p[key] = p[key] + forcing.magnitude
+    matched = [k for k in keys if k in p]
+    if not matched:
+        known = sorted(set(FORCING_PARAM_MAP.keys()) | set(baseline.keys()))
+        raise ValueError(
+            f"Unknown forcing variable '{forcing.variable}'. "
+            f"Valid variables: {known}"
+        )
+    for key in matched:
+        p[key] = p[key] + forcing.magnitude
     return p
 
 
