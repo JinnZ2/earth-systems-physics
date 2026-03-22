@@ -160,6 +160,5 @@ GET    /v1/stream                   SSE live updates
 
 ## Known Issues
 
-- `layer_3_atmosphere.py` contains duplicated code near the end of the file (lines ~429-486) with an unterminated docstring that prevents compilation
 - No automated tests exist yet
 - No CI/CD pipeline configured
