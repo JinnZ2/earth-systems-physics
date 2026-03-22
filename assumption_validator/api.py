@@ -9,8 +9,14 @@
 #
 # Requires: pip install flask flask-cors
 
-from flask import Flask, request, jsonify, Response
-from flask_cors import CORS
+try:
+    from flask import Flask, request, jsonify, Response
+    from flask_cors import CORS
+except ImportError as e:
+    raise SystemExit(
+        f"Missing dependency: {e.name}\n"
+        "Install with: pip install -r requirements.txt"
+    )
 import threading
 import json
 import time

@@ -608,17 +608,27 @@ def assess_from_layer_states(layer_states: Dict[int, Dict]) -> Dict[str, Dict]:
         # Boolean handling
         if isinstance(value, bool):
             numeric = 1.0 if value else 0.0
-        elif isinstance(value, str):
+        elif isinstance(value, (str, dict, list, tuple)):
             results[assumption_id] = {
                 "id":      assumption_id,
                 "name":    boundary.name,
                 "status":  "INFO",
                 "value":   value,
-                "message": value,
+                "message": str(value),
             }
             continue
         else:
-            numeric = float(value)
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                results[assumption_id] = {
+                    "id":      assumption_id,
+                    "name":    boundary.name,
+                    "status":  "INFO",
+                    "value":   str(value),
+                    "message": f"Non-numeric value: {value}",
+                }
+                continue
 
         risk, penalty, proximity = boundary.assess(numeric)
 
