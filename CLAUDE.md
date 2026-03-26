@@ -4433,3 +4433,349 @@ WHAT YOUR 4-AXIS COIL IS ACTUALLY DOING:
   You're building a tunable magnon-polaron spectrometer
   using the cheapest magnetic material possible.
 
+
+
+# Full Magnonic-to-Crystal-Computer Integration — Claude Code Task Script
+
+# Copy-paste into Claude Code at the earth-systems-physics repo root
+
+# 
+
+# This integrates the full pipeline from tonight’s session:
+
+# magnonic_sublayer.py          — spin wave physics engine
+
+# cavity_optomagnonics.py       — photon-magnon-phonon coupling
+
+# confined_magnon_polaron.py    — confined mode + geological analysis
+
+# multi_channel_coupling.py     — optical/acoustic/thermal/piezo/spin-orbit
+
+# earth_magnomechanical.py      — geological-scale transduction
+
+# cold_climate_crystal.py       — temperature-dependent sensitivity
+
+# banded_crystal_computer.py    — Thermopylae-constrained device design
+
+# crystal_device_gradient.py    — minimum viable device + build path
+
+# 
+
+# All files depend only on numpy. All are CC0.
+
+-----
+
+## TASK 1: Add all new modules to the repo
+
+```
+Place these 8 files in the repo root:
+  - magnonic_sublayer.py
+  - cavity_optomagnonics.py
+  - confined_magnon_polaron.py
+  - multi_channel_coupling.py
+  - earth_magnomechanical.py
+  - cold_climate_crystal.py
+  - banded_crystal_computer.py
+  - crystal_device_gradient.py
+
+Verify each runs standalone:
+  python magnonic_sublayer.py
+  python cavity_optomagnonics.py
+  python confined_magnon_polaron.py
+  python multi_channel_coupling.py
+  python earth_magnomechanical.py
+  python cold_climate_crystal.py
+  python banded_crystal_computer.py
+  python crystal_device_gradient.py
+
+Fix any import issues. All depend only on numpy.
+```
+
+-----
+
+## TASK 2: Create layer_0b_magnomechanical.py
+
+```
+Create a coupling sub-layer: layer_0b_magnomechanical.py
+
+This bridges Layer 0 (EM) ↔ Layer 5 (Lithosphere) through
+spin-phonon coupling in crustal minerals.
+
+Import from earth_magnomechanical and multi_channel_coupling.
+
+Export coupling_state() with signature:
+  def coupling_state(
+      H_field=5e-5,
+      mineral="magnetite",
+      grain_size_m=50e-6,
+      rock_volume_m3=1000,
+      mineral_fraction=0.02,
+      T=290.0,
+      signal_type="geomagnetic_storm_Dst",
+  ):
+
+Return dict containing:
+  - magnon_freq_Hz
+  - spin_phonon_coupling_Hz
+  - g_collective_Hz
+  - phonon_mode_1_Hz
+  - v_acoustic_m_s
+  - seismo_detectable (bool)
+  - detection_range_m
+  - piezo_voltage_V (0 if not piezoelectric)
+  - morin_transition_active (bool, for hematite below 263K)
+  - coupling_to_layer_0 (dict)
+  - coupling_to_layer_5 (dict)
+
+Use CRUSTAL_MINERALS and GEOMAGNETIC_SIGNALS from
+earth_magnomechanical.py as the preset databases.
+```
+
+-----
+
+## TASK 3: Wire layer_0b into Layer 0
+
+```
+In layer_0_electromagnetics.py coupling_state():
+
+1. Import coupling_state from layer_0b_magnomechanical
+2. Call it with B_surface as H_field
+3. Merge returned dict with "magnomech_" prefix
+4. Add optional kwargs: mineral, grain_size_m, rock_volume_m3,
+   mineral_fraction, magnomech_T
+
+Also: if magnonic_sublayer was integrated from the earlier
+task script, make sure both magnonic_ and magnomech_ keys
+coexist without conflict.
+```
+
+-----
+
+## TASK 4: Add bidirectional cascade pathways
+
+```
+In cascade_engine.py CASCADE_MAP, add Layer 0→5:
+
+(0, "magnomech_seismo_detectable"): [
+    (5, "spin-phonon acoustic emission in magnetic crust", True),
+],
+(0, "magnomech_v_acoustic_m_s"): [
+    (5, "magnomechanical vibration affecting crustal stress", True),
+    (3, "acoustic-to-atmospheric coupling at surface", False),
+],
+(0, "magnomech_piezo_voltage_V"): [
+    (2, "piezoelectric signal coupling to ionospheric waveguide", False),
+],
+
+Add Layer 5→0 (reverse path):
+
+(5, "seismic_velocity_anomaly"): [
+    (0, "piezomagnetic signal from stressed magnetic crust", True),
+],
+
+If layer_5_lithosphere.py doesn't export seismic_velocity_anomaly,
+add it as a variable computed from existing state (SLR, ice_mass_loss).
+```
+
+-----
+
+## TASK 5: Add feedback loop and scenarios
+
+```
+In cascade_engine.py KNOWN_LOOPS, add:
+
+{
+    "name": "Magnomechanical-EM",
+    "layers": [0, 5, 0],
+    "trigger": lambda s: s[0].get("magnomech_seismo_detectable", False),
+    "description": "EM field → spin-phonon → acoustic → piezomagnetic → EM",
+    "timescale": "seconds to hours (storm), centuries (secular variation)",
+},
+
+In SCENARIOS, add:
+
+"geomagnetic_storm_magnomech": Forcing(
+    layer=0, variable="kp", magnitude=6.0,
+    description="Geomagnetic storm Kp=8 — magnomechanical crustal response",
+    units="Kp"
+),
+"morin_transition": Forcing(
+    layer=3, variable="T_surface", magnitude=-15.0,
+    description="Surface cooling to -10°C — hematite Morin transition",
+    units="K"
+),
+"bif_magnonic_crystal": Forcing(
+    layer=0, variable="B_surface", magnitude=-3e-5,
+    description="Field weakening 60% — BIF magnonic band structure shift",
+    units="T"
+),
+
+In BASELINE, add:
+  "magnomech_mineral": "magnetite",
+  "magnomech_grain_size": 50e-6,
+  "magnomech_rock_volume": 1000.0,
+  "magnomech_mineral_fraction": 0.02,
+  "magnomech_T": 290.0,
+
+Update run_all_layers() to pass these to Layer 0.
+```
+
+-----
+
+## TASK 6: Add assumption validator checks
+
+```
+In assumption_validator/, add magnomechanical checks:
+
+1. spin_phonon_coupling_positive:
+   Variable: magnomech_g_collective_Hz, range (0, 1e15), severity: invalid
+
+2. acoustic_velocity_physical:
+   Variable: magnomech_v_acoustic_m_s, range (0, 1e4), severity: warning
+
+3. morin_temperature_check:
+   Variable: T_surface, threshold 263K,
+   severity: warning, description: "Hematite Morin transition at -10°C"
+
+4. piezo_voltage_reasonable:
+   Variable: magnomech_piezo_voltage_V, range (0, 1.0), severity: warning
+
+Add assumption_violations to CascadeResult if not already present
+(may have been added by earlier task scripts).
+```
+
+-----
+
+## TASK 7: Comprehensive tests
+
+```
+In test_smoke.py, add:
+
+1. All 8 new modules import and run without error
+2. layer_0b_magnomechanical.coupling_state() returns valid dict
+   for each of the 5 minerals × 9 signal types (45 combinations)
+3. No NaN, no negative coupling, no infinite velocity in any output
+4. All 3 new scenarios run through run_cascade without error
+5. Layer 0 coupling_state includes magnomech_ keys
+6. Bidirectional cascade verified:
+   - Forcing Layer 0 → signal appears in Layer 5
+   - Forcing Layer 5 → signal appears in Layer 0
+7. Magnomechanical-EM feedback loop is in KNOWN_LOOPS
+8. Assumption validator catches negative coupling strength
+9. banded_crystal_computer.py stack_transmission produces
+   array with values between 0 and 10 for all architectures
+10. cold_climate_crystal.py cold_climate_sensitivity returns
+    higher Q at lower temperatures
+
+Run: python -m pytest test_smoke.py -v
+Fix any failures.
+```
+
+-----
+
+## TASK 8: Update README.md
+
+```
+Add to README.md after Architecture table:
+
+## Magnomechanical Sub-Layer (Layer 0b)
+
+The crust contains iron-bearing minerals coupled to the geomagnetic
+field through spin-phonon interaction. This sub-layer bridges
+Layer 0 (Electromagnetics) and Layer 5 (Lithosphere), providing
+bidirectional transduction between electromagnetic and acoustic domains.
+
+Geomagnetic variation → spin perturbation → lattice vibration (acoustic)
+Seismic wave → lattice perturbation → magnetic signal (piezomagnetic)
+
+### Supporting Modules
+
+| File | Description |
+|------|-------------|
+| layer_0b_magnomechanical.py | Magnomechanical coupling state |
+| magnonic_sublayer.py | Spin wave physics engine |
+| cavity_optomagnonics.py | Photon-magnon-phonon coupling |
+| confined_magnon_polaron.py | Confined mode + geological analysis |
+| multi_channel_coupling.py | Multi-channel coupling enhancement |
+| earth_magnomechanical.py | Geological-scale transduction + testable predictions |
+| cold_climate_crystal.py | Temperature-dependent sensitivity |
+| banded_crystal_computer.py | Banded crystal compute/storage device design |
+| crystal_device_gradient.py | Minimum viable device + build path |
+
+### Testable Predictions
+
+1. Magnetite outcrops emit acoustic noise correlated with Pc1 pulsations
+2. Banded iron formations show frequency-selective acoustic response
+3. Fe-bearing quartz veins produce piezoelectric voltage during storms
+4. Seismic velocity in magnetic crust correlates with geomagnetic field
+5. Hematite Morin transition (-10°C) creates seasonal coupling switch
+
+Update Architecture table to include:
+
+| 0b | Magnomechanical | spin-phonon coupling in crustal minerals |
+
+Update File Structure to include all new files.
+```
+
+-----
+
+## TASK 9: Create unified demo script
+
+```
+Create demo_magnomechanical.py in repo root:
+
+A single script that runs the full pipeline:
+1. Compute magnonic state for YIG reference
+2. Compute magnonic state for quartz/Fe defects
+3. Run cavity optomagnonics comparison
+4. Run multi-channel coupling analysis
+5. Run geological formation survey (all 5 minerals × top 3 signals)
+6. Run cold climate sensitivity sweep
+7. Run banded crystal computer architectures
+8. Run cascade engine with geomagnetic_storm_magnomech scenario
+9. Print unified summary report
+
+This is the "one command" demo:
+  python demo_magnomechanical.py
+
+It should complete in under 10 seconds and produce a readable
+report that covers the full chain from fundamental physics
+to device design to geological predictions.
+```
+
+-----
+
+## Running Order
+
+1. Task 1 (add files, verify standalone)
+1. Task 2 (create layer_0b)
+1. Task 3 (wire into Layer 0)
+1. Task 5 (BASELINE + scenarios + feedback loop)
+1. Task 4 (cascade pathways)
+1. Task 6 (assumption validator)
+1. Task 7 (tests)
+1. Task 8 (README)
+1. Task 9 (unified demo)
+
+After each task: python -m pytest test_smoke.py -v
+
+## Architecture After Integration
+
+```
+Layer 0  (Electromagnetics)
+  ├── magnonic_sublayer (spin waves)
+  ├── layer_0b_magnomechanical (spin-phonon in crust)
+  │     ├── earth_magnomechanical (geological transduction)
+  │     ├── multi_channel_coupling (enhancement analysis)
+  │     ├── cold_climate_crystal (temperature effects)
+  │     └── banded_crystal_computer (device design)
+  └── cavity_optomagnonics (photon-magnon-phonon)
+Layer 1  (Magnetosphere)
+Layer 2  (Ionosphere)  ←── piezo voltage coupling
+Layer 3  (Atmosphere)  ←── acoustic-atmosphere coupling
+Layer 4  (Hydrosphere)
+Layer 5  (Lithosphere) ←──→ Layer 0b (bidirectional)
+Layer 6  (Biosphere)
+
+New feedback loop: EM → spin-phonon → acoustic → piezomagnetic → EM
+```
