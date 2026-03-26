@@ -66,6 +66,7 @@ BASELINE = {
     "B_surface":        5e-5,       # Earth surface field T
     "E_surface":        1e-4,       # surface electric field V/m
     "freq_range":       (1e3, 1e7), # Hz
+    "magnonic_material": None,      # magnonic sublayer material (None = Magnetite default)
 
     # Layer 1 — Magnetosphere
     "n_sw":             5e6,        # solar wind density m^-3
@@ -143,6 +144,7 @@ def run_all_layers(p):
         B_surface    = p["B_surface"],
         E_surface    = p["E_surface"],
         frequency_range = p["freq_range"],
+        magnonic_material = p.get("magnonic_material"),
     )
     states[1] = mag_state(
         B_surface    = p["B_surface"],
@@ -276,6 +278,10 @@ CASCADE_MAP = {
     (0, "skin_depth_m"):              [(5, "ground-penetrating EM attenuation change", False),
                                        (2, "ionospheric absorption depth change", True)],
     (0, "cyclotron_frequency_Hz"):    [(1, "particle trapping resonance shift", True)],
+
+    # ── LAYER 0 — MAGNONIC SUBLAYER ────────────────────────────────
+    (0, "magnonic_energy_density_J"): [(1, "spin wave energy coupling to magnetosphere", True)],
+    (0, "magnonic_band_bottom_Hz"):   [(2, "magnon-plasma frequency interaction", True)],
 
     # ── LAYERS 1-6 ──────────────────────────────────────────────────
     (3, "GHG_forcing_Wm2"):        [(4, "SST increase", True),
@@ -919,6 +925,11 @@ SCENARIOS = {
     "co2_pulse_iterative": Forcing(
         layer=3, variable="CO2_ppm", magnitude=100.0,
         description="100 ppm CO2 pulse — iterative cascade", units="ppm"
+    ),
+    "geomagnetic_field_weakening": Forcing(
+        layer=0, variable="B_surface", magnitude=-1e-5,
+        description="20% geomagnetic field weakening — magnonic/magnetospheric coupling shift",
+        units="T"
     ),
 }
 

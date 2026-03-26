@@ -311,3 +311,108 @@ class TestAssumptionValidator:
         assert len(results) > 0
         for aid, data in results.items():
             assert "status" in data
+
+
+# ─────────────────────────────────────────────
+# MAGNONIC SUBLAYER
+# ─────────────────────────────────────────────
+
+class TestMagnonicSublayer:
+    def test_import(self):
+        import magnonic_sublayer
+
+    def test_dispersion_relation_positive(self):
+        from magnonic_sublayer import dispersion_relation
+        omega = dispersion_relation(k=1e7, H0=0.1, M_s=1.4e5, A_ex=3.65e-12)
+        assert omega > 0
+
+    def test_dispersion_k_zero(self):
+        """k=0 should give the FMR frequency (band bottom)."""
+        from magnonic_sublayer import dispersion_relation
+        omega = dispersion_relation(k=0, H0=0.1, M_s=1.4e5, A_ex=3.65e-12, theta_deg=90)
+        assert omega > 0  # Damon-Eshbach has nonzero gap at k=0
+
+    def test_group_velocity_finite(self):
+        from magnonic_sublayer import group_velocity
+        vg = group_velocity(k=1e7, H0=0.1, M_s=1.4e5, A_ex=3.65e-12)
+        assert np.isfinite(vg)
+
+    def test_propagation_length_yig_longer_than_permalloy(self):
+        """YIG (ultra-low damping) should propagate further than Permalloy."""
+        from magnonic_sublayer import propagation_length
+        lp_yig = propagation_length(k=1e7, H0=0.1, M_s=1.4e5, A_ex=3.65e-12, alpha=3e-5)
+        lp_py = propagation_length(k=1e7, H0=0.1, M_s=8.6e5, A_ex=1.3e-11, alpha=0.008)
+        assert lp_yig > lp_py
+
+    def test_thermal_magnon_number_positive(self):
+        from magnonic_sublayer import thermal_magnon_number, dispersion_relation
+        omega = dispersion_relation(k=1e7, H0=0.1, M_s=1.4e5, A_ex=3.65e-12)
+        n = thermal_magnon_number(omega, T=300.0)
+        assert n >= 0
+
+    def test_thermal_magnon_zero_at_zero_T(self):
+        from magnonic_sublayer import thermal_magnon_number
+        assert thermal_magnon_number(1e10, T=0) == 0.0
+
+    def test_magnon_phonon_coupling_returns_dict(self):
+        from magnonic_sublayer import magnon_phonon_coupling_strength
+        result = magnon_phonon_coupling_strength(A_ex=3.65e-12, M_s=1.4e5, c_sound=7209)
+        assert isinstance(result, dict)
+        assert "crossover_k" in result
+        assert "coupling_regime" in result
+
+    def test_coupling_state_returns_all_keys(self):
+        from magnonic_sublayer import magnonic_coupling_state
+        state = magnonic_coupling_state()
+        expected = [
+            "magnon_band_bottom_Hz", "magnon_freq_dipolar_Hz",
+            "magnon_vg_dipolar_m_s", "magnon_prop_length_exchange_m",
+            "alpha_total", "thermal_occupation_exchange",
+            "magnon_phonon_crossover_Hz", "magnon_phonon_regime",
+            "thermal_regime", "magnon_energy_density_J",
+        ]
+        for key in expected:
+            assert key in state, f"Missing key: {key}"
+
+    def test_coupling_state_plasma_coupling(self):
+        """When n_e is provided, plasma coupling fields should be populated."""
+        from magnonic_sublayer import magnonic_coupling_state
+        state = magnonic_coupling_state(n_e=1e12)
+        assert state["plasma_frequency_Hz"] > 0
+        assert state["magnon_plasma_freq_ratio"] > 0
+
+    def test_materials_all_run(self):
+        from magnonic_sublayer import magnonic_coupling_state, MATERIALS
+        for name, params in MATERIALS.items():
+            state = magnonic_coupling_state(
+                H0=0.1, M_s=params["M_s"], A_ex=params["A_ex"],
+                alpha=params["alpha"], conductivity=params["conductivity"],
+                c_sound=params["c_sound"],
+            )
+            assert len(state) > 0, f"Material {name} returned empty state"
+
+    def test_layer0_includes_magnonic_keys(self):
+        """Layer 0 coupling_state should include magnonic outputs."""
+        from layer_0_electromagnetics import coupling_state
+        state = coupling_state(n_e=1e12, B_surface=5e-5, E_surface=1e-4,
+                               frequency_range=(1e3, 1e7))
+        assert "magnonic_energy_density_J" in state
+        assert "magnonic_band_bottom_Hz" in state
+        assert "magnonic_damping_total" in state
+
+    def test_layer0_explicit_material(self):
+        """Layer 0 coupling_state with explicit magnonic material."""
+        from layer_0_electromagnetics import coupling_state
+        state = coupling_state(n_e=1e12, B_surface=5e-5, E_surface=1e-4,
+                               frequency_range=(1e3, 1e7),
+                               magnonic_material="YIG")
+        # Should have prefixed magnonic keys
+        assert "magnonic_magnon_band_bottom_Hz" in state
+        assert "magnonic_magnon_phonon_regime" in state
+
+    def test_geomagnetic_scenario_runs(self):
+        """The geomagnetic_field_weakening scenario should run."""
+        from cascade_engine import run_cascade, SCENARIOS
+        result = run_cascade(SCENARIOS["geomagnetic_field_weakening"], verbose=False)
+        assert result.forcing is not None
+        assert len(result.layer_states) == 7

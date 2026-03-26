@@ -119,6 +119,34 @@ REGISTRY: Dict[str, AssumptionBoundary] = {
         notes           = "Rising electron density raises plasma freq — HF comms regime change"
     ),
 
+    "em_magnonic_damping": AssumptionBoundary(
+        name            = "Magnonic Damping (Crustal Magnetite)",
+        parameter       = "magnonic_damping_total",
+        units           = "dimensionless",
+        green_range     = (0, 0.1),
+        yellow_range    = (0.1, 0.5),
+        red_threshold   = 1.0,
+        higher_is_worse = True,
+        source_layer    = 0,
+        layer_key       = "magnonic_damping_total",
+        couplings       = ["em_plasma_frequency", "mag_standoff_Re"],
+        notes           = "Magnonic damping > 1 = spin waves fully absorbed — no magnon transport"
+    ),
+
+    "em_magnonic_prop_length": AssumptionBoundary(
+        name            = "Magnon Propagation Length",
+        parameter       = "magnonic_prop_length_m",
+        units           = "m",
+        green_range     = (1e-6, 1e6),
+        yellow_range    = (1e-9, 1e-6),
+        red_threshold   = 1e-9,
+        higher_is_worse = False,
+        source_layer    = 0,
+        layer_key       = "magnonic_prop_length_m",
+        couplings       = ["em_plasma_frequency"],
+        notes           = "Propagation length < 1 nm — magnonic transport effectively zero"
+    ),
+
     # ── LAYER 1 — MAGNETOSPHERE ──────────────────────────────────────
     "mag_standoff_Re": AssumptionBoundary(
         name            = "Magnetopause Standoff Distance",
