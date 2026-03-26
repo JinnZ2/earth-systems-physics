@@ -107,6 +107,18 @@ def plasma_frequency(n_e):
     return (1 / (2 * np.pi)) * np.sqrt((n_e * e**2) / (epsilon_0 * m_e))
 
 
+def cyclotron_frequency(q, B, m):
+    """
+    Cyclotron (gyro) frequency of a charged particle in a magnetic field.
+    Governs particle trapping and resonance in the magnetosphere.
+    q : charge (C)
+    B : magnetic field magnitude (T)
+    m : particle mass (kg)
+    returns: cyclotron frequency (Hz)
+    """
+    return abs(q) * B / (2 * np.pi * m)
+
+
 # ─────────────────────────────────────────────
 # ENERGY DENSITY
 # ─────────────────────────────────────────────
@@ -175,10 +187,13 @@ def coupling_state(n_e, B_surface, E_surface, frequency_range):
     """
     f_plasma = plasma_frequency(n_e)
     delta = skin_depth(frequency_range[0], 1e-4)  # upper atmosphere conductivity ~1e-4 S/m
+    f_cyclotron = cyclotron_frequency(e, B_surface, m_e)
 
     return {
         "plasma_frequency_hz":       f_plasma,
+        "plasma_frequency_Hz":       f_plasma,
         "skin_depth_m":              delta,
+        "cyclotron_frequency_Hz":    f_cyclotron,
         "electric_energy_density":   electric_energy_density(E_surface),
         "magnetic_energy_density":   magnetic_energy_density(B_surface),
         "poynting_flux_wm2":         poynting_vector(E_surface, B_surface),

@@ -172,9 +172,15 @@ class TestCascadeEngine:
             assert result.forcing is not None, f"Scenario {name} failed"
             assert len(result.layer_states) == 7, f"Scenario {name} missing layers"
 
+    def test_cascade_result_has_summary(self):
+        from cascade_engine import run_cascade, SCENARIOS
+        for name, scenario in SCENARIOS.items():
+            result = run_cascade(scenario, verbose=False)
+            assert isinstance(result.summary, dict), f"Scenario {name} has no summary"
+            assert len(result.summary) > 0, f"Scenario {name} has empty summary"
+
     def test_baseline_keys_valid(self):
         from cascade_engine import BASELINE
-        # Verify all expected layer groups present
         assert "T_surface" in BASELINE
         assert "B_surface" in BASELINE
         assert "n_e" in BASELINE
@@ -188,6 +194,78 @@ class TestCascadeEngine:
         )
         with pytest.raises(ValueError, match="Unknown forcing variable"):
             run_cascade(bad_forcing, verbose=False)
+
+    def test_threshold_crossing_triggered(self):
+        """At least one scenario triggers a threshold crossing."""
+        from cascade_engine import run_cascade, SCENARIOS
+        any_crossing = False
+        for name, scenario in SCENARIOS.items():
+            result = run_cascade(scenario, verbose=False)
+            if result.threshold_crossings:
+                any_crossing = True
+                break
+        assert any_crossing, "No scenario triggered any threshold crossing"
+
+    def test_amplifying_loop_triggered(self):
+        """At least one scenario triggers an amplifying loop."""
+        from cascade_engine import run_cascade, SCENARIOS
+        any_loop = False
+        for name, scenario in SCENARIOS.items():
+            result = run_cascade(scenario, verbose=False)
+            if result.amplifying_loops:
+                any_loop = True
+                break
+        assert any_loop, "No scenario triggered any amplifying loop"
+
+
+# ─────────────────────────────────────────────
+# BASELINE PHYSICAL SANITY
+# ─────────────────────────────────────────────
+
+class TestBaselineSanity:
+    def test_no_negative_temperatures(self):
+        from cascade_engine import BASELINE
+        temp_keys = ["T_surface", "T_pole", "T_surface_K"]
+        for k in temp_keys:
+            assert BASELINE[k] > 0, f"Negative temperature: {k}={BASELINE[k]}"
+
+    def test_no_negative_densities(self):
+        from cascade_engine import BASELINE
+        density_keys = ["n_e", "n_e_F2", "n_sw"]
+        for k in density_keys:
+            assert BASELINE[k] > 0, f"Negative density: {k}={BASELINE[k]}"
+
+    def test_pressure_positive(self):
+        from cascade_engine import BASELINE
+        assert BASELINE["P_surface"] > 0
+
+    def test_salinity_reasonable(self):
+        from cascade_engine import BASELINE
+        assert 30 <= BASELINE["S_ocean"] <= 40
+        assert 30 <= BASELINE["S_north"] <= 40
+        assert 30 <= BASELINE["S_south"] <= 40
+
+    def test_co2_reasonable(self):
+        from cascade_engine import BASELINE
+        assert 350 <= BASELINE["CO2_ppm"] <= 500
+
+    def test_ocean_ph_reasonable(self):
+        from cascade_engine import BASELINE
+        assert 7.0 <= BASELINE["ocean_pH"] <= 8.5
+
+    def test_layer_outputs_physically_reasonable(self):
+        """Verify layer outputs don't contain negative temperatures or densities."""
+        from cascade_engine import run_all_layers, BASELINE
+        states = run_all_layers(BASELINE)
+        for layer_num, state in states.items():
+            for key, val in state.items():
+                if isinstance(val, (int, float)):
+                    # Temperature keys should be positive
+                    if "temperature" in key.lower() or key.endswith("_K"):
+                        assert val > 0, f"Layer {layer_num}: negative temperature {key}={val}"
+                    # Density keys should be non-negative
+                    if "density" in key.lower() and "energy" not in key.lower():
+                        assert val >= 0, f"Layer {layer_num}: negative density {key}={val}"
 
 
 # ─────────────────────────────────────────────
@@ -205,3 +283,31 @@ class TestAssumptionValidator:
         layer_states = run_all_layers(BASELINE)
         report = full_report(layer_states)
         assert isinstance(report, dict)
+
+    def test_every_layer_has_assumption(self):
+        """Every layer (0-6) has at least one registered assumption check."""
+        from assumption_validator.registry import REGISTRY
+        layers_covered = set()
+        for boundary in REGISTRY.values():
+            layers_covered.add(boundary.source_layer)
+        for layer_num in range(7):
+            assert layer_num in layers_covered, \
+                f"Layer {layer_num} has no registered assumption check"
+
+    def test_assumptions_have_required_fields(self):
+        """Each assumption has validity_range, description, and severity."""
+        from assumption_validator.registry import REGISTRY
+        for aid, boundary in REGISTRY.items():
+            assert boundary.green_range is not None, f"{aid}: missing green_range"
+            assert boundary.yellow_range is not None, f"{aid}: missing yellow_range"
+            assert boundary.red_threshold is not None, f"{aid}: missing red_threshold"
+            assert boundary.notes, f"{aid}: missing notes (description)"
+
+    def test_assess_from_layer_states(self):
+        from assumption_validator.registry import assess_from_layer_states
+        from cascade_engine import run_all_layers, BASELINE
+        states = run_all_layers(BASELINE)
+        results = assess_from_layer_states(states)
+        assert len(results) > 0
+        for aid, data in results.items():
+            assert "status" in data

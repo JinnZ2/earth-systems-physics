@@ -52,6 +52,7 @@ class CascadeResult:
     amplifying_loops    : list = field(default_factory=list)
     damping_signals     : list = field(default_factory=list)
     summary             : dict = field(default_factory=dict)
+    assumption_violations : list = field(default_factory=list)
 
 
 # ─────────────────────────────────────────────
@@ -268,6 +269,15 @@ def scan_thresholds(states):
 
 CASCADE_MAP = {
     # (source_layer, signal) -> [(target_layer, mechanism, amplifying)]
+
+    # ── LAYER 0 — ELECTROMAGNETICS ──────────────────────────────────
+    (0, "plasma_frequency_Hz"):       [(2, "ionospheric reflection cutoff shift", True),
+                                       (1, "magnetospheric wave coupling change", True)],
+    (0, "skin_depth_m"):              [(5, "ground-penetrating EM attenuation change", False),
+                                       (2, "ionospheric absorption depth change", True)],
+    (0, "cyclotron_frequency_Hz"):    [(1, "particle trapping resonance shift", True)],
+
+    # ── LAYERS 1-6 ──────────────────────────────────────────────────
     (3, "GHG_forcing_Wm2"):        [(4, "SST increase", True),
                                     (6, "GPP/respiration shift", True),
                                     (5, "ice melt -> LOD", True)],
@@ -328,6 +338,10 @@ KNOWN_LOOPS = [
         "name":     "Ice-Albedo",
         "layers":   [3, 4, 6],
         "trigger":  lambda s: s[4].get("ice_albedo_feedback_Wm2", 0) > 0.5,
+        "gain_function": lambda s: 1.0 + (
+            s[4].get("ice_albedo_feedback_Wm2", 0) /
+            max(abs(s[3].get("GHG_forcing_Wm2", 1.0)), 0.01)
+        ),
         "description": "ice loss -> darker surface -> more absorption -> more melt",
         "timescale": "years to decades",
     },
@@ -335,6 +349,10 @@ KNOWN_LOOPS = [
         "name":     "Permafrost-CH4",
         "layers":   [5, 6, 3],
         "trigger":  lambda s: s[6].get("permafrost_self_amplifying", False),
+        "gain_function": lambda s: 1.0 + (
+            (s[6].get("permafrost_CO2_GtC_yr", 0) + s[6].get("permafrost_CH4_GtC_yr", 0) * 28) /
+            max(s[6].get("atmospheric_CO2_accumulation", 1.0), 0.01)
+        ),
         "description": "permafrost thaw -> CH4/CO2 -> warming -> more thaw",
         "timescale": "decades to centuries",
     },
@@ -342,6 +360,7 @@ KNOWN_LOOPS = [
         "name":     "Amazon-CO2",
         "layers":   [6, 3],
         "trigger":  lambda s: s[6].get("amazon_tipping_proximity", 0) > 0.6,
+        "gain_function": lambda s: 1.0 + s[6].get("amazon_tipping_proximity", 0),
         "description": "dieback -> CO2+albedo change -> warming -> more dieback",
         "timescale": "decades",
     },
@@ -349,6 +368,7 @@ KNOWN_LOOPS = [
         "name":     "AMOC-SST",
         "layers":   [4, 3, 4],
         "trigger":  lambda s: s[4].get("AMOC_Sv", 17) < 15,
+        "gain_function": lambda s: 1.0 + max(0, (17.0 - s[4].get("AMOC_Sv", 17)) / 17.0),
         "description": "AMOC weakening -> N Atlantic cooling -> atmospheric changes -> further weakening",
         "timescale": "decades to centuries",
     },
@@ -356,6 +376,7 @@ KNOWN_LOOPS = [
         "name":     "Stratification-Productivity",
         "layers":   [4, 6, 3],
         "trigger":  lambda s: s[6].get("marine_productivity_change", 0) < -0.05,
+        "gain_function": lambda s: 1.0 + abs(min(s[6].get("marine_productivity_change", 0), 0)),
         "description": "warming -> stratification -> less uptake -> more CO2 -> more warming",
         "timescale": "decades",
     },
@@ -363,6 +384,7 @@ KNOWN_LOOPS = [
         "name":     "Rotation-Coriolis",
         "layers":   [5, 1, 3],
         "trigger":  lambda s: abs(s[5].get("LOD_change_ms", 0)) > 0.5,
+        "gain_function": lambda s: 1.0 + abs(s[5].get("LOD_change_ms", 0)) / 5.0,
         "description": "ice melt -> LOD change -> Coriolis shift -> circulation change -> field geometry",
         "timescale": "centuries",
     },
@@ -370,6 +392,7 @@ KNOWN_LOOPS = [
         "name":     "Volcanic-Deglaciation",
         "layers":   [5, 3, 4],
         "trigger":  lambda s: s[5].get("volcanic_enhancement", 1.0) > 1.2,
+        "gain_function": lambda s: s[5].get("volcanic_enhancement", 1.0),
         "description": "ice unloading -> volcanic enhancement -> SO2/CO2 -> warming -> more unloading",
         "timescale": "centuries",
     },
@@ -379,16 +402,28 @@ KNOWN_LOOPS = [
 def detect_amplifying_loops(states):
     """
     Detect which self-amplifying feedback loops are currently active.
+    Returns gain per active loop:
+      gain < 1.0: dissipative (loop is damping)
+      gain = 1.0: neutral
+      gain > 1.0: amplifying
     """
     active = []
     for loop in KNOWN_LOOPS:
         try:
             if loop["trigger"](states):
+                gain = 1.0
+                gain_fn = loop.get("gain_function")
+                if gain_fn is not None:
+                    try:
+                        gain = gain_fn(states)
+                    except Exception:
+                        gain = 1.0
                 active.append({
                     "name":        loop["name"],
                     "layers":      loop["layers"],
                     "description": loop["description"],
                     "timescale":   loop["timescale"],
+                    "gain":        gain,
                 })
         except Exception:
             continue
@@ -418,6 +453,9 @@ FORCING_PARAM_MAP = {
     "drought_index":    ["drought_index"],
     "v_sw":             ["v_sw"],
     "SST_enso":         ["SST_enso"],
+    "n_e":              ["n_e", "n_e_F2"],
+    "B_surface":        ["B_surface"],
+    "n_sw":             ["n_sw"],
 }
 
 
@@ -445,13 +483,14 @@ def apply_forcing(baseline, forcing):
 # MAIN CASCADE ENGINE
 # ─────────────────────────────────────────────
 
-def run_cascade(forcing, baseline=None, verbose=True):
+def run_cascade(forcing, baseline=None, verbose=True, audit_energy=False):
     """
     Full cascade analysis from a single forcing.
-    forcing  : Forcing dataclass instance
-    baseline : parameter dict (uses BASELINE if None)
-    verbose  : print report
-    returns  : CascadeResult
+    forcing      : Forcing dataclass instance
+    baseline     : parameter dict (uses BASELINE if None)
+    verbose      : print report
+    audit_energy : if True, run energy conservation audit after cascade
+    returns      : CascadeResult
     """
     if baseline is None:
         baseline = dict(BASELINE)
@@ -467,6 +506,23 @@ def run_cascade(forcing, baseline=None, verbose=True):
     thresholds  = scan_thresholds(perturbed_states)
     signals     = trace_cascade_signals(perturbed_states, forcing)
     loops       = detect_amplifying_loops(perturbed_states)
+
+    # Assumption validator — check for violations (lazy import to avoid circular dependency)
+    from assumption_validator.registry import full_report as validator_full_report
+    validity_report = validator_full_report(perturbed_states)
+    violations = []
+    for aid, data in validity_report.get("assumptions", {}).items():
+        status = data.get("status")
+        if status in ("YELLOW", "RED"):
+            violations.append({
+                "assumption_id": aid,
+                "name":          data.get("name", aid),
+                "status":        status,
+                "value":         data.get("value"),
+                "units":         data.get("units", ""),
+                "source_layer":  data.get("source_layer"),
+                "notes":         data.get("notes", ""),
+            })
 
     # Separate amplifying vs damping signals
     amplifying = [s for s in signals if s["amplifying"]]
@@ -496,12 +552,229 @@ def run_cascade(forcing, baseline=None, verbose=True):
         amplifying_loops    = loops,
         damping_signals     = damping,
         summary             = delta_summary,
+        assumption_violations = violations,
     )
 
     if verbose:
         _print_report(result)
 
+    if audit_energy:
+        from energy_audit import audit_energy as _audit
+        _audit(forcing, baseline, verbose=verbose)
+
     return result
+
+
+# ─────────────────────────────────────────────
+# REVERSE MAP: layer output key -> forcing variable
+# Used by iterative cascade solver
+# ─────────────────────────────────────────────
+
+def _build_output_to_forcing_map():
+    """
+    Build a reverse map from known layer output keys to forcing variable names.
+    Only maps keys that appear in FORCING_PARAM_MAP.
+    """
+    reverse = {}
+    # Direct baseline keys that are also forcing variables
+    for forcing_var, baseline_keys in FORCING_PARAM_MAP.items():
+        for bk in baseline_keys:
+            reverse[bk] = forcing_var
+    return reverse
+
+_OUTPUT_TO_FORCING = _build_output_to_forcing_map()
+
+
+# ─────────────────────────────────────────────
+# ITERATIVE CASCADE SOLVER
+# ─────────────────────────────────────────────
+
+def run_cascade_iterative(forcing, baseline=None, max_steps=20,
+                          convergence_threshold=1e-6, verbose=True):
+    """
+    Iterate cascade until:
+    - deltas converge (stable state)
+    - deltas diverge (runaway detected)
+    - max_steps reached (report non-convergence)
+
+    forcing              : Forcing dataclass instance
+    baseline             : parameter dict (uses BASELINE if None)
+    max_steps            : maximum iteration count
+    convergence_threshold: delta magnitude below which variable is considered converged
+    verbose              : print report
+    returns              : CascadeResult with iteration_history field in summary
+    """
+    if baseline is None:
+        baseline = dict(BASELINE)
+
+    baseline_states = run_all_layers(baseline)
+    current_params = apply_forcing(baseline, forcing)
+    iteration_history = []
+    converged = False
+    diverged = False
+    divergence_drivers = []
+
+    prev_max_delta = None
+
+    for step in range(max_steps):
+        perturbed_states = run_all_layers(current_params)
+
+        # Compute deltas between perturbed and baseline
+        step_deltas = {}
+        for layer in range(7):
+            bs = baseline_states.get(layer, {})
+            ps = perturbed_states.get(layer, {})
+            for key in bs:
+                bv = bs[key]
+                pv = ps.get(key)
+                if isinstance(bv, (int, float)) and isinstance(pv, (int, float)):
+                    delta = pv - bv
+                    if abs(delta) > 1e-30:
+                        step_deltas[(layer, key)] = delta
+
+        iteration_history.append(dict(step_deltas))
+
+        # Check convergence: all deltas below threshold
+        max_delta = max((abs(d) for d in step_deltas.values()), default=0)
+        significant = {k: d for k, d in step_deltas.items()
+                       if abs(d) > convergence_threshold}
+
+        if not significant:
+            converged = True
+            break
+
+        # Check divergence: max delta growing step-over-step
+        if prev_max_delta is not None and max_delta > prev_max_delta * 1.01:
+            # Find which variables are driving divergence
+            if len(iteration_history) >= 2:
+                prev_deltas = iteration_history[-2]
+                for k, d in step_deltas.items():
+                    pd = prev_deltas.get(k, 0)
+                    if abs(d) > abs(pd) * 1.01 and abs(d) > convergence_threshold:
+                        divergence_drivers.append({
+                            "layer": k[0],
+                            "variable": k[1],
+                            "delta": d,
+                            "prev_delta": pd,
+                        })
+            if divergence_drivers:
+                diverged = True
+                break
+
+        prev_max_delta = max_delta
+
+        # Generate secondary forcings from deltas that exceed threshold
+        secondary_applied = False
+        for (layer, key), delta in significant.items():
+            # Try to map this output key back to a forcing variable
+            forcing_var = _OUTPUT_TO_FORCING.get(key)
+            if forcing_var is None:
+                continue
+            # Apply as secondary perturbation (fraction of delta)
+            param_keys = FORCING_PARAM_MAP.get(forcing_var, [forcing_var])
+            for pk in param_keys:
+                if pk in current_params:
+                    current_params[pk] = current_params[pk] + delta * 0.1
+                    secondary_applied = True
+
+        if not secondary_applied:
+            # No mappable deltas found — converged by exhaustion
+            converged = True
+            break
+
+    # Final analysis on last state
+    final_states = run_all_layers(current_params)
+    thresholds = scan_thresholds(final_states)
+    signals = trace_cascade_signals(final_states, forcing)
+    loops = detect_amplifying_loops(final_states)
+
+    from assumption_validator.registry import full_report as validator_full_report
+    validity_report = validator_full_report(final_states)
+    violations = []
+    for aid, data in validity_report.get("assumptions", {}).items():
+        status = data.get("status")
+        if status in ("YELLOW", "RED"):
+            violations.append({
+                "assumption_id": aid,
+                "name":          data.get("name", aid),
+                "status":        status,
+                "value":         data.get("value"),
+                "units":         data.get("units", ""),
+                "source_layer":  data.get("source_layer"),
+                "notes":         data.get("notes", ""),
+            })
+
+    amplifying = [s for s in signals if s["amplifying"]]
+    damping = [s for s in signals if not s["amplifying"]]
+
+    # Delta summary for final state
+    delta_summary = {}
+    for layer in range(7):
+        bs = baseline_states.get(layer, {})
+        ps = final_states.get(layer, {})
+        deltas = {}
+        for key in bs:
+            bv = bs[key]
+            pv = ps.get(key)
+            if isinstance(bv, (int, float)) and isinstance(pv, (int, float)):
+                d = pv - bv
+                if abs(d) > 1e-30:
+                    deltas[key] = {"baseline": bv, "perturbed": pv, "delta": d}
+        if deltas:
+            delta_summary[layer] = deltas
+
+    # Build iteration metadata
+    n_steps = len(iteration_history)
+    if converged:
+        status_str = f"CONVERGED in {n_steps} steps"
+    elif diverged:
+        status_str = f"DIVERGED at step {n_steps}"
+    else:
+        status_str = f"NON-CONVERGENT after {max_steps} steps"
+
+    delta_summary["_iteration"] = {
+        "steps": n_steps,
+        "converged": converged,
+        "diverged": diverged,
+        "status": status_str,
+        "divergence_drivers": divergence_drivers,
+        "iteration_history": iteration_history,
+    }
+
+    result = CascadeResult(
+        forcing=forcing,
+        layer_states=final_states,
+        cascade_signals=signals,
+        threshold_crossings=thresholds,
+        amplifying_loops=loops,
+        damping_signals=damping,
+        summary=delta_summary,
+        assumption_violations=violations,
+    )
+
+    if verbose:
+        _print_iterative_report(result)
+
+    return result
+
+
+def _print_iterative_report(result):
+    """Print report for iterative cascade, then delegate to standard report."""
+    meta = result.summary.get("_iteration", {})
+    print("=" * 64)
+    print("ITERATIVE CASCADE ANALYSIS")
+    print("=" * 64)
+    print(f"  Status     : {meta.get('status', 'unknown')}")
+    print(f"  Iterations : {meta.get('steps', 0)}")
+
+    if meta.get("diverged") and meta.get("divergence_drivers"):
+        print("  DIVERGENCE DRIVERS:")
+        for d in meta["divergence_drivers"]:
+            print(f"    L{d['layer']} {d['variable']}  "
+                  f"delta={d['delta']:+.4g}  prev={d['prev_delta']:+.4g}")
+    print()
+
+    _print_report(result)
 
 
 # ─────────────────────────────────────────────
@@ -549,7 +822,14 @@ def _print_report(result):
             layers_str = " -> ".join(
                 f"L{l}({LAYER_NAMES[l]})" for l in loop["layers"]
             )
-            print(f"  [{loop['name']}]  {loop['timescale']}")
+            gain = loop.get("gain", 1.0)
+            if gain > 1.0:
+                gain_label = f"AMPLIFYING (gain={gain:.3f})"
+            elif gain < 1.0:
+                gain_label = f"dissipative (gain={gain:.3f})"
+            else:
+                gain_label = f"neutral (gain={gain:.3f})"
+            print(f"  [{loop['name']}]  {loop['timescale']}  {gain_label}")
             print(f"    {loop['description']}")
             print(f"    Path: {layers_str}")
     else:
@@ -567,9 +847,25 @@ def _print_report(result):
             print(f"    via: {s['mechanism']}")
     print()
 
+    if r.assumption_violations:
+        print("─" * 64)
+        print("ASSUMPTION VIOLATIONS")
+        for v in r.assumption_violations:
+            sev = v["status"]
+            marker = "!!" if sev == "RED" else " !"
+            print(f"  {marker} [{sev}] L{v['source_layer']} {v['name']}")
+            print(f"       value={v['value']}  {v['units']}")
+            if v["notes"]:
+                print(f"       {v['notes']}")
+    else:
+        print("  No assumption violations")
+    print()
+
     print("─" * 64)
     print("LAYER DELTA SUMMARY  (significant changes only)")
     for layer, deltas in r.summary.items():
+        if not isinstance(layer, int):
+            continue  # skip metadata keys like _iteration
         print(f"  Layer {layer} — {LAYER_NAMES[layer]}")
         for key, vals in list(deltas.items())[:5]:  # top 5 per layer
             print(f"    {key:40s}  "
@@ -616,13 +912,29 @@ SCENARIOS = {
         layer=5, variable="delta_omega", magnitude=-1.4e-14,
         description="LOD increase 1ms from ice melt redistribution", units="rad/s"
     ),
+    "solar_proton_event": Forcing(
+        layer=0, variable="n_e", magnitude=1e13,
+        description="Solar proton event — ionospheric electron density surge", units="m^-3"
+    ),
+    "co2_pulse_iterative": Forcing(
+        layer=3, variable="CO2_ppm", magnitude=100.0,
+        description="100 ppm CO2 pulse — iterative cascade", units="ppm"
+    ),
 }
 
 
 if __name__ == "__main__":
-    # Run all scenarios
+    # Run all standard scenarios
     for name, scenario in SCENARIOS.items():
+        if name == "co2_pulse_iterative":
+            continue  # run separately below
         print(f"\n{'#'*64}")
         print(f"# SCENARIO: {name}")
         print(f"{'#'*64}")
         run_cascade(scenario)
+
+    # Run iterative cascade scenario
+    print(f"\n{'#'*64}")
+    print(f"# SCENARIO: co2_pulse_iterative (ITERATIVE)")
+    print(f"{'#'*64}")
+    run_cascade_iterative(SCENARIOS["co2_pulse_iterative"])
