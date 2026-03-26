@@ -176,20 +176,26 @@ def lorentz_force(q, E_field, v, B_field):
 # Outputs consumed by Layer 1 (Magnetosphere) and Layer 2 (Ionosphere)
 # ─────────────────────────────────────────────
 
-def coupling_state(n_e, B_surface, E_surface, frequency_range):
+def coupling_state(n_e, B_surface, E_surface, frequency_range,
+                   magnonic_material=None):
     """
     State vector exported to adjacent layers.
-    n_e             : electron density at interface (m^-3)
-    B_surface       : magnetic field at Earth surface (T)
-    E_surface       : electric field at Earth surface (V/m)
-    frequency_range : tuple (f_min, f_max) Hz — active EM band
+    n_e               : electron density at interface (m^-3)
+    B_surface         : magnetic field at Earth surface (T)
+    E_surface         : electric field at Earth surface (V/m)
+    frequency_range   : tuple (f_min, f_max) Hz — active EM band
+    magnonic_material : optional material name from magnonic_sublayer.MATERIALS
+                        (e.g., "Magnetite", "Quartz_Fe_defect")
+                        If provided, magnonic sublayer state is included.
     returns: dict of coupling parameters
     """
+    from magnonic_sublayer import magnonic_coupling_state, MATERIALS
+
     f_plasma = plasma_frequency(n_e)
     delta = skin_depth(frequency_range[0], 1e-4)  # upper atmosphere conductivity ~1e-4 S/m
     f_cyclotron = cyclotron_frequency(e, B_surface, m_e)
 
-    return {
+    state = {
         "plasma_frequency_hz":       f_plasma,
         "plasma_frequency_Hz":       f_plasma,
         "skin_depth_m":              delta,
@@ -201,3 +207,39 @@ def coupling_state(n_e, B_surface, E_surface, frequency_range):
         "transmission_threshold_hz": f_plasma,  # EM above this passes through
         "constraint": gauss_magnetic(),
     }
+
+    # Magnonic sublayer — spin wave physics in magnetic media
+    if magnonic_material is not None and magnonic_material in MATERIALS:
+        mat = MATERIALS[magnonic_material]
+        mag_state = magnonic_coupling_state(
+            H0=B_surface / (4 * np.pi * 1e-7),  # convert B to H (free space)
+            M_s=mat["M_s"],
+            A_ex=mat["A_ex"],
+            alpha=mat["alpha"],
+            T=300.0,
+            conductivity=mat["conductivity"],
+            c_sound=mat["c_sound"],
+            n_e=n_e,
+        )
+        # Prefix magnonic keys to avoid collisions
+        for mk, mv in mag_state.items():
+            state[f"magnonic_{mk}"] = mv
+    else:
+        # Always run with Magnetite defaults for natural crustal coupling
+        mag_state = magnonic_coupling_state(
+            H0=B_surface / (4 * np.pi * 1e-7),
+            M_s=4.8e5,       # Magnetite
+            A_ex=1.2e-11,
+            alpha=0.05,
+            T=300.0,
+            conductivity=2e4,
+            c_sound=5500.0,
+            n_e=n_e,
+        )
+        state["magnonic_energy_density_J"] = mag_state["magnon_energy_density_J"]
+        state["magnonic_prop_length_m"] = mag_state["magnon_prop_length_exchange_m"]
+        state["magnonic_phonon_regime"] = mag_state["magnon_phonon_regime"]
+        state["magnonic_band_bottom_Hz"] = mag_state["magnon_band_bottom_Hz"]
+        state["magnonic_damping_total"] = mag_state["alpha_total"]
+
+    return state
