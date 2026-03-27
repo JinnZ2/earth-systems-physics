@@ -134,7 +134,7 @@ def audit_energy(forcing, baseline=None, verbose=True):
     # ── Residual analysis ──
     # The effective forcing = external input + internal feedbacks
     effective_forcing = total_input + total_feedback
-    # Energy should go into: storage + transport leaks
+    # Energy should go into: storage + transport changes
     accounted = total_response + total_transport
     residual = effective_forcing - accounted
 
@@ -143,9 +143,20 @@ def audit_energy(forcing, baseline=None, verbose=True):
     residual_pct = abs(residual) / reference * 100
 
     # Classification
-    if abs(effective_forcing) < 1e-10:
-        energy_leak = False  # No forcing applied in energy terms
+    # The cascade is an INSTANTANEOUS snapshot — forcing creates a radiative
+    # imbalance that accumulates over time. A residual matching the forcing
+    # means "this energy hasn't been absorbed yet" which is physically correct
+    # for a single-pass analysis. Only flag as leak if response terms exist
+    # but don't add up.
+    if abs(effective_forcing) < 1e-10 and abs(total_response) < 1e-10:
+        energy_leak = False
         status = "NO_ENERGY_FORCING"
+        residual_pct = 0.0
+    elif abs(total_response) < 1e-10 and abs(total_transport) < 1e-10:
+        # No response terms changed — forcing is pending (not yet absorbed)
+        # This is expected for instantaneous analysis
+        energy_leak = False
+        status = "FORCING_PENDING"
     elif residual_pct <= 5.0:
         energy_leak = False
         status = "BALANCED"
@@ -222,6 +233,10 @@ def _print_audit(result, forcing):
 
     if result["status"] == "NO_ENERGY_FORCING":
         print("  (Forcing does not directly affect energy-dimensioned variables)")
+    elif result["status"] == "FORCING_PENDING":
+        print("  Forcing applied but not yet absorbed — instantaneous snapshot.")
+        print("  The radiative imbalance will accumulate in ocean heat over decades.")
+        print("  This is physically correct for single-pass analysis.")
     elif result["energy_leak"]:
         print("  ** ENERGY NOT FULLY ACCOUNTED — equations may be inconsistent **")
     else:

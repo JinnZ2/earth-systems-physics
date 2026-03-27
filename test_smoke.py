@@ -121,6 +121,55 @@ class TestLayer4CouplingState:
                                 ice_fraction=0.85)
         assert result["AMOC_heat_transport_W"] > 0
 
+    def test_bottom_water_formation_present(self):
+        from layer_4_hydrosphere import coupling_state
+        result = coupling_state(T_ocean_C=15.0, S_ocean=35.0,
+                                T_north_C=8.0, S_north=35.0,
+                                T_south_C=26.0, S_south=36.0,
+                                ice_fraction=0.85)
+        assert "NADW_formation_Sv" in result
+        assert "AABW_formation_Sv" in result
+        assert "total_bottom_water_Sv" in result
+        assert "deep_convection_active" in result
+        assert "deep_water_ventilation_yr" in result
+
+    def test_bottom_water_positive(self):
+        """Bottom water formation should be positive under baseline conditions."""
+        from layer_4_hydrosphere import coupling_state
+        result = coupling_state(T_ocean_C=15.0, S_ocean=35.0,
+                                T_north_C=8.0, S_north=35.0,
+                                T_south_C=26.0, S_south=36.0,
+                                ice_fraction=0.85)
+        assert result["total_bottom_water_Sv"] > 0
+
+    def test_meltwater_reduces_formation(self):
+        """Freshwater input should reduce bottom water formation."""
+        from layer_4_hydrosphere import bottom_water_formation_rate
+        baseline = bottom_water_formation_rate(T_north_C=2.0, S_north=35.0,
+                                               delta_S_melt=0.0)
+        freshened = bottom_water_formation_rate(T_north_C=2.0, S_north=35.0,
+                                                delta_S_melt=0.3)
+        assert freshened["NADW_formation_Sv"] < baseline["NADW_formation_Sv"]
+
+    def test_brine_rejection_positive(self):
+        """Brine rejection should increase density."""
+        from layer_4_hydrosphere import brine_rejection_flux
+        result = brine_rejection_flux(ice_formation_rate_m_yr=0.5)
+        assert result["delta_rho_haline_kgm3"] > 0
+        assert result["salt_flux_kg_m2_yr"] > 0
+
+    def test_ventilation_age_finite(self):
+        """Ventilation age should be finite and positive."""
+        from layer_4_hydrosphere import deep_water_ventilation_age
+        age = deep_water_ventilation_age(formation_rate_Sv=20.0)
+        assert 0 < age < 10000  # typical 500-2000 years
+
+    def test_ventilation_age_infinite_at_zero(self):
+        """Zero formation rate -> infinite ventilation age."""
+        from layer_4_hydrosphere import deep_water_ventilation_age
+        age = deep_water_ventilation_age(formation_rate_Sv=0.0)
+        assert age == np.inf
+
 
 class TestLayer5CouplingState:
     def test_returns_dict(self):
@@ -534,3 +583,144 @@ class TestMagnomechanicalSublayer:
         r5 = run_cascade(f5, verbose=False)
         has_l0 = any(s["target_layer"] == 0 for s in r5.cascade_signals)
         assert has_l0, "L5 forcing did not produce L0 cascade signal"
+
+
+# ─────────────────────────────────────────────
+# ELECTROSTATIC TRANSDUCER
+# ─────────────────────────────────────────────
+
+class TestElectrostaticTransducer:
+    def test_import(self):
+        import electrostatic_transducer
+
+    def test_piezo_voltage_from_strain(self):
+        from electrostatic_transducer import piezo_voltage_from_strain
+        result = piezo_voltage_from_strain(strain=1e-6, thickness_m=0.1e-3)
+        assert result["V_static_V"] > 0
+        assert result["V_resonant_V"] > result["V_static_V"]  # Q amplification
+
+    def test_piezo_voltage_from_magnon(self):
+        from electrostatic_transducer import piezo_voltage_from_magnon
+        result = piezo_voltage_from_magnon(delta_B_T=500e-9)
+        assert result["V_piezo_V"] > 0
+        assert result["delta_f_magnon_Hz"] > 0
+
+    def test_parallel_plate_force_scales_with_v_squared(self):
+        from electrostatic_transducer import parallel_plate_force
+        f1 = parallel_plate_force(V=1.0, gap_m=1e-6, area_m2=1e-8)
+        f2 = parallel_plate_force(V=2.0, gap_m=1e-6, area_m2=1e-8)
+        assert abs(f2["force_N"] / f1["force_N"] - 4.0) < 0.01  # V^2 scaling
+
+    def test_comb_drive_force(self):
+        from electrostatic_transducer import comb_drive_force
+        result = comb_drive_force(V=10.0, n_fingers=100, finger_length_m=100e-6,
+                                  gap_m=2e-6, thickness_m=20e-6)
+        assert result["force_N"] > 0
+        assert result["capacitance_F"] > 0
+
+    def test_electrostatic_rotor(self):
+        from electrostatic_transducer import electrostatic_rotor
+        result = electrostatic_rotor(V=10.0, n_poles=50, rotor_radius_m=50e-6,
+                                     gap_m=2e-6, rotor_thickness_m=10e-6,
+                                     rotor_length_m=20e-6)
+        assert result["torque_Nm"] > 0
+        assert result["rpm_steady"] > 0
+
+    def test_motor_configs_run(self):
+        from electrostatic_transducer import (config_mems_micro,
+            config_mems_milli, config_macro_disk)
+        for fn in [config_mems_micro, config_mems_milli, config_macro_disk]:
+            result = fn(V_drive=1.0)
+            assert result["torque_Nm"] > 0
+
+    def test_full_chain_no_magnets(self):
+        """Full chain should use zero magnets, copper, or rare earths."""
+        from electrostatic_transducer import full_transduction_chain
+        chain = full_transduction_chain(delta_B_T=500e-9)
+        assert chain["materials"]["magnets"] == "NONE"
+        assert chain["materials"]["copper"] == "NONE (no windings)"
+        assert chain["materials"]["rare_earth"] == "NONE"
+
+    def test_full_chain_produces_torque(self):
+        from electrostatic_transducer import full_transduction_chain
+        chain = full_transduction_chain(delta_B_T=500e-9)
+        assert chain["stage_4_motor"]["torque_Nm"] > 0
+        assert chain["stage_3_piezo"]["V_piezo_V"] > 0
+
+    def test_stronger_signal_more_torque(self):
+        from electrostatic_transducer import full_transduction_chain
+        weak = full_transduction_chain(delta_B_T=50e-9)
+        strong = full_transduction_chain(delta_B_T=500e-9)
+        assert strong["stage_4_motor"]["torque_Nm"] > weak["stage_4_motor"]["torque_Nm"]
+
+    def test_coupling_state_export(self):
+        from electrostatic_transducer import coupling_state
+        state = coupling_state(delta_B_T=500e-9)
+        assert "V_piezo_V" in state
+        assert "torque_Nm" in state
+        assert "P_mechanical_W" in state
+        assert "B_sensitivity_T" in state
+
+
+# ─────────────────────────────────────────────
+# DEVICE SCALING
+# ─────────────────────────────────────────────
+
+class TestDeviceScaling:
+    def test_import(self):
+        import device_scaling
+
+    def test_applications_defined(self):
+        from device_scaling import APPLICATIONS
+        assert len(APPLICATIONS) >= 10
+
+    def test_motor_requirements_scales(self):
+        """More torque should need bigger rotor."""
+        from device_scaling import electrostatic_motor_requirements
+        small = electrostatic_motor_requirements(1e-9, 100)
+        big = electrostatic_motor_requirements(1e-3, 100)
+        assert big["air_gap"]["rotor_radius_m"] > small["air_gap"]["rotor_radius_m"]
+
+    def test_piezo_harvester_quartz_no_magnets(self):
+        from device_scaling import piezo_harvester_requirements
+        result = piezo_harvester_requirements(10e-6)
+        qfe = result["materials"]["quartz_Fe_defect"]
+        assert qfe["magnets_needed"] is False
+        assert qfe["volume_cm3"] > 0
+
+    def test_magnet_budget_all_apps(self):
+        from device_scaling import full_device_survey
+        survey = full_device_survey()
+        for app_key, result in survey.items():
+            assert "approaches" in result
+            assert len(result["approaches"]) >= 2
+
+    def test_zero_magnet_feasible_for_sensors(self):
+        from device_scaling import magnet_budget
+        result = magnet_budget("magnetometer_sensor")
+        approaches = result["approaches"]
+        has_zero_mag = any(
+            a.get("magnet_g", 1) == 0 and a.get("feasible", False)
+            for a in approaches.values()
+        )
+        assert has_zero_mag, "Sensors should be feasible without magnets"
+
+    def test_junkyard_sources_exist(self):
+        from device_scaling import JUNKYARD_SOURCES
+        assert len(JUNKYARD_SOURCES) >= 8
+        assert "smoky_quartz" in JUNKYARD_SOURCES
+        assert "dead_hdd" in JUNKYARD_SOURCES
+
+    def test_junkyard_build_magnetometer(self):
+        from device_scaling import junkyard_build
+        result = junkyard_build("magnetometer_sensor")
+        assert "builds" in result
+        assert "tier_0_junkyard" in result["builds"]
+        assert result["builds"]["tier_0_junkyard"]["cost_usd"] <= 5
+
+    def test_junkyard_build_all_apps(self):
+        from device_scaling import junkyard_survey
+        survey = junkyard_survey()
+        assert len(survey) >= 10
+        for app_key, result in survey.items():
+            assert "builds" in result

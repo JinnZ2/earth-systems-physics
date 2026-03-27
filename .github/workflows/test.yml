@@ -44,6 +44,7 @@ jobs:
             'earth_magnomechanical', 'cavity_optomagnonics',
             'banded_crystal_computer', 'cold_climate_crystal',
             'crystal_device_gradient',
+            'electrostatic_transducer', 'device_scaling',
         ]
         failed = []
         for m in modules:

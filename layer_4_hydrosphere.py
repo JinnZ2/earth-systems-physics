@@ -140,6 +140,178 @@ def thermohaline_heat_transport(overturning_Sv, delta_T):
 
 
 # ─────────────────────────────────────────────
+# BOTTOM WATER FORMATION
+# Dense water production at high latitudes — the engine
+# that drives the thermohaline circulation.
+# Two sources: NADW (North Atlantic) and AABW (Antarctic).
+# ─────────────────────────────────────────────
+
+def brine_rejection_flux(ice_formation_rate_m_yr, S_ocean=35.0, ice_S=5.0):
+    """
+    Salt flux from sea ice formation.
+    When seawater freezes, most salt is expelled into the underlying water.
+    This densifies the surface layer, driving deep convection.
+    ice_formation_rate_m_yr : ice thickness formed per year (m/yr)
+    S_ocean                 : ocean salinity (PSU)
+    ice_S                   : salinity of new ice (PSU) — typically 4-7
+    returns: dict with salt flux, density flux, equivalent freshwater
+    """
+    # Salt rejected per m^2 per year
+    # Mass of ice formed: rho_ice * rate (kg/m^2/yr)
+    ice_mass_rate = rho_ice * ice_formation_rate_m_yr  # kg/m^2/yr
+    # Salt rejected = ice_mass * (S_ocean - S_ice) / 1000 (PSU to fraction)
+    salt_rejected_rate = ice_mass_rate * (S_ocean - ice_S) / 1000  # kg_salt/m^2/yr
+
+    # Density increase in surface layer from brine rejection
+    # Assume mixing into 50m surface layer
+    mixed_layer = 50.0  # m
+    delta_S = (S_ocean - ice_S) * ice_formation_rate_m_yr * rho_ice / (rho_seawater * mixed_layer)
+    delta_rho_haline = beta_haline * rho_seawater * delta_S
+
+    # Density decrease from cooling (ice forms at ~-1.8C)
+    # Cooling from surface temp to freezing point handled elsewhere
+    # Here we just track the haline component
+
+    return {
+        "salt_flux_kg_m2_yr": salt_rejected_rate,
+        "delta_S_PSU": delta_S,
+        "delta_rho_haline_kgm3": delta_rho_haline,
+        "mixed_layer_m": mixed_layer,
+    }
+
+
+def deep_convection_criterion(rho_surface, rho_deep, T_surface_C, S_surface):
+    """
+    Determine whether deep convection is active.
+    Convection occurs when surface water is denser than deep water.
+    This is the ON/OFF switch for bottom water formation.
+    rho_surface : surface water density (kg/m^3)
+    rho_deep    : deep water density (kg/m^3) — typically ~1027.8
+    T_surface_C : surface temperature (C)
+    S_surface   : surface salinity (PSU)
+    returns: dict with convection state and stability metrics
+    """
+    # Density difference (positive = surface lighter = stable)
+    delta_rho = rho_deep - rho_surface
+    stable = delta_rho > 0
+
+    # Brunt-Vaisala frequency (stability measure)
+    # N^2 = -(g/rho_0) * drho/dz
+    # For the surface-to-deep gradient over ~4000m depth:
+    depth = 4000.0  # m
+    N_sq = (g_earth / rho_seawater) * delta_rho / depth
+    N = np.sqrt(max(N_sq, 0))
+
+    # Freezing point of seawater at this salinity
+    T_freeze = -0.054 * S_surface  # approximate
+
+    # How close to convective threshold?
+    # Proximity: 0 = neutrally stable, 1 = very stable
+    # Negative = convecting
+    rho_margin = delta_rho / rho_seawater
+    proximity = rho_margin / 0.003 if rho_margin > 0 else -1.0  # 0.003 is typical margin
+
+    return {
+        "convecting": not stable,
+        "delta_rho_kgm3": delta_rho,
+        "brunt_vaisala_rad_s": N,
+        "stability_margin": rho_margin,
+        "proximity_to_convection": max(0, 1.0 - proximity),
+        "T_freeze_C": T_freeze,
+        "surface_at_freezing": T_surface_C <= T_freeze + 0.1,
+    }
+
+
+def bottom_water_formation_rate(T_north_C, S_north, delta_S_melt=0.0,
+                                 ice_formation_rate_m_yr=0.5,
+                                 T_deep_C=1.5, S_deep=34.9):
+    """
+    Rate of deep/bottom water formation from surface cooling and brine rejection.
+    Combines thermal and haline forcing to determine production rate.
+
+    T_north_C              : surface temperature at formation site (C)
+    S_north                : surface salinity (PSU)
+    delta_S_melt           : salinity reduction from meltwater (PSU, negative for formation)
+    ice_formation_rate_m_yr: annual sea ice production (m/yr)
+    T_deep_C               : deep water temperature (C) — typically 1-2C
+    S_deep                 : deep water salinity (PSU) — typically 34.9
+
+    returns: dict with NADW/AABW formation rate, convection state, sensitivity
+    """
+    # Effective surface salinity after meltwater
+    S_eff = S_north - delta_S_melt
+
+    # Surface density (cold, salty = dense)
+    rho_surface = seawater_density(T_north_C, S_eff)
+
+    # Deep water density
+    rho_deep = seawater_density(T_deep_C, S_deep)
+
+    # Brine rejection contribution
+    brine = brine_rejection_flux(ice_formation_rate_m_yr, S_eff)
+    rho_surface_with_brine = rho_surface + brine["delta_rho_haline_kgm3"]
+
+    # Convection criterion
+    convection = deep_convection_criterion(rho_surface_with_brine, rho_deep,
+                                            T_north_C, S_eff)
+
+    # Formation rate estimate
+    # Stommel (1961): overturning ~ k * delta_rho
+    # k ~ 2e7 m^3/s per (kg/m^3) — empirical scaling for NADW
+    k_stommel = 2e7  # m^3/s per (kg/m^3)
+    delta_rho = rho_surface_with_brine - rho_deep
+
+    if delta_rho > 0:
+        # Surface denser than deep -> active formation
+        formation_Sv = k_stommel * delta_rho / 1e6  # convert to Sv
+    else:
+        # Stable stratification -> no formation (or residual from wind-driven)
+        formation_Sv = max(0.5, k_stommel * delta_rho / 1e6)  # minimum wind-driven
+
+    # Meltwater shutdown sensitivity
+    # How much more meltwater to shut down formation?
+    # delta_S needed to make rho_surface = rho_deep
+    delta_S_shutdown = delta_rho / (beta_haline * rho_seawater) if delta_rho > 0 else 0
+
+    # AABW contribution (Antarctic)
+    # AABW forms at ~-1.8C, S~34.7, driven mainly by brine rejection
+    # Approximately 8-10 Sv in preindustrial, declining
+    aabw_fraction = max(0, min(1.0, ice_formation_rate_m_yr / 1.0))  # scales with ice production
+    aabw_Sv = 8.0 * aabw_fraction
+
+    total_Sv = formation_Sv + aabw_Sv
+
+    return {
+        "NADW_formation_Sv": formation_Sv,
+        "AABW_formation_Sv": aabw_Sv,
+        "total_bottom_water_Sv": total_Sv,
+        "convection_active": convection["convecting"],
+        "rho_surface_kgm3": rho_surface_with_brine,
+        "rho_deep_kgm3": rho_deep,
+        "density_excess_kgm3": max(delta_rho, 0),
+        "brine_contribution_kgm3": brine["delta_rho_haline_kgm3"],
+        "meltwater_to_shutdown_PSU": delta_S_shutdown,
+        "stability": convection,
+        "brine": brine,
+    }
+
+
+def deep_water_ventilation_age(formation_rate_Sv, ocean_volume_m3=1.335e18):
+    """
+    Mean age of deep water — time since it was last at the surface.
+    Controls how quickly atmospheric changes propagate to deep ocean.
+    formation_rate_Sv : total bottom water formation rate (Sv)
+    ocean_volume_m3   : total ocean volume below thermocline
+    returns: ventilation timescale (years)
+    """
+    if formation_rate_Sv <= 0:
+        return np.inf
+    flow_m3_s = formation_rate_Sv * 1e6
+    seconds = ocean_volume_m3 / flow_m3_s
+    return seconds / (365.25 * 86400)
+
+
+# ─────────────────────────────────────────────
 # OCEAN HEAT CONTENT
 # ─────────────────────────────────────────────
 
@@ -399,11 +571,24 @@ def coupling_state(T_ocean_C, S_ocean, T_north_C, S_north,
     AMO             = atlantic_multidecadal_oscillation("warm", AMOC_Sv)
     inertia_yrs     = ocean_thermal_inertia()
 
+    # Bottom water formation — the engine driving thermohaline circulation
+    # Ice formation rate scales inversely with ice fraction loss
+    ice_formation_rate = max(0, ice_fraction * 0.8)  # m/yr, scales with ice extent
+    bw = bottom_water_formation_rate(
+        T_north_C, S_north, delta_S_melt,
+        ice_formation_rate_m_yr=ice_formation_rate,
+    )
+    ventilation_yrs = deep_water_ventilation_age(bw["total_bottom_water_Sv"])
+
+    # AMOC computed from bottom water formation (overrides input when formation active)
+    AMOC_computed_Sv = bw["NADW_formation_Sv"] + bw["AABW_formation_Sv"] * 0.3  # AABW contributes ~30% to AMOC
+
     return {
         "ocean_density_kgm3":            density,
         "AMOC_density_gradient":         AMOC_gradient,
         "AMOC_collapse_risk":            AMOC_risk["collapse_risk"],
         "AMOC_heat_transport_W":         heat_transport,
+        "AMOC_Sv":                       AMOC_computed_Sv,
         "ocean_heat_content_Jm2":        OHC,
         "thermal_SLR_m":                 SLR_thermal,
         "ice_albedo_feedback_Wm2":       ice_feedback,
@@ -411,11 +596,20 @@ def coupling_state(T_ocean_C, S_ocean, T_north_C, S_north,
         "ENSO_state":                    enso,
         "AMO_state":                     AMO,
         "committed_warming_timescale_yr":inertia_yrs,
+        # Bottom water formation
+        "NADW_formation_Sv":             bw["NADW_formation_Sv"],
+        "AABW_formation_Sv":             bw["AABW_formation_Sv"],
+        "total_bottom_water_Sv":         bw["total_bottom_water_Sv"],
+        "deep_convection_active":        bw["convection_active"],
+        "brine_density_flux_kgm3":       bw["brine_contribution_kgm3"],
+        "meltwater_to_shutdown_PSU":     bw["meltwater_to_shutdown_PSU"],
+        "deep_water_ventilation_yr":     ventilation_yrs,
+        # Cascade metadata
         "cascade_to_atmosphere":         "SST, evaporation, ENSO, AMO, ITCZ",
         "cascade_to_lithosphere":        "sea level loading, isostasy, pore pressure",
         "cascade_to_biosphere":          "temperature, acidification, stratification",
         "cascade_from_atmosphere":       "wind stress, heat flux, freshwater",
         "cascade_from_cryosphere":       "meltwater, albedo, freshwater pulse",
-        "hard_threshold": "AMOC collapse — irreversible, nonlinear, poorly constrained",
+        "hard_threshold": "AMOC collapse — irreversible; bottom water formation shutdown",
         "note": "ocean thermal inertia means current forcing is not yet fully expressed"
     }

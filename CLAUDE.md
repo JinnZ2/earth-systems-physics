@@ -12,7 +12,7 @@ Coupled differential equation framework mapping Earth physics as constraint laye
 pip install -r requirements.txt
 python cascade_engine.py              # Run all forcing scenarios
 python assumption_validator/api.py    # Start REST API on port 5000
-pytest -v                             # Run test suite (67 tests)
+pytest -v                             # Run test suite (93 tests)
 ```
 
 ## Architecture
@@ -57,7 +57,7 @@ earth-systems-physics/
 │
 ├── cascade_engine.py                  # Core forcing propagation engine
 ├── energy_audit.py                    # Cross-layer energy conservation audit
-├── test_smoke.py                      # 67 tests — all layers, scenarios, validators
+├── test_smoke.py                      # 93 tests — all layers, scenarios, validators
 │
 ├── layer_0_electromagnetics.py        # Base constraint layer (+ magnonic/magnomech)
 ├── layer_0b_magnomechanical.py        # Spin-phonon coupling in crustal minerals
@@ -78,6 +78,9 @@ earth-systems-physics/
 ├── banded_crystal_computer.py         # Phonon band structure in layered magnonic crystals
 ├── cold_climate_crystal.py            # Temperature-dependent sensitivity analysis
 ├── crystal_device_gradient.py         # Frequency-shift magnetometer design
+│
+├── electrostatic_transducer.py        # Piezo voltage → electrostatic MEMS motor
+├── device_scaling.py                  # Min resources for 11 applications + junkyard builds
 │
 └── assumption_validator/
     ├── __init__.py                    # Package exports (v0.1.0)
@@ -127,7 +130,7 @@ All physics functions require docstrings with: description, parameters (with typ
 
 ## Testing
 
-Framework: **pytest** — 67 tests covering all layers, scenarios, validators, and magnomechanical integration.
+Framework: **pytest** — 93 tests covering all layers, scenarios, validators, and magnomechanical integration.
 
 ```bash
 pytest                    # Run all tests
