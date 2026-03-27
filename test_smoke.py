@@ -583,3 +583,80 @@ class TestMagnomechanicalSublayer:
         r5 = run_cascade(f5, verbose=False)
         has_l0 = any(s["target_layer"] == 0 for s in r5.cascade_signals)
         assert has_l0, "L5 forcing did not produce L0 cascade signal"
+
+
+# ─────────────────────────────────────────────
+# ELECTROSTATIC TRANSDUCER
+# ─────────────────────────────────────────────
+
+class TestElectrostaticTransducer:
+    def test_import(self):
+        import electrostatic_transducer
+
+    def test_piezo_voltage_from_strain(self):
+        from electrostatic_transducer import piezo_voltage_from_strain
+        result = piezo_voltage_from_strain(strain=1e-6, thickness_m=0.1e-3)
+        assert result["V_static_V"] > 0
+        assert result["V_resonant_V"] > result["V_static_V"]  # Q amplification
+
+    def test_piezo_voltage_from_magnon(self):
+        from electrostatic_transducer import piezo_voltage_from_magnon
+        result = piezo_voltage_from_magnon(delta_B_T=500e-9)
+        assert result["V_piezo_V"] > 0
+        assert result["delta_f_magnon_Hz"] > 0
+
+    def test_parallel_plate_force_scales_with_v_squared(self):
+        from electrostatic_transducer import parallel_plate_force
+        f1 = parallel_plate_force(V=1.0, gap_m=1e-6, area_m2=1e-8)
+        f2 = parallel_plate_force(V=2.0, gap_m=1e-6, area_m2=1e-8)
+        assert abs(f2["force_N"] / f1["force_N"] - 4.0) < 0.01  # V^2 scaling
+
+    def test_comb_drive_force(self):
+        from electrostatic_transducer import comb_drive_force
+        result = comb_drive_force(V=10.0, n_fingers=100, finger_length_m=100e-6,
+                                  gap_m=2e-6, thickness_m=20e-6)
+        assert result["force_N"] > 0
+        assert result["capacitance_F"] > 0
+
+    def test_electrostatic_rotor(self):
+        from electrostatic_transducer import electrostatic_rotor
+        result = electrostatic_rotor(V=10.0, n_poles=50, rotor_radius_m=50e-6,
+                                     gap_m=2e-6, rotor_thickness_m=10e-6,
+                                     rotor_length_m=20e-6)
+        assert result["torque_Nm"] > 0
+        assert result["rpm_steady"] > 0
+
+    def test_motor_configs_run(self):
+        from electrostatic_transducer import (config_mems_micro,
+            config_mems_milli, config_macro_disk)
+        for fn in [config_mems_micro, config_mems_milli, config_macro_disk]:
+            result = fn(V_drive=1.0)
+            assert result["torque_Nm"] > 0
+
+    def test_full_chain_no_magnets(self):
+        """Full chain should use zero magnets, copper, or rare earths."""
+        from electrostatic_transducer import full_transduction_chain
+        chain = full_transduction_chain(delta_B_T=500e-9)
+        assert chain["materials"]["magnets"] == "NONE"
+        assert chain["materials"]["copper"] == "NONE (no windings)"
+        assert chain["materials"]["rare_earth"] == "NONE"
+
+    def test_full_chain_produces_torque(self):
+        from electrostatic_transducer import full_transduction_chain
+        chain = full_transduction_chain(delta_B_T=500e-9)
+        assert chain["stage_4_motor"]["torque_Nm"] > 0
+        assert chain["stage_3_piezo"]["V_piezo_V"] > 0
+
+    def test_stronger_signal_more_torque(self):
+        from electrostatic_transducer import full_transduction_chain
+        weak = full_transduction_chain(delta_B_T=50e-9)
+        strong = full_transduction_chain(delta_B_T=500e-9)
+        assert strong["stage_4_motor"]["torque_Nm"] > weak["stage_4_motor"]["torque_Nm"]
+
+    def test_coupling_state_export(self):
+        from electrostatic_transducer import coupling_state
+        state = coupling_state(delta_B_T=500e-9)
+        assert "V_piezo_V" in state
+        assert "torque_Nm" in state
+        assert "P_mechanical_W" in state
+        assert "B_sensitivity_T" in state
