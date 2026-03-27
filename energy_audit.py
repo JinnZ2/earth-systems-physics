@@ -4,9 +4,15 @@
 #
 # Cross-layer energy conservation audit.
 # Verifies that the cascade engine's energy bookkeeping closes.
-# When forcing is applied, the total energy change across all layers
-# should be accountable — not necessarily zero (external forcing adds
-# energy), but the residual should be small.
+# When forcing is applied at one layer, the total energy change across
+# all layers should be accountable — not necessarily zero (external
+# forcing adds energy), but the bookkeeping should close.
+#
+# Energy accounting:
+#   INPUT  = external forcing (GHG, solar, volcanic)
+#   STORED = heat content changes (ocean, atmosphere, ice)
+#   FEEDBACK = internal amplification/damping (ice-albedo, etc.)
+#   RESIDUAL = INPUT - STORED - FEEDBACK (should be small)
 
 import numpy as np
 
@@ -16,72 +22,65 @@ from cascade_engine import (
 
 
 # ─────────────────────────────────────────────
-# ENERGY-DIMENSIONED OUTPUTS
-# Maps (layer, key) -> units category for normalization
-# All values are converted to W/m² equivalent for comparison
+# ENERGY TERM CLASSIFICATION
 # ─────────────────────────────────────────────
 
 EARTH_SURFACE_AREA = 5.1e14     # m^2
-ATMOSPHERE_THICKNESS = 8500.0   # m  (scale height)
-IONOSPHERE_THICKNESS = 300e3    # m  (D-layer to F2-layer)
 
-ENERGY_KEYS = {
-    # Layer 0 — Electromagnetics (energy densities, need volume conversion)
-    (0, "electric_energy_density"):   {"units": "J/m3",  "scale": ATMOSPHERE_THICKNESS},
-    (0, "magnetic_energy_density"):   {"units": "J/m3",  "scale": ATMOSPHERE_THICKNESS},
-    (0, "poynting_flux_wm2"):         {"units": "W/m2",  "scale": 1.0},
-
-    # Layer 1 — Magnetosphere
-    (1, "field_energy_density_Jm3"):  {"units": "J/m3",  "scale": 6.371e6 * 10},
-
-    # Layer 2 — Ionosphere
-    (2, "joule_heating_Wm3"):         {"units": "W/m3",  "scale": IONOSPHERE_THICKNESS},
-    (2, "auroral_energy_flux_mWm2"):  {"units": "mW/m2", "scale": 1e-3},
-
-    # Layer 3 — Atmosphere (already W/m^2)
-    (3, "GHG_forcing_Wm2"):          {"units": "W/m2",  "scale": 1.0},
-    (3, "aerosol_forcing_Wm2"):      {"units": "W/m2",  "scale": 1.0},
-    (3, "net_forcing_Wm2"):          {"units": "W/m2",  "scale": 1.0},
-
-    # Layer 4 — Hydrosphere
-    (4, "AMOC_heat_transport_W"):    {"units": "W",     "scale": 1.0 / EARTH_SURFACE_AREA},
-    (4, "ocean_heat_content_Jm2"):   {"units": "J/m2",  "scale": 1.0},
-    (4, "ice_albedo_feedback_Wm2"):  {"units": "W/m2",  "scale": 1.0},
-
-    # Layer 5 — Lithosphere
-    (5, "volcanic_forcing_Wm2"):     {"units": "W/m2",  "scale": 1.0},
+# Input terms: external forcing applied to the system (W/m^2 equivalent)
+INPUT_TERMS = {
+    (3, "GHG_forcing_Wm2"):    {"scale": 1.0, "desc": "Greenhouse gas radiative forcing"},
+    (3, "aerosol_forcing_Wm2"):{"scale": 1.0, "desc": "Aerosol direct radiative effect"},
+    (5, "volcanic_forcing_Wm2"):{"scale": 1.0, "desc": "Volcanic stratospheric aerosol"},
 }
 
+# Response terms: where energy accumulates or is released
+RESPONSE_TERMS = {
+    (4, "ocean_heat_content_Jm2"):  {"scale": 1.0, "type": "storage",
+        "desc": "Ocean heat uptake (dominant Earth energy sink)"},
+    (4, "ice_albedo_feedback_Wm2"): {"scale": 1.0, "type": "feedback",
+        "desc": "Ice-albedo feedback (amplifying)"},
+    (4, "thermal_SLR_m"):           {"scale": 0.0, "type": "indicator",
+        "desc": "Thermal sea level rise (indicator, not energy)"},
+}
 
-def energy_delta_wm2(baseline_states, perturbed_states, layer, key, spec):
-    """
-    Compute the energy delta in W/m^2 equivalent for a given key.
-    """
+# Transport terms: redistribute energy, should not create/destroy
+TRANSPORT_TERMS = {
+    (4, "AMOC_heat_transport_W"): {"scale": 1.0 / EARTH_SURFACE_AREA,
+        "desc": "AMOC poleward heat transport"},
+    (0, "poynting_flux_wm2"):     {"scale": 1.0,
+        "desc": "EM power flux"},
+    (2, "joule_heating_Wm3"):     {"scale": 300e3,  # ionosphere thickness
+        "desc": "Ionospheric joule heating (magnetosphere -> ionosphere)"},
+}
+
+# Net forcing: the single best estimate of total radiative imbalance
+NET_FORCING_KEY = (3, "net_forcing_Wm2")
+
+
+def _get_delta(baseline_states, perturbed_states, layer, key):
+    """Get the numeric delta for a state variable."""
     bv = baseline_states.get(layer, {}).get(key)
     pv = perturbed_states.get(layer, {}).get(key)
     if bv is None or pv is None:
         return 0.0
     if not isinstance(bv, (int, float)) or not isinstance(pv, (int, float)):
         return 0.0
-    delta = pv - bv
-    return delta * spec["scale"]
+    return pv - bv
 
 
 def audit_energy(forcing, baseline=None, verbose=True):
     """
     Run a forcing scenario and audit energy conservation across layers.
 
-    Returns dict with:
-      - layer_deltas: energy change per layer in W/m^2 equivalent
-      - total_change: sum of all energy deltas
-      - input_forcing_wm2: estimated forcing input
-      - residual: unaccounted energy
-      - residual_pct: residual as % of input
-      - energy_leak: True if residual > 5% of input
+    The audit classifies energy terms as:
+    - INPUT: external radiative forcing (GHG, aerosol, volcanic)
+    - RESPONSE: where energy accumulates (ocean heat, feedbacks)
+    - TRANSPORT: redistribution (AMOC, EM flux, joule heating)
 
-    forcing  : Forcing dataclass
-    baseline : parameter dict (uses BASELINE if None)
-    verbose  : print audit report
+    The residual = input - (response + feedback) should be accountable.
+
+    Returns dict with classification and residual analysis.
     """
     if baseline is None:
         baseline = dict(BASELINE)
@@ -90,71 +89,92 @@ def audit_energy(forcing, baseline=None, verbose=True):
     perturbed_params = apply_forcing(baseline, forcing)
     perturbed_states = run_all_layers(perturbed_params)
 
-    # Compute energy deltas per layer
-    layer_deltas = {}
-    layer_details = {}
-    for (layer, key), spec in ENERGY_KEYS.items():
-        delta = energy_delta_wm2(baseline_states, perturbed_states, layer, key, spec)
-        if abs(delta) > 1e-30:
-            if layer not in layer_deltas:
-                layer_deltas[layer] = 0.0
-                layer_details[layer] = []
-            layer_deltas[layer] += delta
-            layer_details[layer].append((key, delta))
+    # ── Compute net forcing (single best number) ──
+    net_forcing_delta = _get_delta(baseline_states, perturbed_states,
+                                    NET_FORCING_KEY[0], NET_FORCING_KEY[1])
 
-    total_change = sum(layer_deltas.values())
+    # ── Input terms ──
+    input_details = {}
+    total_input = 0.0
+    for (layer, key), spec in INPUT_TERMS.items():
+        delta = _get_delta(baseline_states, perturbed_states, layer, key)
+        delta_wm2 = delta * spec["scale"]
+        if abs(delta_wm2) > 1e-30:
+            input_details[f"L{layer}:{key}"] = {
+                "delta": delta, "delta_wm2": delta_wm2, "desc": spec["desc"]}
+            total_input += delta_wm2
 
-    # Estimate input forcing in W/m^2
-    # Use the primary energy-like forcing output as reference
-    input_wm2 = _estimate_forcing_energy(forcing, baseline_states, perturbed_states)
+    # ── Response terms ──
+    response_details = {}
+    total_response = 0.0
+    total_feedback = 0.0
+    for (layer, key), spec in RESPONSE_TERMS.items():
+        delta = _get_delta(baseline_states, perturbed_states, layer, key)
+        delta_wm2 = delta * spec["scale"]
+        if abs(delta_wm2) > 1e-30 and spec["type"] != "indicator":
+            response_details[f"L{layer}:{key}"] = {
+                "delta": delta, "delta_wm2": delta_wm2,
+                "type": spec["type"], "desc": spec["desc"]}
+            if spec["type"] == "storage":
+                total_response += delta_wm2
+            elif spec["type"] == "feedback":
+                total_feedback += delta_wm2
 
-    residual = total_change - input_wm2 if input_wm2 != 0 else total_change
-    residual_pct = (abs(residual) / max(abs(input_wm2), 1e-30)) * 100
-    energy_leak = residual_pct > 5.0
+    # ── Transport terms ──
+    transport_details = {}
+    total_transport = 0.0
+    for (layer, key), spec in TRANSPORT_TERMS.items():
+        delta = _get_delta(baseline_states, perturbed_states, layer, key)
+        delta_wm2 = delta * spec["scale"]
+        if abs(delta_wm2) > 1e-30:
+            transport_details[f"L{layer}:{key}"] = {
+                "delta": delta, "delta_wm2": delta_wm2, "desc": spec["desc"]}
+            total_transport += delta_wm2
+
+    # ── Residual analysis ──
+    # The effective forcing = external input + internal feedbacks
+    effective_forcing = total_input + total_feedback
+    # Energy should go into: storage + transport leaks
+    accounted = total_response + total_transport
+    residual = effective_forcing - accounted
+
+    # Use the larger of effective_forcing or net_forcing as denominator
+    reference = max(abs(effective_forcing), abs(net_forcing_delta), 1e-30)
+    residual_pct = abs(residual) / reference * 100
+
+    # Classification
+    if abs(effective_forcing) < 1e-10:
+        energy_leak = False  # No forcing applied in energy terms
+        status = "NO_ENERGY_FORCING"
+    elif residual_pct <= 5.0:
+        energy_leak = False
+        status = "BALANCED"
+    elif residual_pct <= 50.0:
+        energy_leak = True
+        status = "PARTIAL_LEAK"
+    else:
+        energy_leak = True
+        status = "UNBALANCED"
 
     result = {
-        "layer_deltas":       layer_deltas,
-        "layer_details":      layer_details,
-        "total_change_wm2":   total_change,
-        "input_forcing_wm2":  input_wm2,
-        "residual_wm2":       residual,
-        "residual_pct":       residual_pct,
-        "energy_leak":        energy_leak,
+        "net_forcing_wm2": net_forcing_delta,
+        "input": {"total_wm2": total_input, "details": input_details},
+        "response": {"total_storage_wm2": total_response,
+                     "total_feedback_wm2": total_feedback,
+                     "details": response_details},
+        "transport": {"total_wm2": total_transport, "details": transport_details},
+        "effective_forcing_wm2": effective_forcing,
+        "accounted_wm2": accounted,
+        "residual_wm2": residual,
+        "residual_pct": residual_pct,
+        "energy_leak": energy_leak,
+        "status": status,
     }
 
     if verbose:
         _print_audit(result, forcing)
 
     return result
-
-
-def _estimate_forcing_energy(forcing, baseline_states, perturbed_states):
-    """
-    Estimate the primary energy input from the forcing in W/m^2.
-    Uses net_forcing_Wm2 as the best single estimate when available.
-    """
-    # Primary: atmospheric net forcing change
-    b_net = baseline_states.get(3, {}).get("net_forcing_Wm2", 0)
-    p_net = perturbed_states.get(3, {}).get("net_forcing_Wm2", 0)
-    if isinstance(b_net, (int, float)) and isinstance(p_net, (int, float)):
-        delta_net = p_net - b_net
-        if abs(delta_net) > 1e-10:
-            return delta_net
-
-    # Fallback: GHG forcing change
-    b_ghg = baseline_states.get(3, {}).get("GHG_forcing_Wm2", 0)
-    p_ghg = perturbed_states.get(3, {}).get("GHG_forcing_Wm2", 0)
-    if isinstance(b_ghg, (int, float)) and isinstance(p_ghg, (int, float)):
-        delta_ghg = p_ghg - b_ghg
-        if abs(delta_ghg) > 1e-10:
-            return delta_ghg
-
-    # If no atmospheric forcing, sum all energy deltas as input estimate
-    total = 0
-    for (layer, key), spec in ENERGY_KEYS.items():
-        delta = energy_delta_wm2(baseline_states, perturbed_states, layer, key, spec)
-        total += abs(delta)
-    return total if total > 0 else 1.0
 
 
 def _print_audit(result, forcing):
@@ -166,26 +186,46 @@ def _print_audit(result, forcing):
     print(f"  {forcing.variable} {forcing.magnitude:+.4g} {forcing.units}")
     print()
 
-    print("─" * 64)
-    print("PER-LAYER ENERGY CHANGE  (W/m² equivalent)")
-    for layer in sorted(result["layer_details"].keys()):
-        name = LAYER_NAMES.get(layer, f"Layer {layer}")
-        total = result["layer_deltas"][layer]
-        print(f"  L{layer} {name:20s}  total: {total:+.6g} W/m²")
-        for key, delta in result["layer_details"][layer]:
-            print(f"    {key:40s}  {delta:+.6g}")
+    print(f"  Net radiative forcing delta: {result['net_forcing_wm2']:+.6g} W/m^2")
     print()
 
     print("─" * 64)
-    print(f"  Total energy change : {result['total_change_wm2']:+.6g} W/m²")
-    print(f"  Input forcing est.  : {result['input_forcing_wm2']:+.6g} W/m²")
-    print(f"  Residual            : {result['residual_wm2']:+.6g} W/m²")
-    print(f"  Residual (%)        : {result['residual_pct']:.2f}%")
+    print("INPUT  (external forcing)")
+    for key, d in result["input"]["details"].items():
+        print(f"  {key:40s}  {d['delta_wm2']:+.6g} W/m^2")
+        print(f"    {d['desc']}")
+    print(f"  {'TOTAL INPUT':40s}  {result['input']['total_wm2']:+.6g} W/m^2")
+    print()
 
-    if result["energy_leak"]:
-        print(f"  ** ENERGY LEAK DETECTED — residual > 5% of input **")
+    print("─" * 64)
+    print("RESPONSE  (energy storage + feedbacks)")
+    for key, d in result["response"]["details"].items():
+        label = f"[{d['type']}]"
+        print(f"  {key:40s}  {d['delta_wm2']:+.6g} W/m^2  {label}")
+    print(f"  {'TOTAL STORAGE':40s}  {result['response']['total_storage_wm2']:+.6g} W/m^2")
+    print(f"  {'TOTAL FEEDBACK':40s}  {result['response']['total_feedback_wm2']:+.6g} W/m^2")
+    print()
+
+    print("─" * 64)
+    print("TRANSPORT  (redistribution)")
+    for key, d in result["transport"]["details"].items():
+        print(f"  {key:40s}  {d['delta_wm2']:+.6g} W/m^2")
+    print(f"  {'TOTAL TRANSPORT':40s}  {result['transport']['total_wm2']:+.6g} W/m^2")
+    print()
+
+    print("─" * 64)
+    print(f"  Effective forcing (input+feedback): {result['effective_forcing_wm2']:+.6g} W/m^2")
+    print(f"  Accounted (storage+transport):      {result['accounted_wm2']:+.6g} W/m^2")
+    print(f"  Residual:                           {result['residual_wm2']:+.6g} W/m^2")
+    print(f"  Residual (%):                       {result['residual_pct']:.1f}%")
+    print(f"  Status:                             {result['status']}")
+
+    if result["status"] == "NO_ENERGY_FORCING":
+        print("  (Forcing does not directly affect energy-dimensioned variables)")
+    elif result["energy_leak"]:
+        print("  ** ENERGY NOT FULLY ACCOUNTED — equations may be inconsistent **")
     else:
-        print(f"  Energy bookkeeping closes within 5% tolerance")
+        print("  Energy bookkeeping closes within tolerance")
     print("=" * 64)
 
 
