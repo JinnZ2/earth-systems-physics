@@ -416,3 +416,121 @@ class TestMagnonicSublayer:
         result = run_cascade(SCENARIOS["geomagnetic_field_weakening"], verbose=False)
         assert result.forcing is not None
         assert len(result.layer_states) == 7
+
+
+# ─────────────────────────────────────────────
+# MAGNOMECHANICAL SUB-LAYER (Layer 0b)
+# ─────────────────────────────────────────────
+
+class TestMagnomechanicalSublayer:
+    def test_import(self):
+        import layer_0b_magnomechanical
+
+    def test_coupling_state_returns_dict(self):
+        from layer_0b_magnomechanical import coupling_state
+        state = coupling_state()
+        assert isinstance(state, dict)
+        assert len(state) > 0
+
+    def test_coupling_state_expected_keys(self):
+        from layer_0b_magnomechanical import coupling_state
+        state = coupling_state()
+        expected = [
+            "magnon_freq_Hz", "spin_phonon_coupling_Hz",
+            "g_collective_Hz", "phonon_mode_1_Hz",
+            "v_acoustic_m_s", "seismo_detectable",
+            "detection_range_m", "piezo_voltage_V",
+            "magnonic_crystal", "morin_transition_active",
+        ]
+        for key in expected:
+            assert key in state, f"Missing key: {key}"
+
+    def test_all_minerals_valid(self):
+        """All 5 minerals produce valid outputs."""
+        from layer_0b_magnomechanical import coupling_state, CRUSTAL_MINERALS
+        for mineral_key in CRUSTAL_MINERALS:
+            state = coupling_state(mineral=mineral_key)
+            assert state["spin_phonon_coupling_Hz"] >= 0, \
+                f"{mineral_key}: negative coupling"
+            assert state["g_collective_Hz"] >= 0, \
+                f"{mineral_key}: negative collective coupling"
+            assert np.isfinite(state["v_acoustic_m_s"]), \
+                f"{mineral_key}: infinite velocity"
+
+    def test_all_signals_valid(self):
+        """All 9 signal types produce valid outputs."""
+        from layer_0b_magnomechanical import coupling_state, GEOMAGNETIC_SIGNALS
+        for sig_key in GEOMAGNETIC_SIGNALS:
+            state = coupling_state(signal_type=sig_key)
+            assert state["v_acoustic_m_s"] >= 0, \
+                f"{sig_key}: negative acoustic velocity"
+            assert np.isfinite(state["detection_range_m"]), \
+                f"{sig_key}: infinite detection range"
+
+    def test_all_minerals_x_signals(self):
+        """5 minerals x 9 signals = 45 combos, all valid."""
+        from layer_0b_magnomechanical import (
+            coupling_state, CRUSTAL_MINERALS, GEOMAGNETIC_SIGNALS
+        )
+        for mineral in CRUSTAL_MINERALS:
+            for signal in GEOMAGNETIC_SIGNALS:
+                state = coupling_state(mineral=mineral, signal_type=signal)
+                assert state["g_collective_Hz"] >= 0
+
+    def test_morin_transition_hematite(self):
+        """Hematite below -10C should have Morin transition active."""
+        from layer_0b_magnomechanical import coupling_state
+        cold = coupling_state(mineral="hematite", T=250.0)
+        warm = coupling_state(mineral="hematite", T=300.0)
+        assert cold["morin_transition_active"] is True
+        assert warm["morin_transition_active"] is False
+
+    def test_piezo_voltage_quartz_only(self):
+        """Only quartz_fe_defect should have nonzero piezo voltage."""
+        from layer_0b_magnomechanical import coupling_state
+        quartz = coupling_state(mineral="quartz_fe_defect")
+        magnetite = coupling_state(mineral="magnetite")
+        assert quartz["piezo_voltage_V"] > 0
+        assert magnetite["piezo_voltage_V"] == 0
+
+    def test_layer0_includes_magnomech_keys(self):
+        """Layer 0 coupling_state should include magnomech_ keys."""
+        from layer_0_electromagnetics import coupling_state
+        state = coupling_state(n_e=1e12, B_surface=5e-5, E_surface=1e-4,
+                               frequency_range=(1e3, 1e7))
+        assert "magnomech_v_acoustic_m_s" in state
+        assert "magnomech_seismo_detectable" in state
+        assert "magnomech_g_collective_Hz" in state
+        assert "magnomech_piezo_voltage_V" in state
+
+    def test_new_scenarios_run(self):
+        """New magnomechanical scenarios should run."""
+        from cascade_engine import run_cascade, SCENARIOS
+        for name in ["geomagnetic_storm_magnomech", "morin_transition",
+                     "bif_magnonic_crystal"]:
+            result = run_cascade(SCENARIOS[name], verbose=False)
+            assert result.forcing is not None, f"Scenario {name} failed"
+            assert len(result.layer_states) == 7
+
+    def test_magnomechanical_feedback_loop_exists(self):
+        """The Magnomechanical-EM loop should be in KNOWN_LOOPS."""
+        from cascade_engine import KNOWN_LOOPS
+        names = [loop["name"] for loop in KNOWN_LOOPS]
+        assert "Magnomechanical-EM" in names
+
+    def test_bidirectional_cascade(self):
+        """Layer 0 forcing should produce Layer 5 signal and vice versa."""
+        from cascade_engine import run_cascade, Forcing
+        # Layer 0 -> Layer 5
+        f0 = Forcing(layer=0, variable="B_surface", magnitude=-2e-5,
+                     description="test L0->L5", units="T")
+        r0 = run_cascade(f0, verbose=False)
+        has_l5 = any(s["target_layer"] == 5 for s in r0.cascade_signals)
+        assert has_l5, "L0 forcing did not produce L5 cascade signal"
+
+        # Layer 5 -> Layer 0
+        f5 = Forcing(layer=5, variable="ice_mass_loss_Gt", magnitude=500.0,
+                     description="test L5->L0", units="Gt")
+        r5 = run_cascade(f5, verbose=False)
+        has_l0 = any(s["target_layer"] == 0 for s in r5.cascade_signals)
+        assert has_l0, "L5 forcing did not produce L0 cascade signal"

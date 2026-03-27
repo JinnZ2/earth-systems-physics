@@ -34,6 +34,7 @@ Physics is organized as a pyramid of constraint layers:
 | Layer | Domain | Scope |
 |-------|--------|-------|
 | 0 | Electromagnetics | base constraint — atomic, molecular, field |
+| 0b | Magnomechanical | spin-phonon coupling in crustal minerals |
 | 1 | Magnetosphere | solar coupling, field geometry, particle trapping |
 | 2 | Ionosphere | charge distribution, EM propagation, auroral energy |
 | 3 | Atmosphere | thermodynamic, fluid dynamic, radiative transfer |
@@ -43,6 +44,35 @@ Physics is organized as a pyramid of constraint layers:
 
 **Cascade Engine** — forcing propagation across all coupled layers
 **Assumption Validator** — reads layer outputs, flags when equations break
+
+## Magnomechanical Sub-Layer (Layer 0b)
+
+The crust contains iron-bearing minerals (magnetite, hematite, Fe-doped quartz,
+pyrrhotite, ilmenite) embedded in a crystalline lattice. Geomagnetic field
+variations perturb the spin state of Fe ions in these minerals. Through
+spin-phonon coupling (crystal field modulation at the Fe site), this
+perturbation transfers to lattice vibrations.
+
+This coupling is bidirectional:
+- **EM -> Acoustic**: geomagnetic storm -> spin perturbation -> acoustic emission in magnetic crust
+- **Acoustic -> EM**: seismic wave -> lattice perturbation -> piezomagnetic signal
+
+The sub-layer connects Layer 0 (Electromagnetics) to Layer 5 (Lithosphere)
+through a coupling mechanism that existing models treat as nonexistent.
+
+### Supporting Modules
+
+| File | Description |
+|------|-------------|
+| layer_0b_magnomechanical.py | Magnomechanical coupling state |
+| magnonic_sublayer.py | Spin wave physics engine |
+| magnon_polaron_hybridization.py | Magnon-phonon crossover analysis |
+| confined_magnon_polaron.py | Confined mode + geological analysis |
+| multi_channel_coupling.py | Multi-channel enhancement |
+| earth_magnomechanical.py | Geological-scale transduction |
+| banded_crystal_computer.py | Phonon band structure in layered magnonic crystals |
+| cold_climate_crystal.py | Temperature-dependent sensitivity analysis |
+| crystal_device_gradient.py | Frequency-shift magnetometer design |
 
 Each layer exports:
 - State variables

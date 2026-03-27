@@ -358,6 +358,7 @@ def coupling_state(ice_mass_loss_Gt, SLR_m, T_ocean_C,
         "volcanic_enhancement":          deglac_volc["volcanic_activity_enhancement"],
         "volcanic_forcing_Wm2":          volc_forcing.get("peak_forcing_Wm2", 0),
         "geological_co2_GtC_yr":         geo_co2,
+        "seismic_velocity_anomaly":      GIA_rate * 0.001,  # mm/yr rebound -> ~0.001 fractional velocity change
         "cascade_to_magnetosphere":      "LOD change -> core coupling -> field geometry",
         "cascade_to_atmosphere":         "volcanic SO2, CO2 outgassing, dust",
         "cascade_to_hydrosphere":        "isostasy changes basin geometry, SLR feedbacks",
