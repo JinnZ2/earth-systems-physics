@@ -177,7 +177,12 @@ def lorentz_force(q, E_field, v, B_field):
 # ─────────────────────────────────────────────
 
 def coupling_state(n_e, B_surface, E_surface, frequency_range,
-                   magnonic_material=None):
+                   magnonic_material=None,
+                   magnomech_mineral="magnetite",
+                   magnomech_grain_size=50e-6,
+                   magnomech_rock_volume=1000.0,
+                   magnomech_mineral_fraction=0.02,
+                   magnomech_T=290.0):
     """
     State vector exported to adjacent layers.
     n_e               : electron density at interface (m^-3)
@@ -185,11 +190,15 @@ def coupling_state(n_e, B_surface, E_surface, frequency_range,
     E_surface         : electric field at Earth surface (V/m)
     frequency_range   : tuple (f_min, f_max) Hz — active EM band
     magnonic_material : optional material name from magnonic_sublayer.MATERIALS
-                        (e.g., "Magnetite", "Quartz_Fe_defect")
-                        If provided, magnonic sublayer state is included.
+    magnomech_mineral : crustal mineral for magnomechanical coupling
+    magnomech_grain_size : grain diameter (m)
+    magnomech_rock_volume: formation volume (m3)
+    magnomech_mineral_fraction: volume fraction of magnetic mineral
+    magnomech_T       : temperature (K)
     returns: dict of coupling parameters
     """
     from magnonic_sublayer import magnonic_coupling_state, MATERIALS
+    from layer_0b_magnomechanical import coupling_state as magnomech_state
 
     f_plasma = plasma_frequency(n_e)
     delta = skin_depth(frequency_range[0], 1e-4)  # upper atmosphere conductivity ~1e-4 S/m
@@ -241,5 +250,20 @@ def coupling_state(n_e, B_surface, E_surface, frequency_range,
         state["magnonic_phonon_regime"] = mag_state["magnon_phonon_regime"]
         state["magnonic_band_bottom_Hz"] = mag_state["magnon_band_bottom_Hz"]
         state["magnonic_damping_total"] = mag_state["alpha_total"]
+
+    # Magnomechanical sublayer — spin-phonon coupling in crustal minerals
+    mm_state = magnomech_state(
+        H_field=B_surface,
+        mineral=magnomech_mineral,
+        grain_size_m=magnomech_grain_size,
+        rock_volume_m3=magnomech_rock_volume,
+        mineral_fraction=magnomech_mineral_fraction,
+        T=magnomech_T,
+    )
+    # Merge with magnomech_ prefix
+    for mk, mv in mm_state.items():
+        if mk.startswith("coupling_to_"):
+            continue  # skip nested dicts for layer state
+        state[f"magnomech_{mk}"] = mv
 
     return state

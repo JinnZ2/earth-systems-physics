@@ -147,6 +147,49 @@ REGISTRY: Dict[str, AssumptionBoundary] = {
         notes           = "Propagation length < 1 nm — magnonic transport effectively zero"
     ),
 
+    # ── LAYER 0 — MAGNOMECHANICAL ─────────────────────────────────────
+    "em_magnomech_coupling": AssumptionBoundary(
+        name            = "Magnomechanical Collective Coupling",
+        parameter       = "magnomech_g_collective_Hz",
+        units           = "Hz",
+        green_range     = (0, 1e15),
+        yellow_range    = (-1, 0),
+        red_threshold   = -1,
+        higher_is_worse = False,
+        source_layer    = 0,
+        layer_key       = "magnomech_g_collective_Hz",
+        couplings       = ["em_plasma_frequency", "litho_fault_stress"],
+        notes           = "Negative collective coupling is non-physical — spin-phonon model invalid"
+    ),
+
+    "em_magnomech_v_acoustic": AssumptionBoundary(
+        name            = "Magnomechanical Acoustic Velocity",
+        parameter       = "magnomech_v_acoustic_m_s",
+        units           = "m/s",
+        green_range     = (0, 1e4),
+        yellow_range    = (1e4, 1e5),
+        red_threshold   = 1e5,
+        higher_is_worse = True,
+        source_layer    = 0,
+        layer_key       = "magnomech_v_acoustic_m_s",
+        couplings       = ["litho_fault_stress"],
+        notes           = "Acoustic velocity > 10 km/s exceeds P-wave speed — model breaks"
+    ),
+
+    "em_magnomech_piezo": AssumptionBoundary(
+        name            = "Magnomechanical Piezo Voltage",
+        parameter       = "magnomech_piezo_voltage_V",
+        units           = "V",
+        green_range     = (0, 1.0),
+        yellow_range    = (1.0, 10.0),
+        red_threshold   = 10.0,
+        higher_is_worse = True,
+        source_layer    = 0,
+        layer_key       = "magnomech_piezo_voltage_V",
+        couplings       = ["iono_critical_freq"],
+        notes           = "Piezo voltage > 1V from geomagnetic signal is suspicious — check grain size"
+    ),
+
     # ── LAYER 1 — MAGNETOSPHERE ──────────────────────────────────────
     "mag_standoff_Re": AssumptionBoundary(
         name            = "Magnetopause Standoff Distance",

@@ -67,6 +67,10 @@ BASELINE = {
     "E_surface":        1e-4,       # surface electric field V/m
     "freq_range":       (1e3, 1e7), # Hz
     "magnonic_material": None,      # magnonic sublayer material (None = Magnetite default)
+    "magnomech_mineral": "magnetite",   # crustal mineral for magnomechanical coupling
+    "magnomech_grain_size": 50e-6,      # grain diameter m
+    "magnomech_rock_volume": 1000.0,    # formation volume m3
+    "magnomech_mineral_fraction": 0.02, # volume fraction of magnetic mineral
 
     # Layer 1 — Magnetosphere
     "n_sw":             5e6,        # solar wind density m^-3
@@ -145,6 +149,10 @@ def run_all_layers(p):
         E_surface    = p["E_surface"],
         frequency_range = p["freq_range"],
         magnonic_material = p.get("magnonic_material"),
+        magnomech_mineral = p.get("magnomech_mineral", "magnetite"),
+        magnomech_grain_size = p.get("magnomech_grain_size", 50e-6),
+        magnomech_rock_volume = p.get("magnomech_rock_volume", 1000.0),
+        magnomech_mineral_fraction = p.get("magnomech_mineral_fraction", 0.02),
     )
     states[1] = mag_state(
         B_surface    = p["B_surface"],
@@ -283,6 +291,18 @@ CASCADE_MAP = {
     (0, "magnonic_energy_density_J"): [(1, "spin wave energy coupling to magnetosphere", True)],
     (0, "magnonic_band_bottom_Hz"):   [(2, "magnon-plasma frequency interaction", True)],
 
+    # ── LAYER 0 — MAGNOMECHANICAL (Layer 0 -> 5) ───────────────────
+    (0, "magnomech_seismo_detectable"): [
+        (5, "spin-phonon acoustic emission in magnetic crust", True),
+    ],
+    (0, "magnomech_v_acoustic_m_s"): [
+        (5, "magnomechanical vibration affecting crustal stress", True),
+        (3, "acoustic-to-atmospheric coupling at surface", False),
+    ],
+    (0, "magnomech_piezo_voltage_V"): [
+        (2, "piezoelectric signal coupling to ionospheric waveguide", False),
+    ],
+
     # ── LAYERS 1-6 ──────────────────────────────────────────────────
     (3, "GHG_forcing_Wm2"):        [(4, "SST increase", True),
                                     (6, "GPP/respiration shift", True),
@@ -294,6 +314,9 @@ CASCADE_MAP = {
                                        (4, "additional warming -> more melt", True)],
     (5, "LOD_change_ms"):          [(1, "rotation -> field geometry", True),
                                     (3, "Coriolis shift -> circulation", True)],
+    (5, "seismic_velocity_anomaly"): [
+        (0, "piezomagnetic signal from stressed magnetic crust", True),
+    ],
     (6, "amazon_tipping_imminent"):[(3, "CO2 release + albedo change", True),
                                     (4, "continental precipitation collapse", False)],
     (2, "cascade_to_atmosphere"):  [(3, "joule heating -> thermosphere winds", True),
@@ -401,6 +424,14 @@ KNOWN_LOOPS = [
         "gain_function": lambda s: s[5].get("volcanic_enhancement", 1.0),
         "description": "ice unloading -> volcanic enhancement -> SO2/CO2 -> warming -> more unloading",
         "timescale": "centuries",
+    },
+    {
+        "name":     "Magnomechanical-EM",
+        "layers":   [0, 5, 0],
+        "trigger":  lambda s: s[0].get("magnomech_seismo_detectable", False),
+        "gain_function": lambda s: 1.0 + s[0].get("magnomech_v_acoustic_m_s", 0) * 10,
+        "description": "EM field -> spin-phonon -> acoustic -> piezomagnetic -> EM perturbation",
+        "timescale": "seconds to hours (storm-driven), centuries (secular variation)",
     },
 ]
 
@@ -929,6 +960,21 @@ SCENARIOS = {
     "geomagnetic_field_weakening": Forcing(
         layer=0, variable="B_surface", magnitude=-1e-5,
         description="20% geomagnetic field weakening — magnonic/magnetospheric coupling shift",
+        units="T"
+    ),
+    "geomagnetic_storm_magnomech": Forcing(
+        layer=1, variable="kp", magnitude=6.0,
+        description="Geomagnetic storm Kp=8 — magnomechanical crustal response",
+        units="Kp"
+    ),
+    "morin_transition": Forcing(
+        layer=3, variable="T_surface", magnitude=-15.0,
+        description="Surface cooling below -10C — hematite Morin transition activates",
+        units="K"
+    ),
+    "bif_magnonic_crystal": Forcing(
+        layer=0, variable="B_surface", magnitude=-3e-5,
+        description="Field weakening 60% — magnonic band structure shift in BIF",
         units="T"
     ),
 }
