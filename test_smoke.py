@@ -660,3 +660,67 @@ class TestElectrostaticTransducer:
         assert "torque_Nm" in state
         assert "P_mechanical_W" in state
         assert "B_sensitivity_T" in state
+
+
+# ─────────────────────────────────────────────
+# DEVICE SCALING
+# ─────────────────────────────────────────────
+
+class TestDeviceScaling:
+    def test_import(self):
+        import device_scaling
+
+    def test_applications_defined(self):
+        from device_scaling import APPLICATIONS
+        assert len(APPLICATIONS) >= 10
+
+    def test_motor_requirements_scales(self):
+        """More torque should need bigger rotor."""
+        from device_scaling import electrostatic_motor_requirements
+        small = electrostatic_motor_requirements(1e-9, 100)
+        big = electrostatic_motor_requirements(1e-3, 100)
+        assert big["air_gap"]["rotor_radius_m"] > small["air_gap"]["rotor_radius_m"]
+
+    def test_piezo_harvester_quartz_no_magnets(self):
+        from device_scaling import piezo_harvester_requirements
+        result = piezo_harvester_requirements(10e-6)
+        qfe = result["materials"]["quartz_Fe_defect"]
+        assert qfe["magnets_needed"] is False
+        assert qfe["volume_cm3"] > 0
+
+    def test_magnet_budget_all_apps(self):
+        from device_scaling import full_device_survey
+        survey = full_device_survey()
+        for app_key, result in survey.items():
+            assert "approaches" in result
+            assert len(result["approaches"]) >= 2
+
+    def test_zero_magnet_feasible_for_sensors(self):
+        from device_scaling import magnet_budget
+        result = magnet_budget("magnetometer_sensor")
+        approaches = result["approaches"]
+        has_zero_mag = any(
+            a.get("magnet_g", 1) == 0 and a.get("feasible", False)
+            for a in approaches.values()
+        )
+        assert has_zero_mag, "Sensors should be feasible without magnets"
+
+    def test_junkyard_sources_exist(self):
+        from device_scaling import JUNKYARD_SOURCES
+        assert len(JUNKYARD_SOURCES) >= 8
+        assert "smoky_quartz" in JUNKYARD_SOURCES
+        assert "dead_hdd" in JUNKYARD_SOURCES
+
+    def test_junkyard_build_magnetometer(self):
+        from device_scaling import junkyard_build
+        result = junkyard_build("magnetometer_sensor")
+        assert "builds" in result
+        assert "tier_0_junkyard" in result["builds"]
+        assert result["builds"]["tier_0_junkyard"]["cost_usd"] <= 5
+
+    def test_junkyard_build_all_apps(self):
+        from device_scaling import junkyard_survey
+        survey = junkyard_survey()
+        assert len(survey) >= 10
+        for app_key, result in survey.items():
+            assert "builds" in result
