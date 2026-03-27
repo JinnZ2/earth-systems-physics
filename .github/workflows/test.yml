@@ -1,0 +1,59 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, 'claude/**' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run tests
+      run: python -m pytest test_smoke.py -v
+
+    - name: Verify all modules import
+      run: |
+        python -c "
+        import sys
+        modules = [
+            'layer_0_electromagnetics', 'layer_1_magnetosphere',
+            'layer_2_ionosphere', 'layer_3_atmosphere',
+            'layer_4_hydrosphere', 'layer_5_lithosphere',
+            'layer_6_biosphere', 'cascade_engine',
+            'magnonic_sublayer', 'layer_0b_magnomechanical',
+            'energy_audit', 'magnon_polaron_hybridization',
+            'confined_magnon_polaron', 'multi_channel_coupling',
+            'earth_magnomechanical', 'cavity_optomagnonics',
+            'banded_crystal_computer', 'cold_climate_crystal',
+            'crystal_device_gradient',
+        ]
+        failed = []
+        for m in modules:
+            try:
+                __import__(m)
+            except Exception as e:
+                failed.append(f'{m}: {e}')
+        if failed:
+            for f in failed:
+                print(f'FAIL: {f}', file=sys.stderr)
+            sys.exit(1)
+        print(f'All {len(modules)} modules import OK')
+        "
