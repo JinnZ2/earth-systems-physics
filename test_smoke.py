@@ -121,6 +121,55 @@ class TestLayer4CouplingState:
                                 ice_fraction=0.85)
         assert result["AMOC_heat_transport_W"] > 0
 
+    def test_bottom_water_formation_present(self):
+        from layer_4_hydrosphere import coupling_state
+        result = coupling_state(T_ocean_C=15.0, S_ocean=35.0,
+                                T_north_C=8.0, S_north=35.0,
+                                T_south_C=26.0, S_south=36.0,
+                                ice_fraction=0.85)
+        assert "NADW_formation_Sv" in result
+        assert "AABW_formation_Sv" in result
+        assert "total_bottom_water_Sv" in result
+        assert "deep_convection_active" in result
+        assert "deep_water_ventilation_yr" in result
+
+    def test_bottom_water_positive(self):
+        """Bottom water formation should be positive under baseline conditions."""
+        from layer_4_hydrosphere import coupling_state
+        result = coupling_state(T_ocean_C=15.0, S_ocean=35.0,
+                                T_north_C=8.0, S_north=35.0,
+                                T_south_C=26.0, S_south=36.0,
+                                ice_fraction=0.85)
+        assert result["total_bottom_water_Sv"] > 0
+
+    def test_meltwater_reduces_formation(self):
+        """Freshwater input should reduce bottom water formation."""
+        from layer_4_hydrosphere import bottom_water_formation_rate
+        baseline = bottom_water_formation_rate(T_north_C=2.0, S_north=35.0,
+                                               delta_S_melt=0.0)
+        freshened = bottom_water_formation_rate(T_north_C=2.0, S_north=35.0,
+                                                delta_S_melt=0.3)
+        assert freshened["NADW_formation_Sv"] < baseline["NADW_formation_Sv"]
+
+    def test_brine_rejection_positive(self):
+        """Brine rejection should increase density."""
+        from layer_4_hydrosphere import brine_rejection_flux
+        result = brine_rejection_flux(ice_formation_rate_m_yr=0.5)
+        assert result["delta_rho_haline_kgm3"] > 0
+        assert result["salt_flux_kg_m2_yr"] > 0
+
+    def test_ventilation_age_finite(self):
+        """Ventilation age should be finite and positive."""
+        from layer_4_hydrosphere import deep_water_ventilation_age
+        age = deep_water_ventilation_age(formation_rate_Sv=20.0)
+        assert 0 < age < 10000  # typical 500-2000 years
+
+    def test_ventilation_age_infinite_at_zero(self):
+        """Zero formation rate -> infinite ventilation age."""
+        from layer_4_hydrosphere import deep_water_ventilation_age
+        age = deep_water_ventilation_age(formation_rate_Sv=0.0)
+        assert age == np.inf
+
 
 class TestLayer5CouplingState:
     def test_returns_dict(self):

@@ -369,6 +369,35 @@ REGISTRY: Dict[str, AssumptionBoundary] = {
         notes           = "IRREVERSIBLE threshold — collapse on human timescales"
     ),
 
+    "hydro_bottom_water": AssumptionBoundary(
+        name            = "Bottom Water Formation Rate",
+        parameter       = "total_bottom_water_Sv",
+        units           = "Sv",
+        green_range     = (15, 30),
+        yellow_range    = (8, 15),
+        red_threshold   = 5,
+        higher_is_worse = False,
+        source_layer    = 4,
+        layer_key       = "total_bottom_water_Sv",
+        couplings       = ["hydro_AMOC_collapse", "hydro_AMOC_transport", "bio_marine_productivity"],
+        rate_of_change  = -0.3,
+        notes           = "NADW+AABW production declining — drives thermohaline circulation"
+    ),
+
+    "hydro_deep_ventilation": AssumptionBoundary(
+        name            = "Deep Water Ventilation Age",
+        parameter       = "deep_water_ventilation_yr",
+        units           = "years",
+        green_range     = (500, 1500),
+        yellow_range    = (1500, 3000),
+        red_threshold   = 5000,
+        higher_is_worse = True,
+        source_layer    = 4,
+        layer_key       = "deep_water_ventilation_yr",
+        couplings       = ["bio_ocean_pH", "hydro_AMOC_transport"],
+        notes           = "Longer ventilation = slower atmospheric signal propagation to deep ocean"
+    ),
+
     "hydro_AMOC_transport": AssumptionBoundary(
         name            = "AMOC Heat Transport",
         parameter       = "AMOC_heat_transport_W",
