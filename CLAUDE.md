@@ -12,7 +12,7 @@ Coupled differential equation framework mapping Earth physics as constraint laye
 pip install -r requirements.txt
 python cascade_engine.py              # Run all forcing scenarios
 python assumption_validator/api.py    # Start REST API on port 5000
-pytest -v                             # Run test suite (109 tests)
+pytest -v                             # Run test suite (114 tests)
 ```
 
 ## Architecture
@@ -57,10 +57,11 @@ earth-systems-physics/
 │
 ├── cascade_engine.py                  # Core forcing propagation engine
 ├── energy_audit.py                    # Cross-layer energy conservation audit
-├── test_smoke.py                      # 109 tests — all layers, scenarios, validators, audits
+├── test_smoke.py                      # 114 tests — all layers, scenarios, validators, audits
 │
 ├── ocean_timber_sequestration_audit.py # Full-cycle carbon audit of wood-in-ocean schemes
 ├── dollar_energy_metabolism.py        # Recursive energy cost model for climate finance
+├── chattel_slavery_triple_audit.py    # Six Sigma + scientific method + thermo audit of extraction systems
 │
 ├── experiments/
 │   ├── magnetometer_build.py          # $5 smoky-quartz + HDD-magnet magnetometer build guide
@@ -137,7 +138,7 @@ All physics functions require docstrings with: description, parameters (with typ
 
 ## Testing
 
-Framework: **pytest** — 109 tests covering all layers, scenarios, validators, magnomechanical integration, and climate-scheme audits.
+Framework: **pytest** — 114 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, and systems audits.
 
 ```bash
 pytest                    # Run all tests
