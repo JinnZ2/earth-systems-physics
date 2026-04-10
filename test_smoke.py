@@ -884,3 +884,59 @@ class TestOceanTimberCascadeWiring:
         verdict = result["verdict"]
         assert verdict["project_is_net_source"] is True
         assert verdict["crossover_year"] is not None
+
+
+# ─────────────────────────────────────────────
+# CHATTEL SLAVERY TRIPLE AUDIT
+# ─────────────────────────────────────────────
+
+class TestChattelSlaveryTripleAudit:
+    def test_import(self):
+        import chattel_slavery_triple_audit
+
+    def test_top_level_structures_present(self):
+        from chattel_slavery_triple_audit import (
+            SYSTEM_DEFINITION, DMAIC, SCIENTIFIC_METHOD,
+            THERMODYNAMIC_AUDIT, META_AUDIT,
+        )
+        assert "claimed_purpose" in SYSTEM_DEFINITION
+        assert "actual_topology" in SYSTEM_DEFINITION
+        for phase in ("define", "measure", "analyze", "improve", "control"):
+            assert phase in DMAIC
+        for section in ("observation", "null_hypothesis", "alt_hypothesis",
+                        "evidence", "verdict", "falsifiability"):
+            assert section in SCIENTIFIC_METHOD
+        for law in ("first_law", "second_law", "third_law",
+                    "topology", "phase_transition"):
+            assert law in THERMODYNAMIC_AUDIT
+        assert "function_of_revisionism" in META_AUDIT
+        assert "conclusion" in META_AUDIT
+
+    def test_scientific_method_evidence_is_six_for_six(self):
+        from chattel_slavery_triple_audit import SCIENTIFIC_METHOD
+        evidence = SCIENTIFIC_METHOD["evidence"]
+        assert len(evidence) == 6
+        for pred_key in ("P1", "P2", "P3", "P4", "P5", "P6"):
+            assert pred_key in evidence
+            assert "H1 CONFIRMED" in evidence[pred_key]["observed"]
+        verdict = SCIENTIFIC_METHOD["verdict"]
+        assert "0/6" in verdict["H0_score"]
+        assert "6/6" in verdict["H1_score"]
+
+    def test_dmaic_analyze_chain_is_five_whys(self):
+        from chattel_slavery_triple_audit import DMAIC
+        chain = DMAIC["analyze"]["chain"]
+        assert len(chain) == 5
+        for step in chain:
+            assert "why" in step
+            assert "because" in step
+
+    def test_print_summary_runs(self, capsys):
+        from chattel_slavery_triple_audit import print_summary
+        print_summary()
+        captured = capsys.readouterr()
+        assert "TRIPLE AUDIT SUMMARY" in captured.out
+        assert "SIX SIGMA" in captured.out
+        assert "SCIENTIFIC METHOD" in captured.out
+        assert "THERMODYNAMICS" in captured.out
+        assert "CONVERGENCE" in captured.out

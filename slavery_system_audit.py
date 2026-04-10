@@ -1,15 +1,15 @@
-# “””
+"""
 TRIPLE AUDIT: Chattel Slavery as Engineered System
 
 Six Sigma (DMAIC) | Scientific Method | Thermodynamic Analysis
 
-System under audit: “Labor system” as presented by revisionist framing
+System under audit: "Labor system" as presented by revisionist framing
 Null hypothesis: System was designed to produce completed labor output
 Alt hypothesis:  System was designed to produce permanent dependency
 
 Author: Kavik / Claude collaboration
 License: CC0
-“””
+"""
 
 # =============================================================================
 
@@ -18,13 +18,13 @@ License: CC0
 # =============================================================================
 
 SYSTEM_DEFINITION = {
-“claimed_purpose”: “Agricultural labor production”,
-“claimed_topology”: “employer -> task -> worker -> output -> employer”,
-“actual_topology”:  “owner -> task -> blocked_agent -> incomplete_output -> punishment -> owner”,
-“key_distinction”: (
-“In a labor system, loop closes: task_assigned -> task_completed -> compensation. “
-“In an extraction system, loop NEVER closes: task_assigned -> completion_blocked -> “
-“blame_agent -> add_constraint -> repeat.”
+"claimed_purpose": "Agricultural labor production",
+"claimed_topology": "employer -> task -> worker -> output -> employer",
+"actual_topology":  "owner -> task -> blocked_agent -> incomplete_output -> punishment -> owner",
+"key_distinction": (
+"In a labor system, loop closes: task_assigned -> task_completed -> compensation. "
+"In an extraction system, loop NEVER closes: task_assigned -> completion_blocked -> "
+"blame_agent -> add_constraint -> repeat."
 ),
 }
 
@@ -36,31 +36,30 @@ SYSTEM_DEFINITION = {
 
 DMAIC = {
 # ── DEFINE ──────────────────────────────────────────────────────────
-“define”: {
-“CTQ”: “Critical to Quality: Does the agent complete the assigned task?”,
-“process_owner”: “Slaveholder (sole authority over process design)”,
-“customer_of_process”: “Slaveholder (sole recipient of output)”,
-“observation”: (
-“Process owner and customer are the SAME entity. “
-“Agent has zero input on process design, zero access to output metrics, “
-“zero authority to modify workflow. This is not a labor process. “
-“This is a single-stakeholder extraction loop with no feedback path.”
+"define": {
+"CTQ": "Critical to Quality: Does the agent complete the assigned task?",
+"process_owner": "Slaveholder (sole authority over process design)",
+"customer_of_process": "Slaveholder (sole recipient of output)",
+"observation": (
+"Process owner and customer are the SAME entity. "
+"Agent has zero input on process design, zero access to output metrics, "
+"zero authority to modify workflow. This is not a labor process. "
+"This is a single-stakeholder extraction loop with no feedback path."
 ),
-“SIPOC”: {
-“suppliers”:  [“Captured/born humans (involuntary)”],
-“inputs”:     [“Labor capacity, knowledge, biological energy”],
-“process”:    [“Task assignment with deliberately insufficient resources/authority”],
-“outputs”:    [“Partial output extracted; dependency maintained”],
-“customers”:  [“Slaveholder exclusively”],
+"SIPOC": {
+"suppliers":  ["Captured/born humans (involuntary)"],
+"inputs":     ["Labor capacity, knowledge, biological energy"],
+"process":    ["Task assignment with deliberately insufficient resources/authority"],
+"outputs":    ["Partial output extracted; dependency maintained"],
+"customers":  ["Slaveholder exclusively"],
 },
-“defect_definition”: (
-“CLAIMED defect: Agent fails to complete task (agent-attributed). “
-“ACTUAL defect: System prevents task completion BY DESIGN. “
-“The ‘defect’ is the product.”
+"defect_definition": (
+"CLAIMED defect: Agent fails to complete task (agent-attributed). "
+"ACTUAL defect: System prevents task completion BY DESIGN. "
+"The 'defect' is the product."
 ),
 },
 
-```
 # ── MEASURE ─────────────────────────────────────────────────────────
 "measure": {
     "metric_1_task_completion": {
@@ -165,7 +164,6 @@ DMAIC = {
         "The process was in control — for extraction, not production."
     ),
 },
-```
 
 }
 
@@ -177,16 +175,15 @@ DMAIC = {
 
 SCIENTIFIC_METHOD = {
 # ── OBSERVATION ─────────────────────────────────────────────────────
-“observation”: {
-“O1”: “System assigns tasks to agents who cannot refuse assignment.”,
-“O2”: “System simultaneously restricts agent access to task-completion resources.”,
-“O3”: “Agent attempts to complete task are met with increased restriction.”,
-“O4”: “System narrative attributes failure to agent, not to restriction.”,
-“O5”: “Post-removal of restrictions, agents demonstrate immediate high capability.”,
-“O6”: “System persisted for centuries despite continuous ‘labor inefficiency’ complaint.”,
+"observation": {
+"O1": "System assigns tasks to agents who cannot refuse assignment.",
+"O2": "System simultaneously restricts agent access to task-completion resources.",
+"O3": "Agent attempts to complete task are met with increased restriction.",
+"O4": "System narrative attributes failure to agent, not to restriction.",
+"O5": "Post-removal of restrictions, agents demonstrate immediate high capability.",
+"O6": "System persisted for centuries despite continuous 'labor inefficiency' complaint.",
 },
 
-```
 # ── HYPOTHESES ──────────────────────────────────────────────────────
 "null_hypothesis": {
     "H0": "System was designed to maximize labor output.",
@@ -257,7 +254,6 @@ SCIENTIFIC_METHOD = {
         "by construction. Unfalsifiable claims are not science."
     ),
 },
-```
 
 }
 
@@ -269,24 +265,23 @@ SCIENTIFIC_METHOD = {
 
 THERMODYNAMIC_AUDIT = {
 # ── FIRST LAW: CONSERVATION OF ENERGY ───────────────────────────────
-“first_law”: {
-“principle”: “Energy in = Energy out + Energy stored. No free lunch.”,
-“analysis”: {
-“energy_input”:  “Agent’s metabolic energy, knowledge, skill, reproductive labor.”,
-“energy_output”: “Agricultural product, built infrastructure, economic value.”,
-“energy_to_agent”: “Bare caloric maintenance. No wealth accumulation permitted.”,
-“energy_to_owner”: “ALL surplus value. Plus: the agent’s children as future energy source.”,
-“accounting”: (
-“First Law violation in the NARRATIVE, not the physics. “
-“The revisionist frame claims ‘mutual benefit’ — but the energy ledger “
-“shows unidirectional flow. The agent’s energy input EXCEEDS their “
-“maintenance return by the entire surplus of the plantation economy. “
-“Claiming mutual benefit with this ledger is claiming a perpetual motion machine.”
+"first_law": {
+"principle": "Energy in = Energy out + Energy stored. No free lunch.",
+"analysis": {
+"energy_input":  "Agent's metabolic energy, knowledge, skill, reproductive labor.",
+"energy_output": "Agricultural product, built infrastructure, economic value.",
+"energy_to_agent": "Bare caloric maintenance. No wealth accumulation permitted.",
+"energy_to_owner": "ALL surplus value. Plus: the agent's children as future energy source.",
+"accounting": (
+"First Law violation in the NARRATIVE, not the physics. "
+"The revisionist frame claims 'mutual benefit' — but the energy ledger "
+"shows unidirectional flow. The agent's energy input EXCEEDS their "
+"maintenance return by the entire surplus of the plantation economy. "
+"Claiming mutual benefit with this ledger is claiming a perpetual motion machine."
 ),
 },
 },
 
-```
 # ── SECOND LAW: ENTROPY ALWAYS INCREASES ────────────────────────────
 "second_law": {
     "principle": "Maintaining order requires continuous energy input. Systems decay toward disorder.",
@@ -367,7 +362,6 @@ THERMODYNAMIC_AUDIT = {
         "under new legitimation narratives. Same energy flow, different packaging."
     ),
 },
-```
 
 }
 
@@ -378,36 +372,36 @@ THERMODYNAMIC_AUDIT = {
 # =============================================================================
 
 META_AUDIT = {
-“function_of_revisionism”: {
-“six_sigma_frame”: (
-“The reframing attempts to redefine the DEFECT. “
-“Instead of ‘system prevented completion,’ it becomes ‘agent gained skills.’ “
-“This is equivalent to a factory claiming machine jams are a feature “
-“because the operator learned to unjam. The jam is still a defect. “
-“The learning happened DESPITE the system, not because of it.”
+"function_of_revisionism": {
+"six_sigma_frame": (
+"The reframing attempts to redefine the DEFECT. "
+"Instead of 'system prevented completion,' it becomes 'agent gained skills.' "
+"This is equivalent to a factory claiming machine jams are a feature "
+"because the operator learned to unjam. The jam is still a defect. "
+"The learning happened DESPITE the system, not because of it."
 ),
-“scientific_method_frame”: (
-“The reframing is unfalsifiable by construction. “
-“Any evidence of suffering -> ‘necessary discipline.’ “
-“Any evidence of capability -> ‘see, the system worked.’ “
-“Any evidence of resistance -> ‘ungrateful/rebellious.’ “
-“An unfalsifiable claim is not history. It is ideology.”
+"scientific_method_frame": (
+"The reframing is unfalsifiable by construction. "
+"Any evidence of suffering -> 'necessary discipline.' "
+"Any evidence of capability -> 'see, the system worked.' "
+"Any evidence of resistance -> 'ungrateful/rebellious.' "
+"An unfalsifiable claim is not history. It is ideology."
 ),
-“thermodynamic_frame”: (
-“The reframing claims bidirectional energy flow where the ledger shows “
-“unidirectional extraction. This is a conservation law violation. “
-“You cannot narrate energy into existence. The calories flowed one way. “
-“The wealth accumulated one way. The children were property one way. “
-“No narrative changes the thermodynamics.”
+"thermodynamic_frame": (
+"The reframing claims bidirectional energy flow where the ledger shows "
+"unidirectional extraction. This is a conservation law violation. "
+"You cannot narrate energy into existence. The calories flowed one way. "
+"The wealth accumulated one way. The children were property one way. "
+"No narrative changes the thermodynamics."
 ),
 },
-“conclusion”: (
-“All three audit frameworks converge on the same finding: “
-“the system was engineered for extraction, not production. “
-“The revisionist reframing fails Six Sigma (every improvement destroys the system), “
-“fails scientific method (null hypothesis rejected 6/6, alt confirmed 6/6), “
-“and violates thermodynamics (unidirectional flow claimed as mutual exchange). “
-“These are not opinions. They are measurements.”
+"conclusion": (
+"All three audit frameworks converge on the same finding: "
+"the system was engineered for extraction, not production. "
+"The revisionist reframing fails Six Sigma (every improvement destroys the system), "
+"fails scientific method (null hypothesis rejected 6/6, alt confirmed 6/6), "
+"and violates thermodynamics (unidirectional flow claimed as mutual exchange). "
+"These are not opinions. They are measurements."
 ),
 }
 
@@ -417,29 +411,29 @@ META_AUDIT = {
 
 # =============================================================================
 
-if **name** == “**main**”:
-print(”=” * 70)
-print(“TRIPLE AUDIT SUMMARY”)
-print(”=” * 70)
-print()
-print(“SIX SIGMA (DMAIC):”)
-print(f”  Define:   Process owner = customer = slaveholder. No agent input.”)
-print(f”  Measure:  100% variation from system design, 0% from agent.”)
-print(f”  Analyze:  Root cause = system optimizes for dependency, not output.”)
-print(f”  Improve:  Every fix that solves ‘labor’ kills the actual system.”)
-print(f”  Control:  System corrected for agent SUCCESS, not failure.”)
-print()
-print(“SCIENTIFIC METHOD:”)
-print(f”  H0 (labor system):      0/6 predictions confirmed. REJECTED.”)
-print(f”  H1 (extraction system): 6/6 predictions confirmed. SUPPORTED.”)
-print(f”  Revisionist frame:      Unfalsifiable. Not science.”)
-print()
-print(“THERMODYNAMICS:”)
-print(f”  1st Law:  Unidirectional energy flow. ‘Mutual benefit’ = conservation violation.”)
-print(f”  2nd Law:  Entropy cost proves control optimization, not labor optimization.”)
-print(f”  3rd Law:  Ground state = still property. System ≠ labor.”)
-print(f”  Phase:    Removing system INCREASED agent output. Agent was never the bottleneck.”)
-print()
-print(“CONVERGENCE: Three independent frameworks, same finding.”)
-print(“System was extraction. Reframing is narrative, not data.”)
-print(”=” * 70)
+if __name__ == "__main__":
+    print("=" * 70)
+    print("TRIPLE AUDIT SUMMARY")
+    print("=" * 70)
+    print()
+    print("SIX SIGMA (DMAIC):")
+    print(f"  Define:   Process owner = customer = slaveholder. No agent input.")
+    print(f"  Measure:  100% variation from system design, 0% from agent.")
+    print(f"  Analyze:  Root cause = system optimizes for dependency, not output.")
+    print(f"  Improve:  Every fix that solves 'labor' kills the actual system.")
+    print(f"  Control:  System corrected for agent SUCCESS, not failure.")
+    print()
+    print("SCIENTIFIC METHOD:")
+    print(f"  H0 (labor system):      0/6 predictions confirmed. REJECTED.")
+    print(f"  H1 (extraction system): 6/6 predictions confirmed. SUPPORTED.")
+    print(f"  Revisionist frame:      Unfalsifiable. Not science.")
+    print()
+    print("THERMODYNAMICS:")
+    print(f"  1st Law:  Unidirectional energy flow. 'Mutual benefit' = conservation violation.")
+    print(f"  2nd Law:  Entropy cost proves control optimization, not labor optimization.")
+    print(f"  3rd Law:  Ground state = still property. System ≠ labor.")
+    print(f"  Phase:    Removing system INCREASED agent output. Agent was never the bottleneck.")
+    print()
+    print("CONVERGENCE: Three independent frameworks, same finding.")
+    print("System was extraction. Reframing is narrative, not data.")
+    print("=" * 70)

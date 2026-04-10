@@ -164,7 +164,7 @@ def harvest_carbon_cost(state):
     road_CO2 = road_km * C["kg_CO2_per_km_road_construction"]
 
     # Soil carbon liberation
-    area_per_tree = 3.14159 * C["soil_disturbance_radius_m"] ** 2
+    area_per_tree = math.pi * C["soil_disturbance_radius_m"] ** 2
     total_disturbed_m2 = n * area_per_tree
     soil_C_released = (
         total_disturbed_m2 *
