@@ -1157,3 +1157,190 @@ class TestConsequenceVelocity:
         demo_consequence_cascade()
         captured = capsys.readouterr()
         assert "CONSEQUENCE" in captured.out.upper()
+
+
+# ─────────────────────────────────────────────
+# CONSTRAINT ACCOUNTABILITY CHAIN (schema)
+# ─────────────────────────────────────────────
+
+class TestConstraintAccountabilityChain:
+    def test_import(self):
+        import constraint_accountability_chain  # noqa: F401
+
+    def test_schema_structures_present(self):
+        from constraint_accountability_chain import (
+            DECISION_NODE, ACCOUNTABILITY_CHAIN,
+        )
+        assert isinstance(DECISION_NODE, dict)
+        assert isinstance(ACCOUNTABILITY_CHAIN, dict)
+        for key in ("actor", "decision", "inheritance"):
+            assert key in DECISION_NODE
+        for key in ("mutations", "phenotype", "epigenetic_factors"):
+            assert key in ACCOUNTABILITY_CHAIN
+
+
+# ─────────────────────────────────────────────
+# CONSTRAINT ACCOUNTABILITY ENGINE
+# ─────────────────────────────────────────────
+
+class TestConstraintAccountabilityEngine:
+    def test_import(self):
+        import constraint_accountability_engine  # noqa: F401
+
+    def test_direct_sense_node(self):
+        from constraint_accountability_engine import DecisionNode
+        node = DecisionNode(
+            actor_role="operator",
+            layer=0,
+            comfort_captured=0.1,
+            constraint_at_stake="frame",
+            ground_signal=0.5,
+            reported_signal=0.5,
+            mechanism="direct_sense",
+        )
+        assert node.choice == "direct_sense"
+        assert node.delta == 0.0
+        assert node.parent is None
+
+    def test_comfort_protect_detected_by_delta(self):
+        from constraint_accountability_engine import DecisionNode
+        node = DecisionNode(
+            actor_role="supervisor",
+            layer=1,
+            comfort_captured=0.5,
+            constraint_at_stake="frame",
+            ground_signal=0.8,
+            reported_signal=0.3,
+            mechanism="attenuation",
+        )
+        assert node.choice == "comfort_protect"
+        assert node.delta > 0.4
+
+    def test_chain_builds_sequentially(self):
+        from constraint_accountability_engine import AccountabilityChain
+        chain = AccountabilityChain(
+            chain_id="test", constraint_domain="safety",
+        )
+        assert len(chain.nodes) == 0
+
+        n1 = chain.add_decision(
+            actor_role="operator", layer=0, comfort_captured=0.1,
+            constraint_at_stake="frame",
+            ground_signal=0.5, reported_signal=0.5,
+            mechanism="direct_sense",
+        )
+        n2 = chain.add_decision(
+            actor_role="supervisor", layer=1, comfort_captured=0.3,
+            constraint_at_stake="frame",
+            ground_signal=0.5, reported_signal=0.2,
+            mechanism="attenuation",
+        )
+        assert len(chain.nodes) == 2
+        assert n2.parent is n1
+
+    def test_override_fails_when_child_has_less_comfort(self):
+        from constraint_accountability_engine import AccountabilityChain
+        chain = AccountabilityChain(
+            chain_id="test", constraint_domain="safety",
+        )
+        chain.add_decision(
+            actor_role="manager", layer=2, comfort_captured=0.8,
+            constraint_at_stake="frame",
+            ground_signal=0.9, reported_signal=0.2,
+            mechanism="normalize",
+        )
+        child = chain.add_decision(
+            actor_role="tech", layer=1, comfort_captured=0.1,
+            constraint_at_stake="frame",
+            ground_signal=0.9, reported_signal=0.9,
+            mechanism="direct_sense",
+        )
+        # Child tried to report honestly but parent's comfort dominates
+        assert child.override_attempted is True
+        assert child.override_succeeded is False
+        assert child.choice == "comfort_protect"
+        assert child.mechanism == "delegate_down"
+
+    def test_phenotype_reports_ratchet_and_cascade(self):
+        from constraint_accountability_engine import AccountabilityChain
+        chain = AccountabilityChain(
+            chain_id="test", constraint_domain="safety",
+        )
+        chain.add_decision(
+            actor_role="a", layer=0, comfort_captured=0.1,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=1.0,
+            mechanism="direct_sense",
+        )
+        chain.add_decision(
+            actor_role="b", layer=1, comfort_captured=0.3,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=0.6,
+            mechanism="attenuation",
+        )
+        chain.add_decision(
+            actor_role="c", layer=2, comfort_captured=0.5,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=0.3,
+            mechanism="reframe",
+        )
+        p = chain.phenotype
+        for key in ("institutional_blindness", "ratchet_depth",
+                    "reversion_energy", "cascade_risk", "time_to_failure"):
+            assert key in p
+        assert 0.0 <= p["cascade_risk"] <= 1.0
+        # Last two decisions are comfort_protect, so ratchet depth is 2
+        assert p["ratchet_depth"] == 2
+
+    def test_find_comfort_origin_and_walk_backward(self):
+        from constraint_accountability_engine import AccountabilityChain
+        chain = AccountabilityChain(
+            chain_id="test", constraint_domain="safety",
+        )
+        chain.add_decision(
+            actor_role="a", layer=0, comfort_captured=0.1,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=1.0,
+            mechanism="direct_sense",
+        )
+        patient_zero = chain.add_decision(
+            actor_role="b", layer=1, comfort_captured=0.3,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=0.5,
+            mechanism="attenuation",
+        )
+        chain.add_decision(
+            actor_role="c", layer=2, comfort_captured=0.5,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=0.3,
+            mechanism="reframe",
+        )
+        origin = chain.find_comfort_origin()
+        assert origin is patient_zero
+
+        walked = [n.actor_role for n in chain.walk_backward()]
+        assert walked == ["c", "b", "a"]
+
+    def test_report_surfaces_all_metrics(self):
+        from constraint_accountability_engine import AccountabilityChain
+        chain = AccountabilityChain(
+            chain_id="plant_7", constraint_domain="safety",
+        )
+        chain.add_decision(
+            actor_role="a", layer=0, comfort_captured=0.1,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=0.5,
+            mechanism="attenuation",
+        )
+        chain.add_epigenetic_event(
+            factor="regulatory_pressure",
+            effect="activates_direct_sense",
+            magnitude=0.5,
+        )
+        r = chain.report()
+        assert r["chain_id"] == "plant_7"
+        assert r["constraint_domain"] == "safety"
+        assert r["total_nodes"] == 1
+        assert r["epigenetic_events"] == 1
+        assert "mutations" in r
+        assert "phenotype" in r

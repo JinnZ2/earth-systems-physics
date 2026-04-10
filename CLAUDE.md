@@ -12,7 +12,7 @@ Coupled differential equation framework mapping Earth physics as constraint laye
 pip install -r requirements.txt
 python cascade_engine.py              # Run all forcing scenarios
 python assumption_validator/api.py    # Start REST API on port 5000
-pytest -v                             # Run test suite (137 tests)
+pytest -v                             # Run test suite (147 tests)
 ```
 
 ## Architecture
@@ -57,7 +57,7 @@ earth-systems-physics/
 │
 ├── cascade_engine.py                  # Core forcing propagation engine
 ├── energy_audit.py                    # Cross-layer energy conservation audit
-├── test_smoke.py                      # 137 tests — all layers, scenarios, validators, audits
+├── test_smoke.py                      # 147 tests — all layers, scenarios, validators, audits
 │
 ├── ocean_timber_sequestration_audit.py # Full-cycle carbon audit of wood-in-ocean schemes
 ├── dollar_energy_metabolism.py        # Recursive energy cost model for climate finance
@@ -68,6 +68,8 @@ earth-systems-physics/
 ├── process_epistemology.py            # State-based vs process-based epistemology (English vs Ojibwe)
 ├── buffer_sensor_corruption.py        # Incentive-driven sensor corruption and buffer-break dynamics
 ├── consequence_velocity.py            # Consequence as process with velocity, coupling, phase transitions
+├── constraint_accountability_chain.py # Schema: DNA-like decision ancestry of comfort vs direct-sense choices
+├── constraint_accountability_engine.py # Engine: walks the chain, computes ratchet depth, cascade risk, reversion energy
 │
 ├── tools/
 │   └── fix_paste_artifacts.py         # Repair .py files pasted from markdown (see recovery section)
@@ -147,7 +149,7 @@ All physics functions require docstrings with: description, parameters (with typ
 
 ## Testing
 
-Framework: **pytest** — 137 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
+Framework: **pytest** — 147 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
 
 ```bash
 pytest                    # Run all tests
@@ -173,6 +175,8 @@ laws) to non-physical systems:
 | `process_epistemology.py` | State-based vs process-based awareness (English vs Ojibwe); why process frameworks catch failures state frameworks miss |
 | `buffer_sensor_corruption.py` | How incentive-driven sensor networks drift from ground truth; buffer-break dynamics |
 | `consequence_velocity.py` | Consequence modeled as a process with velocity, coupling, and phase transitions, not a fixed future cost |
+| `constraint_accountability_chain.py` | Schema for a DNA-like decision ancestry: each node is a choice between direct sensing and comfort protection, with dominant/recessive inheritance |
+| `constraint_accountability_engine.py` | Runnable engine for the chain schema: builds decision ancestries, computes ratchet depth, reversion energy, cascade risk, and finds comfort origin |
 
 These modules are standalone — they don't import from the physics layers —
 but they share conventions (dataclasses, `dict` state exports, pure-Python
