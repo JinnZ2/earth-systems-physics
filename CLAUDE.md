@@ -12,7 +12,7 @@ Coupled differential equation framework mapping Earth physics as constraint laye
 pip install -r requirements.txt
 python cascade_engine.py              # Run all forcing scenarios
 python assumption_validator/api.py    # Start REST API on port 5000
-pytest -v                             # Run test suite (93 tests)
+pytest -v                             # Run test suite (109 tests)
 ```
 
 ## Architecture
@@ -57,7 +57,14 @@ earth-systems-physics/
 │
 ├── cascade_engine.py                  # Core forcing propagation engine
 ├── energy_audit.py                    # Cross-layer energy conservation audit
-├── test_smoke.py                      # 93 tests — all layers, scenarios, validators
+├── test_smoke.py                      # 109 tests — all layers, scenarios, validators, audits
+│
+├── ocean_timber_sequestration_audit.py # Full-cycle carbon audit of wood-in-ocean schemes
+├── dollar_energy_metabolism.py        # Recursive energy cost model for climate finance
+│
+├── experiments/
+│   ├── magnetometer_build.py          # $5 smoky-quartz + HDD-magnet magnetometer build guide
+│   └── Possibilities.md               # Rough notes / speculative build ideas
 │
 ├── layer_0_electromagnetics.py        # Base constraint layer (+ magnonic/magnomech)
 ├── layer_0b_magnomechanical.py        # Spin-phonon coupling in crustal minerals
@@ -130,7 +137,7 @@ All physics functions require docstrings with: description, parameters (with typ
 
 ## Testing
 
-Framework: **pytest** — 93 tests covering all layers, scenarios, validators, and magnomechanical integration.
+Framework: **pytest** — 109 tests covering all layers, scenarios, validators, magnomechanical integration, and climate-scheme audits.
 
 ```bash
 pytest                    # Run all tests
@@ -165,7 +172,7 @@ GET    /v1/stream                   SSE live updates
 
 **BASELINE** (in `cascade_engine.py`): Reference Earth system state with values like surface temperature (288 K), CO2 delta (140 ppm above pre-industrial), surface pressure, magnetic field strength, magnomechanical mineral parameters, etc.
 
-**SCENARIOS** (in `cascade_engine.py`): 14 pre-configured forcing functions — CO2 pulse, AMOC collapse, geomagnetic storm, solar proton event, Morin transition, BIF magnonic crystal, and others.
+**SCENARIOS** (in `cascade_engine.py`): 15 pre-configured forcing functions — CO2 pulse, AMOC collapse, geomagnetic storm, solar proton event, Morin transition, BIF magnonic crystal, ocean timber dumping, and others. The ocean-timber scenario pairs with `run_ocean_timber_full_audit()`, which runs the cascade AND the multi-layer thermodynamic audit in `ocean_timber_sequestration_audit.py` together.
 
 **KNOWN_LOOPS** (in `cascade_engine.py`): 8 self-amplifying feedback loops with gain functions — Ice-Albedo, Permafrost-CH4, Amazon-CO2, AMOC-SST, Stratification-Productivity, Rotation-Coriolis, Volcanic-Deglaciation, Magnomechanical-EM.
 

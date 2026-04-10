@@ -724,3 +724,163 @@ class TestDeviceScaling:
         assert len(survey) >= 10
         for app_key, result in survey.items():
             assert "builds" in result
+
+
+# ─────────────────────────────────────────────
+# DOLLAR ENERGY METABOLISM
+# ─────────────────────────────────────────────
+
+class TestDollarEnergyMetabolism:
+    def test_import(self):
+        import dollar_energy_metabolism
+
+    def test_overhead_layers_defined(self):
+        from dollar_energy_metabolism import OVERHEAD_LAYERS
+        assert len(OVERHEAD_LAYERS) == 5
+        names = {l.name for l in OVERHEAD_LAYERS}
+        assert {"leverage", "margin_stack", "taxation",
+                "narrative", "political"} == names
+
+    def test_scenarios_defined(self):
+        from dollar_energy_metabolism import SCENARIOS
+        assert "direct_action" in SCENARIOS
+        assert "typical_climate" in SCENARIOS
+        assert "carbon_speculation" in SCENARIOS
+
+    def test_direct_action_has_no_overhead(self):
+        from dollar_energy_metabolism import compute_dollar_energy, SCENARIOS
+        result = compute_dollar_energy(SCENARIOS["direct_action"])
+        assert result["total_MJ_per_dollar"] == result["E_base_MJ"]
+        assert result["overall_multiplier"] == 1.0
+        assert not result["divergent"]
+
+    def test_overhead_increases_total_energy(self):
+        from dollar_energy_metabolism import compute_dollar_energy, SCENARIOS
+        direct = compute_dollar_energy(SCENARIOS["direct_action"])
+        typical = compute_dollar_energy(SCENARIOS["typical_climate"])
+        speculative = compute_dollar_energy(SCENARIOS["carbon_speculation"])
+        assert typical["total_MJ_per_dollar"] > direct["total_MJ_per_dollar"]
+        assert speculative["total_MJ_per_dollar"] > typical["total_MJ_per_dollar"]
+
+    def test_geometric_series_diverges_at_r_1(self):
+        import math
+        from dollar_energy_metabolism import explore_recycling_fraction
+        series = explore_recycling_fraction()
+        last = series[-1]  # r = 1.0
+        assert last[0] == 1.0
+        assert math.isinf(last[1])
+
+    def test_ocean_timber_funding_scales_with_speculation(self):
+        from dollar_energy_metabolism import (
+            compute_project_audit, PROJECTS, SCENARIOS,
+        )
+        typical = compute_project_audit(
+            PROJECTS["ocean_timber"], SCENARIOS["typical_climate"]
+        )
+        speculative = compute_project_audit(
+            PROJECTS["ocean_timber"], SCENARIOS["carbon_speculation"]
+        )
+        # Under carbon speculation the funding CO2 should exceed
+        # the claimed sequestration (the entire point of the audit)
+        spec_frac = speculative["funding_CO2_as_fraction_of_claimed"]["high_budget"]
+        typ_frac = typical["funding_CO2_as_fraction_of_claimed"]["high_budget"]
+        assert spec_frac > 1.0, (
+            "Carbon speculation case should emit more CO2 in financial "
+            "overhead than it claims to sequester."
+        )
+        assert spec_frac > typ_frac, (
+            "Speculative finance should be strictly worse than typical finance."
+        )
+
+    def test_sai_breakeven_impossible(self):
+        from dollar_energy_metabolism import find_breakeven_r, PROJECTS
+        # SAI claims no sequestration, so breakeven returns 0.0 by convention
+        assert find_breakeven_r(PROJECTS["sai"]) == 0.0
+
+
+# ─────────────────────────────────────────────
+# OCEAN TIMBER SEQUESTRATION AUDIT
+# ─────────────────────────────────────────────
+
+class TestOceanTimberAudit:
+    def test_import(self):
+        import ocean_timber_sequestration_audit
+
+    def test_constants_present(self):
+        from ocean_timber_sequestration_audit import CONSTANTS
+        # Spot-check a few expected keys
+        for key in (
+            "carbon_fraction_dry_wood",
+            "dry_mass_per_boreal_tree_kg",
+            "permafrost_thaw_CH4_kg_per_m2",
+            "CH4_to_CO2_equivalence",
+            "AMOC_weakening_threshold",
+        ):
+            assert key in CONSTANTS
+
+    def test_default_run_is_net_source(self):
+        from ocean_timber_sequestration_audit import run_simulation
+        state = run_simulation(
+            n_trees_per_year=1_000_000,
+            transport_km=1000.0,
+            dump_area_km2=10.0,
+            years=10,
+        )
+        assert state["project_is_net_source"] is True
+        assert state["net_carbon_CO2_kg"] < 0
+        assert state["crossover_year"] is not None
+
+    def test_layer_costs_nonnegative(self):
+        from ocean_timber_sequestration_audit import (
+            initial_state, harvest_carbon_cost, transport_carbon_cost,
+        )
+        state = initial_state(n_trees_per_year=1_000_000, years=1)
+        harvest = harvest_carbon_cost(state)
+        transport = transport_carbon_cost(state)
+        for k, v in harvest.items():
+            assert v >= 0, f"harvest component {k} is negative"
+        for k, v in transport.items():
+            assert v >= 0, f"transport component {k} is negative"
+
+    def test_anoxic_transition_occurs_at_scale(self):
+        from ocean_timber_sequestration_audit import run_simulation
+        state = run_simulation(
+            n_trees_per_year=1_000_000,
+            transport_km=1000.0,
+            dump_area_km2=10.0,
+            years=50,
+        )
+        # With 50M trees dumped, O2 should crash and anoxic phase should engage
+        assert state["anoxic"] is True
+        assert state["local_O2_mL_L"] < 1.0
+
+    def test_time_series_lengths_match_years(self):
+        from ocean_timber_sequestration_audit import run_simulation
+        years = 25
+        state = run_simulation(years=years)
+        assert len(state["ts_net_carbon_kg"]) == years
+        assert len(state["ts_pH"]) == years
+        assert len(state["ts_thermohaline"]) == years
+
+
+# ─────────────────────────────────────────────
+# OCEAN TIMBER CASCADE WIRING
+# ─────────────────────────────────────────────
+
+class TestOceanTimberCascadeWiring:
+    def test_scenario_registered(self):
+        from cascade_engine import SCENARIOS
+        assert "ocean_timber_dumping" in SCENARIOS
+        scn = SCENARIOS["ocean_timber_dumping"]
+        assert scn.variable == "deforestation"
+        assert scn.layer == 6
+
+    def test_full_audit_helper_runs(self):
+        from cascade_engine import run_ocean_timber_full_audit
+        result = run_ocean_timber_full_audit(years=5, verbose=False)
+        assert "cascade" in result
+        assert "audit" in result
+        assert "verdict" in result
+        verdict = result["verdict"]
+        assert verdict["project_is_net_source"] is True
+        assert verdict["crossover_year"] is not None

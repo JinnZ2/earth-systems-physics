@@ -18,15 +18,10 @@ If net <= 0, the project is a carbon SOURCE sold as a carbon SINK.
 CC0 — No rights reserved.
 Part of: github.com/JinnZ2/earth-systems-physics
 
-Dependencies: numpy (optional, falls back to stdlib math)
+Dependencies: None (stdlib only)
 """
 
-try:
-    import numpy as np
-    HAS_NUMPY = True
-except ImportError:
-    import math
-    HAS_NUMPY = False
+import math
 
 
 # ═══════════════════════════════════════════════════════════════

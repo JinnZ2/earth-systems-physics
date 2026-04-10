@@ -981,7 +981,84 @@ SCENARIOS = {
         description="Field weakening 60% — magnonic band structure shift in BIF",
         units="T"
     ),
+    "ocean_timber_dumping": Forcing(
+        layer=6, variable="deforestation", magnitude=0.001,
+        description=(
+            "Ocean timber sequestration scheme — 1M boreal trees/year cut "
+            "and sunk in deep ocean. Primary cascade handle is deforestation, "
+            "but the scheme has unaudited couplings across Layers 4-6 "
+            "(benthic kill, anoxic CH4, pH/CaCO3, tannin leachate, permafrost "
+            "thaw on access roads, lost carbon uptake, AMOC density "
+            "perturbation). Use run_ocean_timber_full_audit() to run the "
+            "cascade AND the companion ocean_timber_sequestration_audit.py "
+            "module together for full cross-layer accounting."
+        ),
+        units="fraction"
+    ),
 }
+
+
+# ─────────────────────────────────────────────
+# COMPOSITE SCENARIO: OCEAN TIMBER FULL AUDIT
+# Runs the single-variable cascade AND the multi-layer
+# thermodynamic audit from ocean_timber_sequestration_audit.py.
+# The cascade-engine Forcing abstraction is single-variable,
+# but ocean timber dumping perturbs multiple layers
+# simultaneously. This helper runs both tracks and returns
+# the combined picture.
+# ─────────────────────────────────────────────
+
+def run_ocean_timber_full_audit(n_trees_per_year=1_000_000,
+                                transport_km=1000.0,
+                                dump_area_km2=10.0,
+                                years=50,
+                                verbose=True):
+    """
+    Run both the standard cascade (via the 'ocean_timber_dumping'
+    scenario) and the full thermodynamic audit from
+    ocean_timber_sequestration_audit.py.
+
+    Returns dict with:
+        'cascade': CascadeResult from run_cascade()
+        'audit':   state dict from run_simulation()
+        'verdict': short combined summary
+    """
+    # Lazy import to avoid pulling the audit module at cascade-engine
+    # import time (which would add a dependency for scenarios that
+    # don't use it).
+    from ocean_timber_sequestration_audit import run_simulation, print_audit
+
+    cascade_result = run_cascade(SCENARIOS["ocean_timber_dumping"], verbose=verbose)
+
+    audit_state = run_simulation(
+        n_trees_per_year=n_trees_per_year,
+        transport_km=transport_km,
+        dump_area_km2=dump_area_km2,
+        years=years,
+    )
+
+    if verbose:
+        print()
+        print_audit(audit_state)
+
+    verdict = {
+        "net_carbon_CO2_kg": audit_state["net_carbon_CO2_kg"],
+        "project_is_net_source": audit_state["project_is_net_source"],
+        "crossover_year": audit_state["crossover_year"],
+        "final_pH": audit_state["local_pH"],
+        "final_O2_mL_L": audit_state["local_O2_mL_L"],
+        "anoxic": audit_state["anoxic"],
+        "thermohaline_threshold_fraction": audit_state["ts_thermohaline"][-1],
+        "assumption_violations_from_cascade": len(
+            cascade_result.assumption_violations
+        ),
+    }
+
+    return {
+        "cascade": cascade_result,
+        "audit": audit_state,
+        "verdict": verdict,
+    }
 
 
 if __name__ == "__main__":
