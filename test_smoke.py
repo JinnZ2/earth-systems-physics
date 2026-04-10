@@ -940,3 +940,220 @@ class TestChattelSlaveryTripleAudit:
         assert "SCIENTIFIC METHOD" in captured.out
         assert "THERMODYNAMICS" in captured.out
         assert "CONVERGENCE" in captured.out
+
+
+# ─────────────────────────────────────────────
+# SLAVERY SYSTEM AUDIT
+# ─────────────────────────────────────────────
+
+class TestSlaverySystemAudit:
+    def test_import(self):
+        import slavery_system_audit  # noqa: F401
+
+    def test_top_level_structures_present(self):
+        from slavery_system_audit import (
+            SYSTEM_DEFINITION, DMAIC, SCIENTIFIC_METHOD,
+            THERMODYNAMIC_AUDIT, META_AUDIT,
+        )
+        assert "claimed_purpose" in SYSTEM_DEFINITION
+        assert "actual_topology" in SYSTEM_DEFINITION
+        for phase in ("define", "measure", "analyze", "improve", "control"):
+            assert phase in DMAIC
+        for section in ("observation", "null_hypothesis", "alt_hypothesis",
+                        "evidence", "verdict", "falsifiability"):
+            assert section in SCIENTIFIC_METHOD
+        for law in ("first_law", "second_law", "third_law",
+                    "topology", "phase_transition"):
+            assert law in THERMODYNAMIC_AUDIT
+        assert "function_of_revisionism" in META_AUDIT
+        assert "conclusion" in META_AUDIT
+
+    def test_scientific_method_evidence_is_six_for_six(self):
+        from slavery_system_audit import SCIENTIFIC_METHOD
+        evidence = SCIENTIFIC_METHOD["evidence"]
+        assert len(evidence) == 6
+        for pred_key in ("P1", "P2", "P3", "P4", "P5", "P6"):
+            assert pred_key in evidence
+            assert "H1 CONFIRMED" in evidence[pred_key]["observed"]
+        verdict = SCIENTIFIC_METHOD["verdict"]
+        assert "0/6" in verdict["H0_score"]
+        assert "6/6" in verdict["H1_score"]
+
+    def test_dmaic_analyze_chain_is_five_whys(self):
+        from slavery_system_audit import DMAIC
+        chain = DMAIC["analyze"]["chain"]
+        assert len(chain) == 5
+        for step in chain:
+            assert "why" in step
+            assert "because" in step
+
+
+# ─────────────────────────────────────────────
+# INNOVATION REGRESSION AUDIT
+# ─────────────────────────────────────────────
+
+class TestInnovationRegressionAudit:
+    def test_import(self):
+        import innovation_regression_audit  # noqa: F401
+
+    def test_top_level_dicts_present(self):
+        from innovation_regression_audit import (
+            PRODUCTIVITY_COMPARISON, INNOVATION_COST,
+            PSYCHOLOGICAL_AUDIT, HOPE_DIFFERENTIAL, DISQUALIFICATION,
+        )
+        assert "free_settler_model" in PRODUCTIVITY_COMPARISON
+        assert "extraction_system_model" in PRODUCTIVITY_COMPARISON
+        assert "free_settler_psychology" in PSYCHOLOGICAL_AUDIT
+        assert "enslaved_agent_psychology" in PSYCHOLOGICAL_AUDIT
+        assert "observation" in HOPE_DIFFERENTIAL
+        assert "thermodynamic_statement" in HOPE_DIFFERENTIAL
+
+    def test_productivity_comparison_has_both_models(self):
+        from innovation_regression_audit import PRODUCTIVITY_COMPARISON
+        free = PRODUCTIVITY_COMPARISON["free_settler_model"]
+        extraction = PRODUCTIVITY_COMPARISON["extraction_system_model"]
+        assert isinstance(free, dict) and free
+        assert isinstance(extraction, dict) and extraction
+
+
+# ─────────────────────────────────────────────
+# PROCESS EPISTEMOLOGY
+# ─────────────────────────────────────────────
+
+class TestProcessEpistemology:
+    def test_import(self):
+        import process_epistemology  # noqa: F401
+
+    def test_epistemology_enum_has_both_modes(self):
+        from process_epistemology import Epistemology
+        assert Epistemology.STATE_BASED.value == "state"
+        assert Epistemology.PROCESS_BASED.value == "process"
+
+    def test_process_kinematics_updates(self):
+        from process_epistemology import Process
+        p = Process(name="soil_health", current=1.0)
+        p.update(0.9, dt=1.0)
+        p.update(0.75, dt=1.0)
+        p.update(0.55, dt=1.0)
+        # After three decreasing updates, velocity should be negative
+        assert p.velocity < 0
+        # And the process should know it's trending
+        state = p.state()
+        assert "velocity" in state
+        assert "name" in state
+
+    def test_epistemology_comparison_has_failure_cases(self):
+        from process_epistemology import EpistemologyComparison
+        ec = EpistemologyComparison()
+        assert isinstance(ec.failure_cases, dict)
+        assert len(ec.failure_cases) > 0
+
+    def test_demo_runs(self, capsys):
+        from process_epistemology import demo_epistemology_comparison
+        demo_epistemology_comparison()
+        captured = capsys.readouterr()
+        assert "EPISTEMOLOGY" in captured.out.upper()
+
+
+# ─────────────────────────────────────────────
+# BUFFER SENSOR CORRUPTION
+# ─────────────────────────────────────────────
+
+class TestBufferSensorCorruption:
+    def test_import(self):
+        import buffer_sensor_corruption  # noqa: F401
+
+    def test_sensor_mode_enum_members(self):
+        from buffer_sensor_corruption import SensorMode
+        assert SensorMode.INTEGRATED.value == "integrated"
+        assert SensorMode.BUFFERED.value == "buffered"
+        assert SensorMode.CORRUPTED.value == "corrupted"
+        assert SensorMode.FAILED.value == "failed"
+
+    def test_incentive_type_enum_members(self):
+        from buffer_sensor_corruption import IncentiveType
+        assert IncentiveType.ACCURACY.value == "accuracy"
+        assert IncentiveType.STABILITY.value == "stability"
+        assert IncentiveType.COMPLIANCE.value == "compliance"
+        assert IncentiveType.COMFORT.value == "comfort"
+
+    def test_integrated_sensor_reports_truth(self):
+        from buffer_sensor_corruption import (
+            Sensor, SensorMode, IncentiveType,
+        )
+        s = Sensor(
+            name="test",
+            mode=SensorMode.INTEGRATED,
+            incentive=IncentiveType.ACCURACY,
+        )
+        out = s.read(ground_truth=1.23, baseline=0.0)
+        # Integrated sensor should report the full deviation with zero
+        # suppression
+        assert out["reported_deviation"] == 1.23
+        assert out["suppressed_total"] == 0.0
+        assert out["failed"] is False
+
+    def test_network_builds_and_reads(self):
+        from buffer_sensor_corruption import SensorNetwork
+        net = SensorNetwork()
+        net.add_integrated_sensor("truth_1")
+        net.add_institutional_sensor("comfort_1")
+        net.add_corrupted_sensor("suppressed_1")
+        result = net.read_all(ground_truth=0.5, baseline=0.0)
+        assert result["sensors_total"] == 3
+        assert result["ground_truth"] == 0.5
+        # Integrated sensor reports truth; institutional/corrupted suppress
+        assert result["sensors_reporting_true"] == 1
+        assert result["sensors_suppressing"] == 2
+        names = {r["sensor"] for r in result["individual_reports"]}
+        assert names == {"truth_1", "comfort_1", "suppressed_1"}
+
+    def test_demo_runs(self, capsys):
+        from buffer_sensor_corruption import demo_buffer_failure
+        demo_buffer_failure()
+        captured = capsys.readouterr()
+        assert "BUFFER" in captured.out.upper()
+
+
+# ─────────────────────────────────────────────
+# CONSEQUENCE VELOCITY
+# ─────────────────────────────────────────────
+
+class TestConsequenceVelocity:
+    def test_import(self):
+        import consequence_velocity  # noqa: F401
+
+    def test_deferral_increases_velocity(self):
+        from consequence_velocity import Consequence
+        c = Consequence(name="test", domain="ecological")
+        v0 = c.velocity
+        c.defer(0.2)
+        # Deferral should push velocity upward
+        assert c.velocity > v0
+
+    def test_buffer_overflow_cascades(self):
+        from consequence_velocity import Consequence
+        c = Consequence(
+            name="test", domain="ecological", buffer_capacity=0.5,
+        )
+        result = c.defer(2.0)  # way beyond buffer capacity
+        assert result["overflow"] > 0
+        assert c.phase == "cascading"
+
+    def test_field_coupling_propagates_velocity(self):
+        from consequence_velocity import Consequence, ConsequenceField
+        field = ConsequenceField()
+        a = Consequence(name="a", domain="eco", velocity=1.0)
+        b = Consequence(name="b", domain="eco", velocity=0.0)
+        field.add(a)
+        field.add(b)
+        field.couple("a", "b", strength=0.5)
+        field.step(dt=1.0)
+        # b should have felt a's velocity through coupling
+        assert field.consequences["b"].velocity > 0
+
+    def test_demo_runs(self, capsys):
+        from consequence_velocity import demo_consequence_cascade
+        demo_consequence_cascade()
+        captured = capsys.readouterr()
+        assert "CONSEQUENCE" in captured.out.upper()
