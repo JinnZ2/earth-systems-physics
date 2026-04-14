@@ -940,3 +940,606 @@ class TestChattelSlaveryTripleAudit:
         assert "SCIENTIFIC METHOD" in captured.out
         assert "THERMODYNAMICS" in captured.out
         assert "CONVERGENCE" in captured.out
+
+
+# ─────────────────────────────────────────────
+# SLAVERY SYSTEM AUDIT
+# ─────────────────────────────────────────────
+
+class TestSlaverySystemAudit:
+    def test_import(self):
+        import slavery_system_audit  # noqa: F401
+
+    def test_top_level_structures_present(self):
+        from slavery_system_audit import (
+            SYSTEM_DEFINITION, DMAIC, SCIENTIFIC_METHOD,
+            THERMODYNAMIC_AUDIT, META_AUDIT,
+        )
+        assert "claimed_purpose" in SYSTEM_DEFINITION
+        assert "actual_topology" in SYSTEM_DEFINITION
+        for phase in ("define", "measure", "analyze", "improve", "control"):
+            assert phase in DMAIC
+        for section in ("observation", "null_hypothesis", "alt_hypothesis",
+                        "evidence", "verdict", "falsifiability"):
+            assert section in SCIENTIFIC_METHOD
+        for law in ("first_law", "second_law", "third_law",
+                    "topology", "phase_transition"):
+            assert law in THERMODYNAMIC_AUDIT
+        assert "function_of_revisionism" in META_AUDIT
+        assert "conclusion" in META_AUDIT
+
+    def test_scientific_method_evidence_is_six_for_six(self):
+        from slavery_system_audit import SCIENTIFIC_METHOD
+        evidence = SCIENTIFIC_METHOD["evidence"]
+        assert len(evidence) == 6
+        for pred_key in ("P1", "P2", "P3", "P4", "P5", "P6"):
+            assert pred_key in evidence
+            assert "H1 CONFIRMED" in evidence[pred_key]["observed"]
+        verdict = SCIENTIFIC_METHOD["verdict"]
+        assert "0/6" in verdict["H0_score"]
+        assert "6/6" in verdict["H1_score"]
+
+    def test_dmaic_analyze_chain_is_five_whys(self):
+        from slavery_system_audit import DMAIC
+        chain = DMAIC["analyze"]["chain"]
+        assert len(chain) == 5
+        for step in chain:
+            assert "why" in step
+            assert "because" in step
+
+
+# ─────────────────────────────────────────────
+# INNOVATION REGRESSION AUDIT
+# ─────────────────────────────────────────────
+
+class TestInnovationRegressionAudit:
+    def test_import(self):
+        import innovation_regression_audit  # noqa: F401
+
+    def test_top_level_dicts_present(self):
+        from innovation_regression_audit import (
+            PRODUCTIVITY_COMPARISON, INNOVATION_COST,
+            PSYCHOLOGICAL_AUDIT, HOPE_DIFFERENTIAL, DISQUALIFICATION,
+        )
+        assert "free_settler_model" in PRODUCTIVITY_COMPARISON
+        assert "extraction_system_model" in PRODUCTIVITY_COMPARISON
+        assert "free_settler_psychology" in PSYCHOLOGICAL_AUDIT
+        assert "enslaved_agent_psychology" in PSYCHOLOGICAL_AUDIT
+        assert "observation" in HOPE_DIFFERENTIAL
+        assert "thermodynamic_statement" in HOPE_DIFFERENTIAL
+
+    def test_productivity_comparison_has_both_models(self):
+        from innovation_regression_audit import PRODUCTIVITY_COMPARISON
+        free = PRODUCTIVITY_COMPARISON["free_settler_model"]
+        extraction = PRODUCTIVITY_COMPARISON["extraction_system_model"]
+        assert isinstance(free, dict) and free
+        assert isinstance(extraction, dict) and extraction
+
+
+# ─────────────────────────────────────────────
+# PROCESS EPISTEMOLOGY
+# ─────────────────────────────────────────────
+
+class TestProcessEpistemology:
+    def test_import(self):
+        import process_epistemology  # noqa: F401
+
+    def test_epistemology_enum_has_both_modes(self):
+        from process_epistemology import Epistemology
+        assert Epistemology.STATE_BASED.value == "state"
+        assert Epistemology.PROCESS_BASED.value == "process"
+
+    def test_process_kinematics_updates(self):
+        from process_epistemology import Process
+        p = Process(name="soil_health", current=1.0)
+        p.update(0.9, dt=1.0)
+        p.update(0.75, dt=1.0)
+        p.update(0.55, dt=1.0)
+        # After three decreasing updates, velocity should be negative
+        assert p.velocity < 0
+        # And the process should know it's trending
+        state = p.state()
+        assert "velocity" in state
+        assert "name" in state
+
+    def test_epistemology_comparison_has_failure_cases(self):
+        from process_epistemology import EpistemologyComparison
+        ec = EpistemologyComparison()
+        assert isinstance(ec.failure_cases, dict)
+        assert len(ec.failure_cases) > 0
+
+    def test_demo_runs(self, capsys):
+        from process_epistemology import demo_epistemology_comparison
+        demo_epistemology_comparison()
+        captured = capsys.readouterr()
+        assert "EPISTEMOLOGY" in captured.out.upper()
+
+
+# ─────────────────────────────────────────────
+# BUFFER SENSOR CORRUPTION
+# ─────────────────────────────────────────────
+
+class TestBufferSensorCorruption:
+    def test_import(self):
+        import buffer_sensor_corruption  # noqa: F401
+
+    def test_sensor_mode_enum_members(self):
+        from buffer_sensor_corruption import SensorMode
+        assert SensorMode.INTEGRATED.value == "integrated"
+        assert SensorMode.BUFFERED.value == "buffered"
+        assert SensorMode.CORRUPTED.value == "corrupted"
+        assert SensorMode.FAILED.value == "failed"
+
+    def test_incentive_type_enum_members(self):
+        from buffer_sensor_corruption import IncentiveType
+        assert IncentiveType.ACCURACY.value == "accuracy"
+        assert IncentiveType.STABILITY.value == "stability"
+        assert IncentiveType.COMPLIANCE.value == "compliance"
+        assert IncentiveType.COMFORT.value == "comfort"
+
+    def test_integrated_sensor_reports_truth(self):
+        from buffer_sensor_corruption import (
+            Sensor, SensorMode, IncentiveType,
+        )
+        s = Sensor(
+            name="test",
+            mode=SensorMode.INTEGRATED,
+            incentive=IncentiveType.ACCURACY,
+        )
+        out = s.read(ground_truth=1.23, baseline=0.0)
+        # Integrated sensor should report the full deviation with zero
+        # suppression
+        assert out["reported_deviation"] == 1.23
+        assert out["suppressed_total"] == 0.0
+        assert out["failed"] is False
+
+    def test_network_builds_and_reads(self):
+        from buffer_sensor_corruption import SensorNetwork
+        net = SensorNetwork()
+        net.add_integrated_sensor("truth_1")
+        net.add_institutional_sensor("comfort_1")
+        net.add_corrupted_sensor("suppressed_1")
+        result = net.read_all(ground_truth=0.5, baseline=0.0)
+        assert result["sensors_total"] == 3
+        assert result["ground_truth"] == 0.5
+        # Integrated sensor reports truth; institutional/corrupted suppress
+        assert result["sensors_reporting_true"] == 1
+        assert result["sensors_suppressing"] == 2
+        names = {r["sensor"] for r in result["individual_reports"]}
+        assert names == {"truth_1", "comfort_1", "suppressed_1"}
+
+    def test_demo_runs(self, capsys):
+        from buffer_sensor_corruption import demo_buffer_failure
+        demo_buffer_failure()
+        captured = capsys.readouterr()
+        assert "BUFFER" in captured.out.upper()
+
+
+# ─────────────────────────────────────────────
+# CONSEQUENCE VELOCITY
+# ─────────────────────────────────────────────
+
+class TestConsequenceVelocity:
+    def test_import(self):
+        import consequence_velocity  # noqa: F401
+
+    def test_deferral_increases_velocity(self):
+        from consequence_velocity import Consequence
+        c = Consequence(name="test", domain="ecological")
+        v0 = c.velocity
+        c.defer(0.2)
+        # Deferral should push velocity upward
+        assert c.velocity > v0
+
+    def test_buffer_overflow_cascades(self):
+        from consequence_velocity import Consequence
+        c = Consequence(
+            name="test", domain="ecological", buffer_capacity=0.5,
+        )
+        result = c.defer(2.0)  # way beyond buffer capacity
+        assert result["overflow"] > 0
+        assert c.phase == "cascading"
+
+    def test_field_coupling_propagates_velocity(self):
+        from consequence_velocity import Consequence, ConsequenceField
+        field = ConsequenceField()
+        a = Consequence(name="a", domain="eco", velocity=1.0)
+        b = Consequence(name="b", domain="eco", velocity=0.0)
+        field.add(a)
+        field.add(b)
+        field.couple("a", "b", strength=0.5)
+        field.step(dt=1.0)
+        # b should have felt a's velocity through coupling
+        assert field.consequences["b"].velocity > 0
+
+    def test_demo_runs(self, capsys):
+        from consequence_velocity import demo_consequence_cascade
+        demo_consequence_cascade()
+        captured = capsys.readouterr()
+        assert "CONSEQUENCE" in captured.out.upper()
+
+
+# ─────────────────────────────────────────────
+# CONSTRAINT ACCOUNTABILITY CHAIN (schema)
+# ─────────────────────────────────────────────
+
+class TestConstraintAccountabilityChain:
+    def test_import(self):
+        import constraint_accountability_chain  # noqa: F401
+
+    def test_schema_structures_present(self):
+        from constraint_accountability_chain import (
+            DECISION_NODE, ACCOUNTABILITY_CHAIN,
+        )
+        assert isinstance(DECISION_NODE, dict)
+        assert isinstance(ACCOUNTABILITY_CHAIN, dict)
+        for key in ("actor", "decision", "inheritance"):
+            assert key in DECISION_NODE
+        for key in ("mutations", "phenotype", "epigenetic_factors"):
+            assert key in ACCOUNTABILITY_CHAIN
+
+    def test_mechanisms_catalog(self):
+        from constraint_accountability_chain import (
+            MECHANISMS, COMFORT_MECHANISMS,
+        )
+        # One direct_sense + six comfort mechanisms
+        assert len(MECHANISMS) == 7
+        assert "direct_sense" in MECHANISMS
+        assert MECHANISMS["direct_sense"]["is_comfort"] is False
+        expected_comfort = {
+            "attenuation", "delay", "reframe",
+            "delegate_down", "normalize", "silence",
+        }
+        assert set(COMFORT_MECHANISMS) == expected_comfort
+        for name in expected_comfort:
+            assert MECHANISMS[name]["is_comfort"] is True
+        # Every entry has the required documentation fields
+        required_fields = {
+            "is_comfort", "description", "example",
+            "detection_hint", "reversibility",
+        }
+        for name, spec in MECHANISMS.items():
+            assert required_fields <= set(spec.keys()), (
+                "mechanism " + name + " missing fields"
+            )
+
+    def test_epigenetic_factors_catalog(self):
+        from constraint_accountability_chain import EPIGENETIC_FACTORS
+        expected = {
+            "regulatory_pressure", "market_shock", "personnel_change",
+            "public_exposure", "cascade_event", "resource_scarcity",
+        }
+        assert set(EPIGENETIC_FACTORS.keys()) == expected
+        for name, spec in EPIGENETIC_FACTORS.items():
+            assert spec["typical_effect"] in (
+                "activates_direct_sense", "reinforces_comfort"
+            )
+            for key in ("description", "example", "typical_magnitude"):
+                assert key in spec
+
+    def test_constraint_domains_catalog(self):
+        from constraint_accountability_chain import CONSTRAINT_DOMAINS
+        expected_subset = {
+            "safety_signal", "ecological_signal", "financial_signal",
+            "health_signal", "social_signal", "scientific_signal",
+            "ecological_constraint_signal",
+        }
+        assert expected_subset <= set(CONSTRAINT_DOMAINS.keys())
+        for name, spec in CONSTRAINT_DOMAINS.items():
+            assert "description" in spec
+            assert "example" in spec
+
+    def test_accountability_patterns_catalog(self):
+        from constraint_accountability_chain import ACCOUNTABILITY_PATTERNS
+        expected = {
+            "ratchet_failure", "unanimous_comfort", "override_suppressed",
+            "cascade_ready", "sudden_correction",
+        }
+        assert set(ACCOUNTABILITY_PATTERNS.keys()) == expected
+        for name, spec in ACCOUNTABILITY_PATTERNS.items():
+            for key in ("description", "detection_criteria", "intervention"):
+                assert key in spec, (
+                    "pattern " + name + " missing " + key
+                )
+
+    def test_example_chains_all_validate(self):
+        from constraint_accountability_chain import (
+            EXAMPLE_CHAINS, validate_chain_nodes, ACCOUNTABILITY_PATTERNS,
+        )
+        expected_examples = {
+            "manufacturing_plant_safety",
+            "climate_finance_greenwashing",
+            "medical_symptom_suppression",
+            "scientific_finding_softened",
+        }
+        assert set(EXAMPLE_CHAINS.keys()) == expected_examples
+        for name, spec in EXAMPLE_CHAINS.items():
+            for key in ("chain_id", "constraint_domain",
+                        "description", "nodes", "expected_pattern"):
+                assert key in spec, (
+                    "example " + name + " missing " + key
+                )
+            assert spec["expected_pattern"] in ACCOUNTABILITY_PATTERNS
+            ok, errors = validate_chain_nodes(spec["nodes"])
+            assert ok, (
+                "example " + name + " failed validation: " + repr(errors)
+            )
+
+    def test_validate_mechanism(self):
+        from constraint_accountability_chain import validate_mechanism
+        assert validate_mechanism("attenuation") is True
+        assert validate_mechanism("direct_sense") is True
+        assert validate_mechanism("silence") is True
+        assert validate_mechanism("totally_made_up") is False
+
+    def test_validate_node_dict_catches_errors(self):
+        from constraint_accountability_chain import validate_node_dict
+
+        good = {
+            "actor_role": "operator", "layer": 0, "comfort_captured": 0.1,
+            "constraint_at_stake": "x",
+            "ground_signal": 0.5, "reported_signal": 0.5,
+            "mechanism": "direct_sense",
+        }
+        ok, errs = validate_node_dict(good)
+        assert ok is True
+        assert errs == []
+
+        # Missing fields
+        ok, errs = validate_node_dict({"actor_role": "operator"})
+        assert ok is False
+        assert any("missing required field" in e for e in errs)
+
+        # Unknown mechanism
+        bad_mech = dict(good, mechanism="imaginary")
+        ok, errs = validate_node_dict(bad_mech)
+        assert ok is False
+        assert any("unknown mechanism" in e for e in errs)
+
+        # Out-of-range comfort_captured
+        bad_comfort = dict(good, comfort_captured=1.5)
+        ok, errs = validate_node_dict(bad_comfort)
+        assert ok is False
+        assert any("comfort_captured" in e for e in errs)
+
+    def test_build_example_chain_instantiates_live_chain(self):
+        from constraint_accountability_chain import (
+            build_example_chain, EXAMPLE_CHAINS,
+        )
+        from constraint_accountability_engine import AccountabilityChain
+        chain = build_example_chain("manufacturing_plant_safety")
+        assert isinstance(chain, AccountabilityChain)
+        assert chain.chain_id == "mfg_plant_7"
+        assert chain.constraint_domain == "safety_signal"
+        assert len(chain.nodes) == 5
+        # The phenotype should surface all expected metrics
+        phen = chain.phenotype
+        for key in ("institutional_blindness", "ratchet_depth",
+                    "reversion_energy", "cascade_risk", "time_to_failure"):
+            assert key in phen
+        # manufacturing example has a failed override attempt
+        assert len(chain.find_override_failures()) >= 1
+
+        import pytest
+        with pytest.raises(KeyError):
+            build_example_chain("not_a_real_example")
+
+    def test_ai_reference_is_complete(self):
+        from constraint_accountability_chain import (
+            AI_REFERENCE, MECHANISMS, EPIGENETIC_FACTORS,
+            CONSTRAINT_DOMAINS, ACCOUNTABILITY_PATTERNS, EXAMPLE_CHAINS,
+        )
+        expected_keys = {
+            "purpose", "layer_position", "when_to_apply",
+            "key_exports", "workflow", "common_mistakes",
+            "integration_with_other_modules",
+        }
+        assert expected_keys <= set(AI_REFERENCE.keys())
+        # Every key_exports entry is the name of a real export
+        import constraint_accountability_chain as m
+        for export_name in AI_REFERENCE["key_exports"]:
+            assert hasattr(m, export_name), (
+                "AI_REFERENCE['key_exports'] lists "
+                + export_name
+                + " but the module does not export it"
+            )
+        # Integration notes cover every sibling systems-analysis module
+        integ = AI_REFERENCE["integration_with_other_modules"]
+        for sibling in ("buffer_sensor_corruption.py",
+                        "consequence_velocity.py",
+                        "process_epistemology.py",
+                        "ocean_timber_sequestration_audit.py",
+                        "dollar_energy_metabolism.py",
+                        "chattel_slavery_triple_audit.py",
+                        "cascade_engine.py"):
+            assert sibling in integ
+
+    def test_reexports_engine_classes(self):
+        import constraint_accountability_chain as m
+        from constraint_accountability_engine import (
+            DecisionNode, AccountabilityChain,
+        )
+        assert m.DecisionNode is DecisionNode
+        assert m.AccountabilityChain is AccountabilityChain
+
+    def test_print_summary_runs(self, capsys):
+        from constraint_accountability_chain import print_summary
+        print_summary()
+        captured = capsys.readouterr()
+        assert "CONSTRAINT ACCOUNTABILITY CHAIN" in captured.out
+        assert "MECHANISMS" in captured.out
+        assert "EPIGENETIC FACTORS" in captured.out
+        assert "ACCOUNTABILITY PATTERNS" in captured.out
+        assert "EXAMPLE CHAINS" in captured.out
+        assert "WORKED EXAMPLE" in captured.out
+        assert "WORKFLOW" in captured.out
+        # The worked example should surface phenotype metrics
+        assert "institutional_blindness" in captured.out
+        assert "cascade_risk" in captured.out
+
+
+# ─────────────────────────────────────────────
+# CONSTRAINT ACCOUNTABILITY ENGINE
+# ─────────────────────────────────────────────
+
+class TestConstraintAccountabilityEngine:
+    def test_import(self):
+        import constraint_accountability_engine  # noqa: F401
+
+    def test_direct_sense_node(self):
+        from constraint_accountability_engine import DecisionNode
+        node = DecisionNode(
+            actor_role="operator",
+            layer=0,
+            comfort_captured=0.1,
+            constraint_at_stake="frame",
+            ground_signal=0.5,
+            reported_signal=0.5,
+            mechanism="direct_sense",
+        )
+        assert node.choice == "direct_sense"
+        assert node.delta == 0.0
+        assert node.parent is None
+
+    def test_comfort_protect_detected_by_delta(self):
+        from constraint_accountability_engine import DecisionNode
+        node = DecisionNode(
+            actor_role="supervisor",
+            layer=1,
+            comfort_captured=0.5,
+            constraint_at_stake="frame",
+            ground_signal=0.8,
+            reported_signal=0.3,
+            mechanism="attenuation",
+        )
+        assert node.choice == "comfort_protect"
+        assert node.delta > 0.4
+
+    def test_chain_builds_sequentially(self):
+        from constraint_accountability_engine import AccountabilityChain
+        chain = AccountabilityChain(
+            chain_id="test", constraint_domain="safety",
+        )
+        assert len(chain.nodes) == 0
+
+        n1 = chain.add_decision(
+            actor_role="operator", layer=0, comfort_captured=0.1,
+            constraint_at_stake="frame",
+            ground_signal=0.5, reported_signal=0.5,
+            mechanism="direct_sense",
+        )
+        n2 = chain.add_decision(
+            actor_role="supervisor", layer=1, comfort_captured=0.3,
+            constraint_at_stake="frame",
+            ground_signal=0.5, reported_signal=0.2,
+            mechanism="attenuation",
+        )
+        assert len(chain.nodes) == 2
+        assert n2.parent is n1
+
+    def test_override_fails_when_child_has_less_comfort(self):
+        from constraint_accountability_engine import AccountabilityChain
+        chain = AccountabilityChain(
+            chain_id="test", constraint_domain="safety",
+        )
+        chain.add_decision(
+            actor_role="manager", layer=2, comfort_captured=0.8,
+            constraint_at_stake="frame",
+            ground_signal=0.9, reported_signal=0.2,
+            mechanism="normalize",
+        )
+        child = chain.add_decision(
+            actor_role="tech", layer=1, comfort_captured=0.1,
+            constraint_at_stake="frame",
+            ground_signal=0.9, reported_signal=0.9,
+            mechanism="direct_sense",
+        )
+        # Child tried to report honestly but parent's comfort dominates
+        assert child.override_attempted is True
+        assert child.override_succeeded is False
+        assert child.choice == "comfort_protect"
+        assert child.mechanism == "delegate_down"
+
+    def test_phenotype_reports_ratchet_and_cascade(self):
+        from constraint_accountability_engine import AccountabilityChain
+        chain = AccountabilityChain(
+            chain_id="test", constraint_domain="safety",
+        )
+        chain.add_decision(
+            actor_role="a", layer=0, comfort_captured=0.1,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=1.0,
+            mechanism="direct_sense",
+        )
+        chain.add_decision(
+            actor_role="b", layer=1, comfort_captured=0.3,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=0.6,
+            mechanism="attenuation",
+        )
+        chain.add_decision(
+            actor_role="c", layer=2, comfort_captured=0.5,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=0.3,
+            mechanism="reframe",
+        )
+        p = chain.phenotype
+        for key in ("institutional_blindness", "ratchet_depth",
+                    "reversion_energy", "cascade_risk", "time_to_failure"):
+            assert key in p
+        assert 0.0 <= p["cascade_risk"] <= 1.0
+        # Last two decisions are comfort_protect, so ratchet depth is 2
+        assert p["ratchet_depth"] == 2
+
+    def test_find_comfort_origin_and_walk_backward(self):
+        from constraint_accountability_engine import AccountabilityChain
+        chain = AccountabilityChain(
+            chain_id="test", constraint_domain="safety",
+        )
+        chain.add_decision(
+            actor_role="a", layer=0, comfort_captured=0.1,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=1.0,
+            mechanism="direct_sense",
+        )
+        patient_zero = chain.add_decision(
+            actor_role="b", layer=1, comfort_captured=0.3,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=0.5,
+            mechanism="attenuation",
+        )
+        chain.add_decision(
+            actor_role="c", layer=2, comfort_captured=0.5,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=0.3,
+            mechanism="reframe",
+        )
+        origin = chain.find_comfort_origin()
+        assert origin is patient_zero
+
+        walked = [n.actor_role for n in chain.walk_backward()]
+        assert walked == ["c", "b", "a"]
+
+    def test_report_surfaces_all_metrics(self):
+        from constraint_accountability_engine import AccountabilityChain
+        chain = AccountabilityChain(
+            chain_id="plant_7", constraint_domain="safety",
+        )
+        chain.add_decision(
+            actor_role="a", layer=0, comfort_captured=0.1,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=0.5,
+            mechanism="attenuation",
+        )
+        chain.add_epigenetic_event(
+            factor="regulatory_pressure",
+            effect="activates_direct_sense",
+            magnitude=0.5,
+        )
+        r = chain.report()
+        assert r["chain_id"] == "plant_7"
+        assert r["constraint_domain"] == "safety"
+        assert r["total_nodes"] == 1
+        assert r["epigenetic_events"] == 1
+        assert "mutations" in r
+        assert "phenotype" in r

@@ -12,7 +12,7 @@ Coupled differential equation framework mapping Earth physics as constraint laye
 pip install -r requirements.txt
 python cascade_engine.py              # Run all forcing scenarios
 python assumption_validator/api.py    # Start REST API on port 5000
-pytest -v                             # Run test suite (114 tests)
+pytest -v                             # Run test suite (158 tests)
 ```
 
 ## Architecture
@@ -57,11 +57,22 @@ earth-systems-physics/
 │
 ├── cascade_engine.py                  # Core forcing propagation engine
 ├── energy_audit.py                    # Cross-layer energy conservation audit
-├── test_smoke.py                      # 114 tests — all layers, scenarios, validators, audits
+├── test_smoke.py                      # 158 tests — all layers, scenarios, validators, audits
 │
 ├── ocean_timber_sequestration_audit.py # Full-cycle carbon audit of wood-in-ocean schemes
 ├── dollar_energy_metabolism.py        # Recursive energy cost model for climate finance
 ├── chattel_slavery_triple_audit.py    # Six Sigma + scientific method + thermo audit of extraction systems
+├── slavery_system_audit.py            # Companion triple audit — dict-form extraction-system analysis
+├── innovation_regression_audit.py     # Productivity / innovation cost of extraction vs free-labor systems
+│
+├── process_epistemology.py            # State-based vs process-based epistemology (English vs Ojibwe)
+├── buffer_sensor_corruption.py        # Incentive-driven sensor corruption and buffer-break dynamics
+├── consequence_velocity.py            # Consequence as process with velocity, coupling, phase transitions
+├── constraint_accountability_chain.py # Meta-layer: vocabulary, patterns, examples, and AI reference for the decision-ancestry model
+├── constraint_accountability_engine.py # Engine: walks the chain, computes ratchet depth, cascade risk, reversion energy
+│
+├── tools/
+│   └── fix_paste_artifacts.py         # Repair .py files pasted from markdown (see recovery section)
 │
 ├── experiments/
 │   ├── magnetometer_build.py          # $5 smoky-quartz + HDD-magnet magnetometer build guide
@@ -138,7 +149,7 @@ All physics functions require docstrings with: description, parameters (with typ
 
 ## Testing
 
-Framework: **pytest** — 114 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, and systems audits.
+Framework: **pytest** — 158 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
 
 ```bash
 pytest                    # Run all tests
@@ -147,6 +158,83 @@ pytest -k magnomech       # Run magnomechanical tests only
 ```
 
 CI runs automatically on push via GitHub Actions (Python 3.10, 3.11, 3.12).
+
+## Systems-Analysis Modules
+
+Beyond the physics-layer stack, this repo collects systems-analysis tools that
+apply the same audit discipline (thermodynamics, feedback loops, conservation
+laws) to non-physical systems:
+
+| File | Subject |
+|------|---------|
+| `ocean_timber_sequestration_audit.py` | Full-cycle carbon audit of ocean-timber sequestration |
+| `dollar_energy_metabolism.py` | Recursive energy cost of financial-system overhead |
+| `chattel_slavery_triple_audit.py` | Six Sigma + scientific method + thermo audit of extraction as engineered system |
+| `slavery_system_audit.py` | Companion triple audit with complementary content |
+| `innovation_regression_audit.py` | Productivity / innovation cost of extraction vs free-labor systems |
+| `process_epistemology.py` | State-based vs process-based awareness (English vs Ojibwe); why process frameworks catch failures state frameworks miss |
+| `buffer_sensor_corruption.py` | How incentive-driven sensor networks drift from ground truth; buffer-break dynamics |
+| `consequence_velocity.py` | Consequence modeled as a process with velocity, coupling, and phase transitions, not a fixed future cost |
+| `constraint_accountability_chain.py` | **Meta-layer** above every other module: vocabulary (7 mechanisms, 6 epigenetic factors, 7 constraint domains), 5 named failure patterns, 4 worked example chains, validators, a builder that instantiates live chains from the examples, and an `AI_REFERENCE` table of contents designed for fresh AI sessions. Run as a script (`python constraint_accountability_chain.py`) or call `print_summary()` for a full walkthrough. |
+| `constraint_accountability_engine.py` | Runnable engine for the chain model: `DecisionNode` and `AccountabilityChain` classes, builds decision ancestries, computes ratchet depth, reversion energy, cascade risk, and finds comfort origin |
+
+These modules are standalone — they don't import from the physics layers —
+but they share conventions (dataclasses, `dict` state exports, pure-Python
+implementations, CC0 license).
+
+## Paste-from-Markdown Recovery
+
+Several files in this repo have been (and will likely continue to be)
+authored in markdown on a phone and pasted into `.py` files. That workflow
+reliably introduces a specific set of artifacts that break parsing:
+
+1. **Smart quotes** (U+201C / U+201D / U+2018 / U+2019) instead of ASCII
+   `"` and `'`. A single smart quote anywhere in source code is a
+   `SyntaxError`.
+2. **Leading `# ` on line 1**, turning the opening `"""` of the module
+   docstring into a comment and leaving the docstring unterminated.
+3. **Stray bare ` ``` ` code fences** between top-level constructs, left
+   over from markdown code blocks.
+4. **`**name**` / `**main**`** (markdown bold rendering) instead of
+   `__name__` / `__main__` in the main guard.
+5. **Class, function, and Enum bodies de-indented by one level** —
+   dataclass fields and methods end up at column 0 (module level) instead
+   of inside the class, because the markdown code block stripped the
+   enclosing indentation.
+6. **Section-separator comments** (`# =====`) that get trapped at col 4
+   inside the previous class body when structural indentation is
+   restored.
+
+### Fixer tool
+
+`tools/fix_paste_artifacts.py` repairs all six patterns in one pass. It is
+stdlib-only, idempotent, and preserves content verbatim (only whitespace,
+quote characters, and stray markdown artifacts are touched).
+
+```bash
+# Repair in place
+python tools/fix_paste_artifacts.py file1.py file2.py
+
+# Report without modifying (CI-friendly, exit code 1 if any needed fixing)
+python tools/fix_paste_artifacts.py --check *.py
+
+# Verbose per-file status
+python tools/fix_paste_artifacts.py --verbose file.py
+```
+
+After running the fixer, always verify with `ast.parse` (which the script
+does automatically) and — for files with classes — walk the AST to confirm
+methods and dataclass fields live inside their intended class rather than
+at module level. The fixer will happily produce a file that parses but
+has the class body at the wrong scope if it guesses wrong; the AST walk
+is the ground truth.
+
+### When you see one of these broken files
+
+If `pytest` or `python file.py` reports something like
+`SyntaxError: invalid character '"' (U+201C)`, that is this pattern.
+Run the fixer, re-run the test, and commit the repair as a separate
+mechanical-fix commit so the content changes are easy to review.
 
 ## REST API Endpoints
 
