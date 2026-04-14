@@ -1178,6 +1178,205 @@ class TestConstraintAccountabilityChain:
         for key in ("mutations", "phenotype", "epigenetic_factors"):
             assert key in ACCOUNTABILITY_CHAIN
 
+    def test_mechanisms_catalog(self):
+        from constraint_accountability_chain import (
+            MECHANISMS, COMFORT_MECHANISMS,
+        )
+        # One direct_sense + six comfort mechanisms
+        assert len(MECHANISMS) == 7
+        assert "direct_sense" in MECHANISMS
+        assert MECHANISMS["direct_sense"]["is_comfort"] is False
+        expected_comfort = {
+            "attenuation", "delay", "reframe",
+            "delegate_down", "normalize", "silence",
+        }
+        assert set(COMFORT_MECHANISMS) == expected_comfort
+        for name in expected_comfort:
+            assert MECHANISMS[name]["is_comfort"] is True
+        # Every entry has the required documentation fields
+        required_fields = {
+            "is_comfort", "description", "example",
+            "detection_hint", "reversibility",
+        }
+        for name, spec in MECHANISMS.items():
+            assert required_fields <= set(spec.keys()), (
+                "mechanism " + name + " missing fields"
+            )
+
+    def test_epigenetic_factors_catalog(self):
+        from constraint_accountability_chain import EPIGENETIC_FACTORS
+        expected = {
+            "regulatory_pressure", "market_shock", "personnel_change",
+            "public_exposure", "cascade_event", "resource_scarcity",
+        }
+        assert set(EPIGENETIC_FACTORS.keys()) == expected
+        for name, spec in EPIGENETIC_FACTORS.items():
+            assert spec["typical_effect"] in (
+                "activates_direct_sense", "reinforces_comfort"
+            )
+            for key in ("description", "example", "typical_magnitude"):
+                assert key in spec
+
+    def test_constraint_domains_catalog(self):
+        from constraint_accountability_chain import CONSTRAINT_DOMAINS
+        expected_subset = {
+            "safety_signal", "ecological_signal", "financial_signal",
+            "health_signal", "social_signal", "scientific_signal",
+            "ecological_constraint_signal",
+        }
+        assert expected_subset <= set(CONSTRAINT_DOMAINS.keys())
+        for name, spec in CONSTRAINT_DOMAINS.items():
+            assert "description" in spec
+            assert "example" in spec
+
+    def test_accountability_patterns_catalog(self):
+        from constraint_accountability_chain import ACCOUNTABILITY_PATTERNS
+        expected = {
+            "ratchet_failure", "unanimous_comfort", "override_suppressed",
+            "cascade_ready", "sudden_correction",
+        }
+        assert set(ACCOUNTABILITY_PATTERNS.keys()) == expected
+        for name, spec in ACCOUNTABILITY_PATTERNS.items():
+            for key in ("description", "detection_criteria", "intervention"):
+                assert key in spec, (
+                    "pattern " + name + " missing " + key
+                )
+
+    def test_example_chains_all_validate(self):
+        from constraint_accountability_chain import (
+            EXAMPLE_CHAINS, validate_chain_nodes, ACCOUNTABILITY_PATTERNS,
+        )
+        expected_examples = {
+            "manufacturing_plant_safety",
+            "climate_finance_greenwashing",
+            "medical_symptom_suppression",
+            "scientific_finding_softened",
+        }
+        assert set(EXAMPLE_CHAINS.keys()) == expected_examples
+        for name, spec in EXAMPLE_CHAINS.items():
+            for key in ("chain_id", "constraint_domain",
+                        "description", "nodes", "expected_pattern"):
+                assert key in spec, (
+                    "example " + name + " missing " + key
+                )
+            assert spec["expected_pattern"] in ACCOUNTABILITY_PATTERNS
+            ok, errors = validate_chain_nodes(spec["nodes"])
+            assert ok, (
+                "example " + name + " failed validation: " + repr(errors)
+            )
+
+    def test_validate_mechanism(self):
+        from constraint_accountability_chain import validate_mechanism
+        assert validate_mechanism("attenuation") is True
+        assert validate_mechanism("direct_sense") is True
+        assert validate_mechanism("silence") is True
+        assert validate_mechanism("totally_made_up") is False
+
+    def test_validate_node_dict_catches_errors(self):
+        from constraint_accountability_chain import validate_node_dict
+
+        good = {
+            "actor_role": "operator", "layer": 0, "comfort_captured": 0.1,
+            "constraint_at_stake": "x",
+            "ground_signal": 0.5, "reported_signal": 0.5,
+            "mechanism": "direct_sense",
+        }
+        ok, errs = validate_node_dict(good)
+        assert ok is True
+        assert errs == []
+
+        # Missing fields
+        ok, errs = validate_node_dict({"actor_role": "operator"})
+        assert ok is False
+        assert any("missing required field" in e for e in errs)
+
+        # Unknown mechanism
+        bad_mech = dict(good, mechanism="imaginary")
+        ok, errs = validate_node_dict(bad_mech)
+        assert ok is False
+        assert any("unknown mechanism" in e for e in errs)
+
+        # Out-of-range comfort_captured
+        bad_comfort = dict(good, comfort_captured=1.5)
+        ok, errs = validate_node_dict(bad_comfort)
+        assert ok is False
+        assert any("comfort_captured" in e for e in errs)
+
+    def test_build_example_chain_instantiates_live_chain(self):
+        from constraint_accountability_chain import (
+            build_example_chain, EXAMPLE_CHAINS,
+        )
+        from constraint_accountability_engine import AccountabilityChain
+        chain = build_example_chain("manufacturing_plant_safety")
+        assert isinstance(chain, AccountabilityChain)
+        assert chain.chain_id == "mfg_plant_7"
+        assert chain.constraint_domain == "safety_signal"
+        assert len(chain.nodes) == 5
+        # The phenotype should surface all expected metrics
+        phen = chain.phenotype
+        for key in ("institutional_blindness", "ratchet_depth",
+                    "reversion_energy", "cascade_risk", "time_to_failure"):
+            assert key in phen
+        # manufacturing example has a failed override attempt
+        assert len(chain.find_override_failures()) >= 1
+
+        import pytest
+        with pytest.raises(KeyError):
+            build_example_chain("not_a_real_example")
+
+    def test_ai_reference_is_complete(self):
+        from constraint_accountability_chain import (
+            AI_REFERENCE, MECHANISMS, EPIGENETIC_FACTORS,
+            CONSTRAINT_DOMAINS, ACCOUNTABILITY_PATTERNS, EXAMPLE_CHAINS,
+        )
+        expected_keys = {
+            "purpose", "layer_position", "when_to_apply",
+            "key_exports", "workflow", "common_mistakes",
+            "integration_with_other_modules",
+        }
+        assert expected_keys <= set(AI_REFERENCE.keys())
+        # Every key_exports entry is the name of a real export
+        import constraint_accountability_chain as m
+        for export_name in AI_REFERENCE["key_exports"]:
+            assert hasattr(m, export_name), (
+                "AI_REFERENCE['key_exports'] lists "
+                + export_name
+                + " but the module does not export it"
+            )
+        # Integration notes cover every sibling systems-analysis module
+        integ = AI_REFERENCE["integration_with_other_modules"]
+        for sibling in ("buffer_sensor_corruption.py",
+                        "consequence_velocity.py",
+                        "process_epistemology.py",
+                        "ocean_timber_sequestration_audit.py",
+                        "dollar_energy_metabolism.py",
+                        "chattel_slavery_triple_audit.py",
+                        "cascade_engine.py"):
+            assert sibling in integ
+
+    def test_reexports_engine_classes(self):
+        import constraint_accountability_chain as m
+        from constraint_accountability_engine import (
+            DecisionNode, AccountabilityChain,
+        )
+        assert m.DecisionNode is DecisionNode
+        assert m.AccountabilityChain is AccountabilityChain
+
+    def test_print_summary_runs(self, capsys):
+        from constraint_accountability_chain import print_summary
+        print_summary()
+        captured = capsys.readouterr()
+        assert "CONSTRAINT ACCOUNTABILITY CHAIN" in captured.out
+        assert "MECHANISMS" in captured.out
+        assert "EPIGENETIC FACTORS" in captured.out
+        assert "ACCOUNTABILITY PATTERNS" in captured.out
+        assert "EXAMPLE CHAINS" in captured.out
+        assert "WORKED EXAMPLE" in captured.out
+        assert "WORKFLOW" in captured.out
+        # The worked example should surface phenotype metrics
+        assert "institutional_blindness" in captured.out
+        assert "cascade_risk" in captured.out
+
 
 # ─────────────────────────────────────────────
 # CONSTRAINT ACCOUNTABILITY ENGINE
