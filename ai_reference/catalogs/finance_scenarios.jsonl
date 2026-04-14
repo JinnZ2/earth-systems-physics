@@ -1,0 +1,4 @@
+{"E_base_MJ": 5.0, "description": "You do the work yourself. No financial system overhead.", "layer_positions": "none", "name": "Direct action (no intermediaries)", "recursive_r": 0.0}
+{"E_base_MJ": 5.0, "description": "Low margin, fast permitting, minimal leverage.", "layer_positions": "low", "name": "Efficient project finance", "recursive_r": 0.3}
+{"E_base_MJ": 6.0, "description": "50% margin stack, 3-year permitting, standard leverage.", "layer_positions": "mid", "name": "Typical climate finance", "recursive_r": 0.5}
+{"E_base_MJ": 7.0, "description": "70% margin stack, 7-year permitting, high leverage, speculative.", "layer_positions": "high", "name": "Carbon credit speculation", "recursive_r": 0.7}

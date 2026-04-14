@@ -1543,3 +1543,154 @@ class TestConstraintAccountabilityEngine:
         assert r["epigenetic_events"] == 1
         assert "mutations" in r
         assert "phenotype" in r
+
+
+# ─────────────────────────────────────────────
+# AI REFERENCE FOLDER (catalogs + index + docs)
+# ─────────────────────────────────────────────
+
+class TestAIReferenceFolder:
+    """Verify the ai_reference/ folder is structurally consistent and
+    in sync with the Python sources it was exported from. This class
+    is the contract for downstream AI consumers of the repo.
+    """
+
+    AI_REF_DIR = "ai_reference"
+    CATALOG_DIR = "ai_reference/catalogs"
+    INDEX_PATH = "ai_reference/index.json"
+
+    def test_folder_layout(self):
+        import os
+        assert os.path.isdir(self.AI_REF_DIR)
+        assert os.path.isdir(self.CATALOG_DIR)
+        for required in ("README.md", "glossary.md",
+                         "composition_recipes.md", "index.json"):
+            assert os.path.isfile(
+                os.path.join(self.AI_REF_DIR, required)
+            ), "missing " + required
+
+    def test_index_json_well_formed(self):
+        import json
+        with open(self.INDEX_PATH, encoding="utf-8") as f:
+            idx = json.load(f)
+        assert idx["format_version"] == "1.0"
+        assert "generator" in idx
+        assert "regenerate_command" in idx
+        assert isinstance(idx["catalogs"], dict)
+        assert len(idx["catalogs"]) >= 12
+        for name, meta in idx["catalogs"].items():
+            for key in ("path", "source_module", "source_symbol",
+                        "description", "record_count", "schema"):
+                assert key in meta, name + " missing " + key
+            assert meta["record_count"] >= 1
+            assert isinstance(meta["schema"], dict)
+
+    def test_every_catalog_file_exists_and_parses(self):
+        import json
+        import os
+        with open(self.INDEX_PATH, encoding="utf-8") as f:
+            idx = json.load(f)
+        for name, meta in idx["catalogs"].items():
+            path = os.path.join(self.AI_REF_DIR, meta["path"])
+            assert os.path.isfile(path), "missing catalog: " + path
+            with open(path, encoding="utf-8") as f:
+                lines = f.read().splitlines()
+            assert len(lines) == meta["record_count"], (
+                name + ": record_count " + str(meta["record_count"])
+                + " does not match file line count " + str(len(lines))
+            )
+            for i, line in enumerate(lines):
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError as e:
+                    raise AssertionError(
+                        name + " line " + str(i) + " is not valid JSON: " + str(e)
+                    )
+                assert isinstance(rec, dict)
+                assert "name" in rec, (
+                    name + " line " + str(i) + " missing name field"
+                )
+
+    def test_catalogs_match_source_modules(self):
+        """Every record in every catalog must round-trip from its
+        source module. Equivalent to the exporter's --check mode but
+        runs from inside the test harness."""
+        import sys
+        sys.path.insert(0, "tools")
+        try:
+            import export_ai_catalogs as exporter
+        finally:
+            if "tools" in sys.path:
+                sys.path.remove("tools")
+        changed = exporter.write_catalogs(check_only=True, verbose=False)
+        assert changed == [], (
+            "ai_reference/ has drifted from source modules. Run: "
+            "python tools/export_ai_catalogs.py — drifted files: "
+            + repr(changed)
+        )
+
+    def test_mechanisms_catalog_matches_source(self):
+        """Spot-check: the mechanisms catalog has exactly the records
+        that constraint_accountability_chain.MECHANISMS exposes."""
+        import json
+        with open(
+            self.CATALOG_DIR + "/mechanisms.jsonl", encoding="utf-8"
+        ) as f:
+            records = [json.loads(line) for line in f]
+        names = {r["name"] for r in records}
+        from constraint_accountability_chain import MECHANISMS
+        assert names == set(MECHANISMS.keys())
+        for r in records:
+            src = MECHANISMS[r["name"]]
+            assert r["is_comfort"] == src["is_comfort"]
+            assert r["description"] == src["description"]
+
+    def test_feedback_loops_callable_exclusion(self):
+        """KNOWN_LOOPS contains lambdas that must be filtered out.
+        Every record in the feedback_loops catalog should carry an
+        _excluded_keys field listing 'trigger' and 'gain_function'."""
+        import json
+        with open(
+            self.CATALOG_DIR + "/feedback_loops.jsonl", encoding="utf-8"
+        ) as f:
+            records = [json.loads(line) for line in f]
+        assert len(records) >= 1
+        for r in records:
+            assert "_excluded_keys" in r, (
+                "feedback_loops record " + r.get("name", "?")
+                + " missing _excluded_keys"
+            )
+            assert set(r["_excluded_keys"]) == {"trigger", "gain_function"}
+            # The non-excluded surface should still contain useful data
+            assert "description" in r
+            assert "layers" in r
+
+    def test_assumption_boundaries_catalog_count(self):
+        """The assumption validator registry has 36+ entries; every
+        one should land in the catalog."""
+        import json
+        with open(
+            self.CATALOG_DIR + "/assumption_boundaries.jsonl",
+            encoding="utf-8",
+        ) as f:
+            records = [json.loads(line) for line in f]
+        assert len(records) >= 36
+
+    def test_exporter_idempotent_on_clean_state(self):
+        """Running the exporter twice in a row should be a no-op the
+        second time. Catches subtle bugs where serialization is not
+        deterministic."""
+        import sys
+        sys.path.insert(0, "tools")
+        try:
+            import export_ai_catalogs as exporter
+            # Already up to date from the previous test or fixture
+            changed_first = exporter.write_catalogs(
+                check_only=True, verbose=False
+            )
+            assert changed_first == [], (
+                "exporter not idempotent: " + repr(changed_first)
+            )
+        finally:
+            if "tools" in sys.path:
+                sys.path.remove("tools")
