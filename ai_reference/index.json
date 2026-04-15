@@ -1,0 +1,182 @@
+{
+  "format_version": "1.0",
+  "generator": "tools/export_ai_catalogs.py",
+  "regenerate_command": "python tools/export_ai_catalogs.py",
+  "notes": "Every file under ai_reference/catalogs/ is auto-generated from the Python sources listed in each catalog's source_module + source_symbol. Do not hand-edit; run the regenerate_command instead. CI runs the same command with --check and fails if anything drifts.",
+  "catalogs": {
+    "mechanisms": {
+      "path": "catalogs/mechanisms.jsonl",
+      "source_module": "constraint_accountability_chain",
+      "source_symbol": "MECHANISMS",
+      "description": "Seven decision mechanisms: direct_sense plus six comfort mechanisms (attenuation, delay, reframe, delegate_down, normalize, silence). Each record has is_comfort, description, example, detection_hint, reversibility.",
+      "record_count": 7,
+      "schema": {
+        "name": "str",
+        "is_comfort": "bool",
+        "description": "str",
+        "example": "str",
+        "detection_hint": "str",
+        "reversibility": "str"
+      }
+    },
+    "epigenetic_factors": {
+      "path": "catalogs/epigenetic_factors.jsonl",
+      "source_module": "constraint_accountability_chain",
+      "source_symbol": "EPIGENETIC_FACTORS",
+      "description": "Six external pressures that toggle direct-sense / comfort expression: regulatory_pressure, market_shock, personnel_change, public_exposure, cascade_event, resource_scarcity.",
+      "record_count": 6,
+      "schema": {
+        "name": "str",
+        "typical_effect": "str",
+        "description": "str",
+        "example": "str",
+        "typical_magnitude": "str"
+      }
+    },
+    "constraint_domains": {
+      "path": "catalogs/constraint_domains.jsonl",
+      "source_module": "constraint_accountability_chain",
+      "source_symbol": "CONSTRAINT_DOMAINS",
+      "description": "Seven signal categories for the accountability chain: safety, ecological, financial, health, social, scientific, ecological_constraint. Use one per chain.",
+      "record_count": 7,
+      "schema": {
+        "name": "str",
+        "description": "str",
+        "example": "str"
+      }
+    },
+    "accountability_patterns": {
+      "path": "catalogs/accountability_patterns.jsonl",
+      "source_module": "constraint_accountability_chain",
+      "source_symbol": "ACCOUNTABILITY_PATTERNS",
+      "description": "Five named failure modes (ratchet_failure, unanimous_comfort, override_suppressed, cascade_ready, sudden_correction) with detection criteria and recommended interventions.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "description": "str",
+        "detection_criteria": "dict",
+        "intervention": "str"
+      }
+    },
+    "example_chains": {
+      "path": "catalogs/example_chains.jsonl",
+      "source_module": "constraint_accountability_chain",
+      "source_symbol": "EXAMPLE_CHAINS",
+      "description": "Four worked scenarios across domains: manufacturing safety, climate finance greenwashing, medical symptom suppression, scientific finding softened. Each has constraint_domain, nodes (kwargs for add_decision), epigenetic_events, expected_pattern.",
+      "record_count": 4,
+      "schema": {
+        "name": "str",
+        "chain_id": "str",
+        "constraint_domain": "str",
+        "description": "str",
+        "nodes": "list",
+        "epigenetic_events": "list",
+        "expected_pattern": "str"
+      }
+    },
+    "cascade_scenarios": {
+      "path": "catalogs/cascade_scenarios.jsonl",
+      "source_module": "cascade_engine",
+      "source_symbol": "SCENARIOS",
+      "description": "Pre-configured forcing functions for the cascade engine. Each Forcing has layer, variable, magnitude, units, description.",
+      "record_count": 15,
+      "schema": {
+        "name": "str",
+        "layer": "int",
+        "variable": "str",
+        "magnitude": "float",
+        "description": "str",
+        "units": "str"
+      }
+    },
+    "feedback_loops": {
+      "path": "catalogs/feedback_loops.jsonl",
+      "source_module": "cascade_engine",
+      "source_symbol": "KNOWN_LOOPS",
+      "description": "Self-amplifying feedback loops with their layers, description, and timescale. Callable trigger and gain_function fields are excluded from the export; their names appear in each record's _excluded_keys.",
+      "record_count": 8,
+      "schema": {
+        "name": "str",
+        "layers": "list",
+        "description": "str",
+        "timescale": "str"
+      }
+    },
+    "layer_names": {
+      "path": "catalogs/layer_names.jsonl",
+      "source_module": "cascade_engine",
+      "source_symbol": "LAYER_NAMES",
+      "description": "Physics layer number -> human name mapping for layers 0 through 6.",
+      "record_count": 7,
+      "schema": {
+        "name": "str",
+        "value": "str"
+      }
+    },
+    "assumption_boundaries": {
+      "path": "catalogs/assumption_boundaries.jsonl",
+      "source_module": "assumption_validator.registry",
+      "source_symbol": "REGISTRY",
+      "description": "The assumption validator registry: every monitored boundary with its green / yellow / red range, source layer, coupling references, and notes.",
+      "record_count": 37,
+      "schema": {
+        "name": "str",
+        "parameter": "str",
+        "units": "str",
+        "green_range": "list",
+        "yellow_range": "list",
+        "red_threshold": "mixed",
+        "higher_is_worse": "bool",
+        "source_layer": "int",
+        "layer_key": "str",
+        "couplings": "list",
+        "rate_of_change": "float",
+        "notes": "str"
+      }
+    },
+    "overhead_layers": {
+      "path": "catalogs/overhead_layers.jsonl",
+      "source_module": "dollar_energy_metabolism",
+      "source_symbol": "OVERHEAD_LAYERS",
+      "description": "Five financial overhead layers used in the recursive energy-cost model: leverage, margin_stack, taxation, narrative, political. Each has r_low and r_high ranges.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "r_low": "float",
+        "r_high": "float",
+        "description": "str"
+      }
+    },
+    "climate_projects": {
+      "path": "catalogs/climate_projects.jsonl",
+      "source_module": "dollar_energy_metabolism",
+      "source_symbol": "PROJECTS",
+      "description": "Climate intervention projects audited by the dollar energy metabolism model: ocean_timber, sai.",
+      "record_count": 2,
+      "schema": {
+        "name": "str",
+        "capitalization_low_USD": "float",
+        "capitalization_high_USD": "float",
+        "annual_budget_low_USD": "float",
+        "annual_budget_high_USD": "float",
+        "claimed_annual_CO2_tonnes": "int",
+        "is_sequestration": "bool",
+        "description": "str"
+      }
+    },
+    "finance_scenarios": {
+      "path": "catalogs/finance_scenarios.jsonl",
+      "source_module": "dollar_energy_metabolism",
+      "source_symbol": "SCENARIOS",
+      "description": "Financial routing scenarios for a climate dollar: direct_action, efficient, typical_climate, carbon_speculation.",
+      "record_count": 4,
+      "schema": {
+        "name": "str",
+        "E_base_MJ": "float",
+        "layer_positions": "str",
+        "recursive_r": "float",
+        "description": "str"
+      }
+    }
+  }
+}

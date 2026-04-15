@@ -1,0 +1,8 @@
+{"_excluded_keys": ["gain_function", "trigger"], "description": "ice loss -> darker surface -> more absorption -> more melt", "layers": [3, 4, 6], "name": "Ice-Albedo", "timescale": "years to decades"}
+{"_excluded_keys": ["gain_function", "trigger"], "description": "permafrost thaw -> CH4/CO2 -> warming -> more thaw", "layers": [5, 6, 3], "name": "Permafrost-CH4", "timescale": "decades to centuries"}
+{"_excluded_keys": ["gain_function", "trigger"], "description": "dieback -> CO2+albedo change -> warming -> more dieback", "layers": [6, 3], "name": "Amazon-CO2", "timescale": "decades"}
+{"_excluded_keys": ["gain_function", "trigger"], "description": "AMOC weakening -> N Atlantic cooling -> atmospheric changes -> further weakening", "layers": [4, 3, 4], "name": "AMOC-SST", "timescale": "decades to centuries"}
+{"_excluded_keys": ["gain_function", "trigger"], "description": "warming -> stratification -> less uptake -> more CO2 -> more warming", "layers": [4, 6, 3], "name": "Stratification-Productivity", "timescale": "decades"}
+{"_excluded_keys": ["gain_function", "trigger"], "description": "ice melt -> LOD change -> Coriolis shift -> circulation change -> field geometry", "layers": [5, 1, 3], "name": "Rotation-Coriolis", "timescale": "centuries"}
+{"_excluded_keys": ["gain_function", "trigger"], "description": "ice unloading -> volcanic enhancement -> SO2/CO2 -> warming -> more unloading", "layers": [5, 3, 4], "name": "Volcanic-Deglaciation", "timescale": "centuries"}
+{"_excluded_keys": ["gain_function", "trigger"], "description": "EM field -> spin-phonon -> acoustic -> piezomagnetic -> EM perturbation", "layers": [0, 5, 0], "name": "Magnomechanical-EM", "timescale": "seconds to hours (storm-driven), centuries (secular variation)"}
