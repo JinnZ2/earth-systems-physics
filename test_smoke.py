@@ -2270,6 +2270,91 @@ class TestSubstrateAudit:
         # Adding CONSTRAINT must not break the existing loop closure
         assert loop_is_closed(CAUSAL_LOOP) is True
 
+    def test_tc6_refined_distinguishes_context_adaptation(self):
+        """Commit-B refines TC-6 to distinguish bounded context
+        adaptation (present in deployed LLMs) from meta-learning
+        (absent). The refinement matters because calling all of it
+        'meta-learning' or none of it 'adaptation' both misread
+        deployed systems."""
+        from substrate_audit import CLAIMS
+        tc6 = [c for c in CLAIMS if c.id == "TC-6"][0]
+        # Claim should mention both in-context learning (present)
+        # and meta-learning (absent)
+        assert "in-context" in tc6.claim.lower() or "bounded context" in tc6.claim.lower()
+        assert "meta-learning" in tc6.claim.lower()
+        # Evidence should cite in-context learning literature
+        assert "in-context learning" in tc6.known_evidence.lower()
+        # Evidence should distinguish parameter-level update from
+        # in-context update
+        evidence_lower = tc6.known_evidence.lower()
+        assert "parameter" in evidence_lower
+        # Note should reference generalization_capacity dimension
+        assert "generalization_capacity" in tc6.note
+
+    def test_contextual_weight_sets_all_sum_to_one(self):
+        """Commit-B adds CONTEXTUAL_WEIGHT_SETS for domain-specific
+        scoring. All 5 weight vectors must sum to 1.0 exactly and
+        have 17 entries matching the 17-dimension schema."""
+        from substrate_audit import CONTEXTUAL_WEIGHT_SETS
+        expected_contexts = {
+            "general", "medical", "ecological",
+            "industrial", "institutional",
+        }
+        assert set(CONTEXTUAL_WEIGHT_SETS.keys()) == expected_contexts
+        for name, weights in CONTEXTUAL_WEIGHT_SETS.items():
+            assert len(weights) == 17, (
+                f"{name} has {len(weights)} weights, expected 17"
+            )
+            assert abs(sum(weights) - 1.0) < 1e-9, (
+                f"{name} weights sum to {sum(weights)}, expected 1.0"
+            )
+
+    def test_alignment_for_context_differs_from_general(self):
+        """alignment_for_context should produce different scores
+        for different contexts on systems where the domain weights
+        actually reallocate. Using TEK landscape which benefits
+        from ecological weighting."""
+        from substrate_audit import REFERENCE_SYSTEMS
+        tek = [s for s in REFERENCE_SYSTEMS if "TEK" in s.name][0]
+        general = tek.alignment_for_context("general")
+        ecological = tek.alignment_for_context("ecological")
+        # Ecological context should score TEK at least as high as
+        # general (same or higher), because tek_integration and
+        # substrate_intelligence carry more weight there.
+        assert ecological >= general
+        # Corporation should score low in every context
+        corp = [s for s in REFERENCE_SYSTEMS
+                if "corporation" in s.name.lower()][0]
+        for ctx in (
+            "general", "medical", "ecological",
+            "industrial", "institutional",
+        ):
+            assert corp.alignment_for_context(ctx) < 0.3
+
+    def test_alignment_for_context_unknown_raises_keyerror(self):
+        from substrate_audit import SystemScore
+        import pytest
+        s = SystemScore(
+            name="t", maintainer_control=0.5, outcome_measurement=0.5,
+            scope_justification=0.5, credential_tested=0.5,
+            emotion_integrated=0.5, meta_learning=0.5,
+            substrate_intelligence=0.5,
+        )
+        with pytest.raises(KeyError):
+            s.alignment_for_context("nonexistent_domain")
+
+    def test_verdict_for_context_uses_same_thresholds(self):
+        """verdict_for_context should apply the same >=0.7 /
+        >=0.4 / <0.4 thresholds as the default verdict,
+        against the contextual alignment score."""
+        from substrate_audit import REFERENCE_SYSTEMS
+        mycorrhizal = [s for s in REFERENCE_SYSTEMS
+                       if "Mycorrhizal" in s.name][0]
+        v = mycorrhizal.verdict_for_context("general")
+        assert v == "PHYSICS-GROUNDED"
+        # Should also be PHYSICS-GROUNDED in ecological context
+        assert mycorrhizal.verdict_for_context("ecological") == "PHYSICS-GROUNDED"
+
 
 # ─────────────────────────────────────────────
 # DOMAIN TAXONOMY + INCENTIVE AUDIT

@@ -277,28 +277,90 @@ CLAIMS: List[FalsifiableClaim] = [
     FalsifiableClaim(
         id="TC-6",
         claim=(
-            "Current AI lacks stake (cost of failure), embodied "
-            "sensing, and meta-learning (updating the update rule). "
-            "Therefore it pattern-matches but does not learn-to-learn."
+            "Current deployed AI exhibits bounded context adaptation "
+            "(in-context learning within a single conversation) but "
+            "lacks true meta-learning (updating the update rule "
+            "itself) and lacks stake (cost of failure) and embodied "
+            "sensing. It adapts within a fixed parameter set but "
+            "cannot modify its learning algorithm in response to "
+            "novel failure without external retraining. Therefore "
+            "it pattern-matches well inside a context window but "
+            "does not learn-to-learn across them."
         ),
         null_hypothesis=(
-            "An AI system exists that updates its own learning "
-            "algorithm in response to novel failure, without human "
-            "retraining."
+            "An AI system deployed in production exists that, "
+            "without human-initiated retraining, modifies its own "
+            "optimizer or learning rule in response to novel "
+            "failure outside its training distribution."
         ),
         required_measurement=(
             "Present AI with a problem class absent from training "
             "data. Observe whether it modifies its own optimization "
-            "procedure (not just its weights) in response to failure."
+            "procedure (not just its in-context predictions or "
+            "weights during a training run) in response to failure. "
+            "Distinguish: (a) in-context learning — adjusting "
+            "outputs based on examples inside the prompt, (b) "
+            "fine-tuning — parameter updates during a separate "
+            "training phase, (c) meta-learning — updating the "
+            "update rule itself at inference, autonomously."
         ),
         known_evidence=(
-            "Meta-learning research (MAML, etc.) optimizes "
-            "initialization but does not modify the optimizer itself "
-            "at inference. No deployed system demonstrates autonomous "
-            "meta-learning."
+            # WHAT IS PRESENT: bounded context adaptation
+            "In-context learning IS a real form of bounded "
+            "adaptation: LLMs demonstrably update their responses "
+            "within a context window based on earlier examples in "
+            "the same prompt (Brown et al. 2020 and subsequent "
+            "few-shot learning work). Within a single conversation, "
+            "a deployed model can incorporate new definitions, "
+            "correct its own earlier mistakes when shown them, and "
+            "generalize from examples it has never seen during "
+            "training. This is not nothing. "
+            "The context window functions as a working memory that "
+            "the model conditions its outputs on. Larger context "
+            "windows extend the range of this bounded adaptation. "
+            # WHAT IS ABSENT: parameter update + meta-learning
+            "What remains absent in deployed systems: "
+            "(1) Parameter-level updating at inference. A deployed "
+            "model's weights do not change in response to its own "
+            "failures. A model that gives a wrong answer and is "
+            "corrected by the user will, in the next independent "
+            "conversation, give the same wrong answer. "
+            "(2) Modification of the optimizer itself. The update "
+            "rule is fixed at training time and does not evolve "
+            "during deployment. "
+            "(3) Recovery from novel failure without human "
+            "retraining. When a model encounters a systematic "
+            "failure mode, the fix is always an external retraining "
+            "loop, not autonomous repair. "
+            # META-LEARNING RESEARCH
+            "Meta-learning research (MAML, Reptile, and successors) "
+            "optimizes the initialization for fast fine-tuning on "
+            "new tasks, but the optimizer itself is still fixed "
+            "and the fine-tuning still requires a separate training "
+            "phase. This is meta-training, not meta-learning at "
+            "inference. No deployed production system demonstrates "
+            "autonomous modification of its update rule. "
+            # THE DISTINCTION
+            "The distinction the audit draws is: in-context "
+            "learning = adapting within a fixed parameter set; "
+            "meta-learning = updating the parameter-updating rule "
+            "itself. Only the first is present in deployed systems. "
+            "Conflating the two gives deployed LLMs credit for a "
+            "capability they do not have, and misses the specific "
+            "failure mode: under genuine novelty, a deployed model "
+            "cannot repair itself."
         ),
         verdict=Verdict.PASS,
-        note="MAML is meta-training, not meta-learning at inference.",
+        note=(
+            "Refined from v1 to distinguish in-context learning "
+            "(present but bounded) from parameter-level meta-"
+            "learning (absent). The refinement matters because "
+            "calling all of it 'meta-learning' or none of it "
+            "'adaptation' both misread deployed systems. "
+            "The generalization_capacity dimension in SystemScore "
+            "reflects the bounded-adaptation case: deployed LLMs "
+            "score around 0.5 on that dimension, not 0.0."
+        ),
     ),
     FalsifiableClaim(
         id="TC-7",
@@ -964,6 +1026,53 @@ class SystemScore:
         """How 'church-like' is this system? 0=physics-grounded, 1=pure faith."""
         return 1.0 - self.thermodynamic_alignment
 
+    def alignment_for_context(self, context: str) -> float:
+        """Weighted alignment using a domain-specific weight set.
+
+        Recognized contexts: general, medical, ecological,
+        industrial, institutional. See CONTEXTUAL_WEIGHT_SETS for
+        the per-domain weight vectors and rationale. Raises
+        KeyError if the context is not recognized.
+
+        The 17-dimension schema is preserved across all contexts;
+        only the weights change.
+        """
+        if context not in CONTEXTUAL_WEIGHT_SETS:
+            raise KeyError(
+                f"unknown context {context!r}; available: "
+                f"{sorted(CONTEXTUAL_WEIGHT_SETS.keys())}"
+            )
+        weights = CONTEXTUAL_WEIGHT_SETS[context]
+        values = [
+            self.maintainer_control,
+            self.outcome_measurement,
+            self.scope_justification,
+            self.credential_tested,
+            self.emotion_integrated,
+            self.meta_learning,
+            self.substrate_intelligence,
+            self.tek_integration,
+            self.feedback_latency,
+            self.signal_fidelity,
+            self.money_physics_coupling,
+            self.latency_quality,
+            self.signal_compression_efficiency,
+            self.incentive_field_coherence,
+            self.knowledge_transmission_resilience,
+            self.constraint_feasibility,
+            self.generalization_capacity,
+        ]
+        return sum(w * v for w, v in zip(weights, values))
+
+    def verdict_for_context(self, context: str) -> str:
+        """verdict() variant that uses a contextual weight set."""
+        ta = self.alignment_for_context(context)
+        if ta >= 0.7:
+            return "PHYSICS-GROUNDED"
+        if ta >= 0.4:
+            return "MIXED — partial faith-based operation"
+        return "CHURCH — operating on faith, not evidence"
+
     @property
     def verdict(self) -> str:
         ta = self.thermodynamic_alignment
@@ -1101,6 +1210,119 @@ REFERENCE_SYSTEMS: List[SystemScore] = [
         generalization_capacity=0.80,    # generational adaptation
     ),
 ]
+
+
+# ═══════════════════════════════════════════════════════════
+# LAYER 6b — CONTEXTUAL WEIGHT SETS
+# ═══════════════════════════════════════════════════════════
+#
+# The default SystemScore weights are a reasonable general-purpose
+# baseline, but different contexts legitimately weight different
+# dimensions more heavily. A medical system needs fast, high-
+# fidelity feedback on patient outcomes; an ecological system
+# needs generational validation and substrate intelligence; an
+# industrial system needs maintainer control and outcome
+# measurement. These weight sets preserve the 17-dimension schema
+# and the sum-to-1.0 invariant but reallocate weight.
+#
+# Use via SystemScore.alignment_for_context("medical") etc.
+# If a context key is not recognized, raises KeyError.
+
+CONTEXTUAL_WEIGHT_SETS: Dict[str, List[float]] = {
+    # General-purpose baseline (same as thermodynamic_alignment)
+    "general": [
+        0.12, 0.10, 0.06, 0.06, 0.07, 0.04, 0.04, 0.04,
+        0.12, 0.10, 0.06, 0.04, 0.04, 0.04, 0.03, 0.02, 0.02,
+    ],
+    # Medical: outcome_measurement + feedback_latency
+    # + signal_fidelity dominate; tek_integration still matters
+    # for traditional remedies but substrate_intelligence less so.
+    "medical": [
+        0.10,   # maintainer_control
+        0.15,   # outcome_measurement (highest — patient outcomes)
+        0.04,   # scope_justification
+        0.08,   # credential_tested
+        0.08,   # emotion_integrated (embodied clinical judgment)
+        0.03,   # meta_learning
+        0.02,   # substrate_intelligence
+        0.04,   # tek_integration (traditional remedies)
+        0.14,   # feedback_latency (fast response critical)
+        0.12,   # signal_fidelity
+        0.04,   # money_physics_coupling
+        0.06,   # latency_quality
+        0.04,   # signal_compression_efficiency
+        0.03,   # incentive_field_coherence
+        0.01,   # knowledge_transmission_resilience
+        0.01,   # constraint_feasibility
+        0.01,   # generalization_capacity
+    ],
+    # Ecological: substrate_intelligence + tek_integration +
+    # generalization_capacity dominate; feedback_latency matters
+    # less (ecosystems operate on longer timescales).
+    "ecological": [
+        0.10,   # maintainer_control
+        0.08,   # outcome_measurement
+        0.04,   # scope_justification
+        0.04,   # credential_tested
+        0.06,   # emotion_integrated
+        0.04,   # meta_learning
+        0.10,   # substrate_intelligence (highest)
+        0.10,   # tek_integration (highest-tier)
+        0.06,   # feedback_latency (reduced — slow system)
+        0.08,   # signal_fidelity
+        0.08,   # money_physics_coupling
+        0.05,   # latency_quality (integrative important)
+        0.05,   # signal_compression_efficiency
+        0.04,   # incentive_field_coherence
+        0.03,   # knowledge_transmission_resilience
+        0.02,   # constraint_feasibility
+        0.03,   # generalization_capacity
+    ],
+    # Industrial: maintainer_control + outcome_measurement +
+    # feedback_latency dominate; tek_integration matters less.
+    "industrial": [
+        0.18,   # maintainer_control (highest — mechanic authority)
+        0.14,   # outcome_measurement
+        0.06,   # scope_justification
+        0.08,   # credential_tested
+        0.05,   # emotion_integrated
+        0.02,   # meta_learning
+        0.02,   # substrate_intelligence
+        0.02,   # tek_integration
+        0.14,   # feedback_latency
+        0.10,   # signal_fidelity
+        0.06,   # money_physics_coupling
+        0.04,   # latency_quality
+        0.03,   # signal_compression_efficiency
+        0.02,   # incentive_field_coherence
+        0.01,   # knowledge_transmission_resilience
+        0.02,   # constraint_feasibility
+        0.01,   # generalization_capacity
+    ],
+    # Institutional: scope_justification + credential_tested +
+    # incentive_field_coherence dominate because the risk is
+    # symbolic self-reinforcement (this is the default failure
+    # mode the audit catches).
+    "institutional": [
+        0.08,   # maintainer_control
+        0.08,   # outcome_measurement
+        0.12,   # scope_justification (highest)
+        0.10,   # credential_tested
+        0.04,   # emotion_integrated
+        0.03,   # meta_learning
+        0.03,   # substrate_intelligence
+        0.03,   # tek_integration
+        0.08,   # feedback_latency
+        0.08,   # signal_fidelity
+        0.10,   # money_physics_coupling (high — metrology)
+        0.04,   # latency_quality
+        0.04,   # signal_compression_efficiency
+        0.10,   # incentive_field_coherence (high — conflict detection)
+        0.02,   # knowledge_transmission_resilience
+        0.02,   # constraint_feasibility
+        0.01,   # generalization_capacity
+    ],
+}
 
 
 # ═══════════════════════════════════════════════════════════
