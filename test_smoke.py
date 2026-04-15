@@ -2118,3 +2118,132 @@ class TestSubstrateAudit:
         for dim in ("feedback_latency", "signal_fidelity",
                     "money_physics_coupling", "tek_integration"):
             assert dim in data["scoring_dimensions"]
+
+
+# ─────────────────────────────────────────────
+# DOMAIN TAXONOMY + INCENTIVE AUDIT
+# ─────────────────────────────────────────────
+
+class TestDomainTaxonomy:
+    def test_import(self):
+        import domain_taxonomy  # noqa: F401
+
+    def test_six_measurement_domains(self):
+        from domain_taxonomy import MEASUREMENT_DOMAINS
+        expected = {
+            "clinical_surgical", "affective_neuroscience",
+            "cellular_biochemical", "ecological_network",
+            "tek_traditional", "institutional_economic",
+        }
+        assert set(MEASUREMENT_DOMAINS.keys()) == expected
+        for name, spec in MEASUREMENT_DOMAINS.items():
+            for key in ("scope", "goal", "primary_unit",
+                        "method_structure", "validation_loop",
+                        "strengths", "limitations", "failure_mode",
+                        "question_answered"):
+                assert key in spec, f"{name} missing {key}"
+
+    def test_incentive_channel_shape(self):
+        from domain_taxonomy import IncentiveChannel
+        c = IncentiveChannel(
+            name="test",
+            reward_basis="physical_outcome",
+            outcome_coupling=0.8,
+            reward_latency=0.9,
+            gradient_alignment=0.8,
+            gameability=0.1,
+            reward_distribution=0.9,
+        )
+        assert c.name == "test"
+        assert c.outcome_coupling == 0.8
+
+    def test_incentive_audit_alignment_ranges(self):
+        from domain_taxonomy import (
+            IncentiveAudit, IncentiveChannel,
+        )
+        # Perfect channel -> high alignment
+        perfect = IncentiveChannel(
+            name="perfect",
+            reward_basis="physical_outcome",
+            outcome_coupling=1.0,
+            reward_latency=1.0,
+            gradient_alignment=1.0,
+            gameability=0.0,
+            reward_distribution=1.0,
+        )
+        audit_good = IncentiveAudit(name="ideal", channels=[perfect])
+        assert audit_good.alignment == 1.0
+        assert audit_good.incentive_entropy() == 0.0
+        assert audit_good.verdict == "REALITY-COUPLED"
+
+        # Worst channel -> low alignment, high entropy
+        worst = IncentiveChannel(
+            name="worst",
+            reward_basis="symbolic/narrative",
+            outcome_coupling=0.0,
+            reward_latency=0.0,
+            gradient_alignment=0.0,
+            gameability=1.0,
+            reward_distribution=0.0,
+        )
+        audit_bad = IncentiveAudit(name="worst_case", channels=[worst])
+        assert audit_bad.alignment == 0.0
+        assert audit_bad.incentive_entropy() == 3.0
+        assert "DECOUPLED" in audit_bad.verdict
+
+    def test_empty_audit_returns_zero(self):
+        from domain_taxonomy import IncentiveAudit
+        empty = IncentiveAudit(name="empty")
+        assert empty.alignment == 0.0
+        assert empty.incentive_entropy() == 0.0
+
+    def test_reference_profiles_complete(self):
+        from domain_taxonomy import (
+            REFERENCE_PROFILES, MEASUREMENT_DOMAINS,
+        )
+        assert set(REFERENCE_PROFILES.keys()) == set(
+            MEASUREMENT_DOMAINS.keys()
+        )
+        for key, profile in REFERENCE_PROFILES.items():
+            assert len(profile.channels) >= 1
+            assert 0.0 <= profile.alignment <= 1.0
+
+    def test_tek_reality_coupled_institutional_decoupled(self):
+        from domain_taxonomy import REFERENCE_PROFILES
+        tek = REFERENCE_PROFILES["tek_traditional"]
+        inst = REFERENCE_PROFILES["institutional_economic"]
+        assert tek.verdict == "REALITY-COUPLED"
+        assert "DECOUPLED" in inst.verdict
+        assert tek.alignment > inst.alignment
+        # TEK has lower entropy than institutional
+        assert tek.incentive_entropy() < inst.incentive_entropy()
+
+    def test_compare_domains_table(self):
+        from domain_taxonomy import compare_domains, MEASUREMENT_DOMAINS
+        rows = compare_domains()
+        assert len(rows) == len(MEASUREMENT_DOMAINS)
+        for r in rows:
+            for key in ("domain", "measurement_type", "timescale",
+                        "control", "coupling_to_reality",
+                        "question", "failure_mode"):
+                assert key in r
+
+    def test_ai_reference_complete(self):
+        from domain_taxonomy import AI_REFERENCE
+        for key in ("purpose", "when_to_apply", "key_exports",
+                    "integration_with_substrate_audit",
+                    "common_mistakes"):
+            assert key in AI_REFERENCE
+        integ = AI_REFERENCE["integration_with_substrate_audit"]
+        for dim in ("outcome_coupling", "reward_latency",
+                    "reward_distribution", "gameability"):
+            assert dim in integ
+
+    def test_print_summary_runs(self, capsys):
+        from domain_taxonomy import print_summary
+        print_summary()
+        captured = capsys.readouterr()
+        assert "DOMAIN TAXONOMY" in captured.out
+        assert "MEASUREMENT DOMAINS" in captured.out
+        assert "INCENTIVE PROFILES" in captured.out
+        assert "INTEGRATION WITH substrate_audit" in captured.out
