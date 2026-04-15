@@ -3,3 +3,4 @@
 {"drives": ["ENFORCE"], "id": "POWER", "is_self_reinforcing": false, "label": "Political / coercive power"}
 {"drives": ["TITLE"], "id": "ENFORCE", "is_self_reinforcing": true, "label": "Enforcement of ownership rules"}
 {"drives": [], "id": "MAINTAIN", "is_self_reinforcing": false, "label": "Maintainer thermodynamic work"}
+{"drives": ["SURPLUS", "POWER"], "id": "CONSTRAINT", "is_self_reinforcing": false, "label": "External physical / resource constraint"}

@@ -326,7 +326,7 @@
       "source_module": "substrate_audit",
       "source_symbol": "CAUSAL_LOOP",
       "description": "Causal feedback loop: TITLE -> SURPLUS -> POWER -> ENFORCE -> TITLE (self-reinforcing), with MAINTAIN explicitly excluded from the loop despite being thermodynamically necessary.",
-      "record_count": 5,
+      "record_count": 6,
       "schema": {
         "id": "str",
         "label": "str",
@@ -365,7 +365,13 @@
         "tek_integration": "float",
         "feedback_latency": "float",
         "signal_fidelity": "float",
-        "money_physics_coupling": "float"
+        "money_physics_coupling": "float",
+        "latency_quality": "float",
+        "signal_compression_efficiency": "float",
+        "incentive_field_coherence": "float",
+        "knowledge_transmission_resilience": "float",
+        "constraint_feasibility": "float",
+        "generalization_capacity": "float"
       }
     }
   }

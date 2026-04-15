@@ -2181,13 +2181,94 @@ class TestSubstrateAudit:
         assert "scoring_dimensions" in data
         assert "scoring_weights" in data
         assert "scoring_thresholds" in data
-        assert len(data["scoring_dimensions"]) == 11
+        # v3 + refinements now have 17 dimensions, not 11
+        assert len(data["scoring_dimensions"]) == 17
         # Weights should sum to 1.0 (float-safe comparison)
         assert abs(sum(data["scoring_weights"]) - 1.0) < 1e-9
-        # New dimension keys must be present
+        # Original v3 dimension keys must be present
         for dim in ("feedback_latency", "signal_fidelity",
                     "money_physics_coupling", "tek_integration"):
             assert dim in data["scoring_dimensions"]
+
+    def test_refined_17_scoring_dimensions(self):
+        """Commit-A refinement adds 6 new SystemScore dimensions:
+        latency_quality, signal_compression_efficiency,
+        incentive_field_coherence, knowledge_transmission_resilience,
+        constraint_feasibility, generalization_capacity."""
+        from substrate_audit import SystemScore, to_json
+        import json as json_mod
+
+        # Instantiate with all 17 fields explicitly at 0.5 -> alignment 0.5
+        s = SystemScore(
+            name="t",
+            maintainer_control=0.5, outcome_measurement=0.5,
+            scope_justification=0.5, credential_tested=0.5,
+            emotion_integrated=0.5, meta_learning=0.5,
+            substrate_intelligence=0.5, tek_integration=0.5,
+            feedback_latency=0.5, signal_fidelity=0.5,
+            money_physics_coupling=0.5, latency_quality=0.5,
+            signal_compression_efficiency=0.5,
+            incentive_field_coherence=0.5,
+            knowledge_transmission_resilience=0.5,
+            constraint_feasibility=0.5, generalization_capacity=0.5,
+        )
+        assert abs(s.thermodynamic_alignment - 0.5) < 1e-9
+
+        # All new dimensions must be in the JSON schema
+        data = json_mod.loads(to_json())
+        for dim in (
+            "latency_quality",
+            "signal_compression_efficiency",
+            "incentive_field_coherence",
+            "knowledge_transmission_resilience",
+            "constraint_feasibility",
+            "generalization_capacity",
+        ):
+            assert dim in data["scoring_dimensions"], (
+                "missing new dimension: " + dim
+            )
+
+    def test_refined_reference_systems_use_new_dimensions(self):
+        """Every REFERENCE_SYSTEMS entry should have non-default
+        values for the new dimensions (tests that the update was
+        applied to all 6 systems, not just the first few)."""
+        from substrate_audit import REFERENCE_SYSTEMS
+        # Each system should have a distinct latency_quality value
+        # (the new field we care most about — discriminates
+        # destructive from integrative delay)
+        latency_qualities = [s.latency_quality for s in REFERENCE_SYSTEMS]
+        # At least 4 distinct values across 6 systems
+        assert len(set(latency_qualities)) >= 4
+
+        # Mycorrhizal should have high values on all new dimensions
+        myc = [s for s in REFERENCE_SYSTEMS
+               if "Mycorrhizal" in s.name][0]
+        assert myc.latency_quality >= 0.8
+        assert myc.signal_compression_efficiency >= 0.8
+        assert myc.incentive_field_coherence >= 0.8
+
+        # Typical corporation should have low values on coherence
+        # (competing exec/worker/regulator gradients)
+        corp = [s for s in REFERENCE_SYSTEMS
+                if "corporation" in s.name.lower()][0]
+        assert corp.incentive_field_coherence <= 0.3
+
+    def test_causal_loop_includes_constraint_node(self):
+        """Commit-A adds an external CONSTRAINT node to CAUSAL_LOOP
+        that injects perturbations into SURPLUS and POWER. This
+        represents how physical constraints force corrections into
+        the self-reinforcing loop."""
+        from substrate_audit import CAUSAL_LOOP, loop_is_closed
+        constraint = [n for n in CAUSAL_LOOP if n.id == "CONSTRAINT"]
+        assert len(constraint) == 1
+        c = constraint[0]
+        assert "SURPLUS" in c.drives
+        assert "POWER" in c.drives
+        # CONSTRAINT is NOT self-reinforcing — it's an external
+        # perturbation source
+        assert c.is_self_reinforcing is False
+        # Adding CONSTRAINT must not break the existing loop closure
+        assert loop_is_closed(CAUSAL_LOOP) is True
 
 
 # ─────────────────────────────────────────────

@@ -740,6 +740,18 @@ CAUSAL_LOOP: List[CausalNode] = [
     ),
     # Excluded from loop but physically necessary:
     CausalNode("MAINTAIN", "Maintainer thermodynamic work",  []),
+    # External perturbation source. Physical and resource
+    # constraints inject corrections into the loop even though
+    # the loop is internally self-reinforcing. This is what
+    # drives collapse events, bankruptcies, revolutions, and
+    # cascade resets. CONSTRAINT has outgoing edges into the
+    # loop but no incoming edges from it — the loop cannot
+    # escape physics.
+    CausalNode(
+        "CONSTRAINT",
+        "External physical / resource constraint",
+        ["SURPLUS", "POWER"],
+    ),
 ]
 
 
@@ -859,23 +871,72 @@ class SystemScore:
     #                                      entropy) or monetary proxies?
     #                                      1.0 = atomic accounting (joules, kg)
     #                                      0.0 = purely monetary ($, GDP)
+    latency_quality: float = 0.5    # is the latency destructive or integrative?
+    #                                 1.0 = integrative (delay enables averaging /
+    #                                       noise filtering; improves signal)
+    #                                 0.0 = destructive (delay defers action past
+    #                                       the point where correction is possible)
+    #                                 Pairs with feedback_latency: a short delay can
+    #                                 be destructive (oscillation) and a moderate
+    #                                 delay can be integrative (stable averaging).
+    signal_compression_efficiency: float = 0.5  # how much information survives
+    #                                             the compression from physical
+    #                                             event to decision-maker input?
+    #                                             1.0 = minimal loss (chemical
+    #                                             signal preserves content)
+    #                                             0.0 = critical information
+    #                                             destroyed (event -> quarterly
+    #                                             summary bullet)
+    incentive_field_coherence: float = 0.5  # are the incentive gradients across
+    #                                         actors aligned or orthogonal?
+    #                                         1.0 = aligned (one actor / shared
+    #                                         survival goal)
+    #                                         0.0 = orthogonal (worker wants
+    #                                         stability, exec wants quarterly
+    #                                         gain, regulator wants risk
+    #                                         minimization — vector field
+    #                                         interference)
+    knowledge_transmission_resilience: float = 0.5  # does the knowledge survive
+    #                                                 disruption and reconstruction?
+    #                                                 1.0 = resilient (encoded in
+    #                                                 physical substrate)
+    #                                                 0.0 = fragile (cultural
+    #                                                 continuity required;
+    #                                                 disruption -> loss)
+    constraint_feasibility: float = 0.5  # does it scale without loss of fidelity
+    #                                      or latency? 1.0 = scales organically
+    #                                      (mycorrhizal network extending itself)
+    #                                      0.0 = collapses when scaled (owner-
+    #                                      operator quality doesn't scale to
+    #                                      multi-location)
+    generalization_capacity: float = 0.5  # ability to adapt to novel conditions
+    #                                       (not seen during training / historical
+    #                                       operation). 1.0 = high (TEK across
+    #                                       generations). 0.0 = brittle (model
+    #                                       trained on narrow distribution).
 
     @property
     def thermodynamic_alignment(self) -> float:
         """How aligned is this system with physical reality? 0-1."""
-        # 11 dimensions. Weights sum to 1.0.
+        # 17 dimensions. Weights sum to 1.0.
         weights = [
-            0.14,   # maintainer_control
-            0.12,   # outcome_measurement
-            0.08,   # scope_justification
-            0.08,   # credential_tested
-            0.09,   # emotion_integrated
-            0.05,   # meta_learning
-            0.05,   # substrate_intelligence
-            0.05,   # tek_integration
-            0.14,   # feedback_latency
-            0.12,   # signal_fidelity
-            0.08,   # money_physics_coupling
+            0.12,   # maintainer_control
+            0.10,   # outcome_measurement
+            0.06,   # scope_justification
+            0.06,   # credential_tested
+            0.07,   # emotion_integrated
+            0.04,   # meta_learning
+            0.04,   # substrate_intelligence
+            0.04,   # tek_integration
+            0.12,   # feedback_latency
+            0.10,   # signal_fidelity
+            0.06,   # money_physics_coupling
+            0.04,   # latency_quality
+            0.04,   # signal_compression_efficiency
+            0.04,   # incentive_field_coherence
+            0.03,   # knowledge_transmission_resilience
+            0.02,   # constraint_feasibility
+            0.02,   # generalization_capacity
         ]
         values = [
             self.maintainer_control,
@@ -889,6 +950,12 @@ class SystemScore:
             self.feedback_latency,
             self.signal_fidelity,
             self.money_physics_coupling,
+            self.latency_quality,
+            self.signal_compression_efficiency,
+            self.incentive_field_coherence,
+            self.knowledge_transmission_resilience,
+            self.constraint_feasibility,
+            self.generalization_capacity,
         ]
         return sum(w * v for w, v in zip(weights, values))
 
@@ -925,6 +992,12 @@ REFERENCE_SYSTEMS: List[SystemScore] = [
         feedback_latency=0.05,
         signal_fidelity=0.05,            # 8-10 transduction steps to CEO
         money_physics_coupling=0.05,     # purely monetary accounting
+        latency_quality=0.10,            # destructive (quarterly cycle)
+        signal_compression_efficiency=0.10,  # event -> summary bullet
+        incentive_field_coherence=0.10,  # exec vs worker vs regulator
+        knowledge_transmission_resilience=0.20,  # locked in proprietary systems
+        constraint_feasibility=0.30,     # scales but at massive fidelity cost
+        generalization_capacity=0.20,    # quarterly cycles = slow adaptation
     ),
     SystemScore(
         name="Worker-owned cooperative (e.g. Mondragon)",
@@ -939,6 +1012,12 @@ REFERENCE_SYSTEMS: List[SystemScore] = [
         feedback_latency=0.55,
         signal_fidelity=0.50,            # workers closer but meeting-gated
         money_physics_coupling=0.25,     # still monetary primarily
+        latency_quality=0.50,            # some integrative filtering
+        signal_compression_efficiency=0.40,
+        incentive_field_coherence=0.70,  # mostly aligned within cooperative
+        knowledge_transmission_resilience=0.50,  # formal training exists
+        constraint_feasibility=0.50,     # scales but limited
+        generalization_capacity=0.40,
     ),
     SystemScore(
         name="Owner-operator mechanic shop",
@@ -953,6 +1032,12 @@ REFERENCE_SYSTEMS: List[SystemScore] = [
         feedback_latency=0.95,
         signal_fidelity=0.95,            # owner IS the sensor, 0-1 steps
         money_physics_coupling=0.40,     # tracks parts, hours, returns
+        latency_quality=0.80,            # integrative (experience filters)
+        signal_compression_efficiency=0.90,  # direct sensing, minimal loss
+        incentive_field_coherence=0.95,  # one actor, fully aligned
+        knowledge_transmission_resilience=0.60,  # apprentice tradition
+        constraint_feasibility=0.20,     # doesn't scale beyond one shop
+        generalization_capacity=0.80,    # direct sensing = rapid adaptation
     ),
     SystemScore(
         name="Current AI system (LLM, 2025)",
@@ -967,6 +1052,13 @@ REFERENCE_SYSTEMS: List[SystemScore] = [
         feedback_latency=0.10,
         signal_fidelity=0.15,            # training data is N-th hand
         money_physics_coupling=0.0,      # no physical accounting
+        latency_quality=0.10,            # neither well-characterized
+        signal_compression_efficiency=0.15,  # training compresses everything
+        incentive_field_coherence=0.30,  # internally coherent, no stake
+        knowledge_transmission_resilience=0.10,  # fragile, needs corpus
+        constraint_feasibility=0.40,     # scales, but fidelity degrades
+        generalization_capacity=0.50,    # in-context adaptation present;
+        #                                   no parameter-level update
     ),
     SystemScore(
         name="Mycorrhizal network",
@@ -981,6 +1073,12 @@ REFERENCE_SYSTEMS: List[SystemScore] = [
         feedback_latency=1.0,
         signal_fidelity=1.0,             # signal IS the event, zero steps
         money_physics_coupling=1.0,      # accounts in atoms
+        latency_quality=0.90,            # integrative (seasonal averaging)
+        signal_compression_efficiency=0.95,  # chemical preserves content
+        incentive_field_coherence=0.95,  # single survival goal
+        knowledge_transmission_resilience=0.80,  # encoded in physical net
+        constraint_feasibility=0.90,     # scales organically
+        generalization_capacity=0.85,    # biological adaptation
     ),
     SystemScore(
         name="TEK-managed landscape (e.g. Aboriginal fire)",
@@ -995,6 +1093,12 @@ REFERENCE_SYSTEMS: List[SystemScore] = [
         feedback_latency=0.80,
         signal_fidelity=0.90,            # direct observation, 0-1 steps
         money_physics_coupling=0.90,     # yields, species, soil, water
+        latency_quality=0.95,            # integrative (generational)
+        signal_compression_efficiency=0.85,  # narrative + markers
+        incentive_field_coherence=0.85,  # community survival
+        knowledge_transmission_resilience=0.60,  # fragile if interrupted
+        constraint_feasibility=0.70,     # replicates across landscapes
+        generalization_capacity=0.80,    # generational adaptation
     ),
 ]
 
@@ -1211,10 +1315,49 @@ def to_json() -> str:
                 "(energy, mass, entropy) or monetary proxies? "
                 "1.0=atomic accounting, 0.0=purely monetary"
             ),
+            "latency_quality": (
+                "0-1: is the latency destructive or integrative? "
+                "1.0=integrative (delay enables averaging and noise "
+                "filtering, improves signal), 0.0=destructive (delay "
+                "defers action past the point where correction is "
+                "possible). Pairs with feedback_latency."
+            ),
+            "signal_compression_efficiency": (
+                "0-1: how much information survives the compression "
+                "from physical event to decision-maker input? "
+                "1.0=minimal loss (chemical signal preserves "
+                "content), 0.0=critical information destroyed "
+                "(event -> quarterly summary bullet)."
+            ),
+            "incentive_field_coherence": (
+                "0-1: are incentive gradients across actors aligned "
+                "or orthogonal? 1.0=aligned (one actor / shared "
+                "survival goal), 0.0=orthogonal (worker vs exec vs "
+                "regulator — vector field interference)."
+            ),
+            "knowledge_transmission_resilience": (
+                "0-1: does the knowledge survive disruption and "
+                "reconstruction? 1.0=resilient (encoded in physical "
+                "substrate), 0.0=fragile (cultural continuity "
+                "required; disruption -> loss)."
+            ),
+            "constraint_feasibility": (
+                "0-1: does it scale without loss of fidelity or "
+                "latency? 1.0=scales organically (mycorrhizal "
+                "network extending itself), 0.0=collapses when "
+                "scaled (owner-operator quality doesn't scale to "
+                "multi-location)."
+            ),
+            "generalization_capacity": (
+                "0-1: ability to adapt to novel conditions not seen "
+                "during training or historical operation. 1.0=high "
+                "(TEK across generations), 0.0=brittle (model "
+                "trained on narrow distribution)."
+            ),
         },
         "scoring_weights": [
-            0.14, 0.12, 0.08, 0.08, 0.09, 0.05, 0.05, 0.05,
-            0.14, 0.12, 0.08,
+            0.12, 0.10, 0.06, 0.06, 0.07, 0.04, 0.04, 0.04,
+            0.12, 0.10, 0.06, 0.04, 0.04, 0.04, 0.03, 0.02, 0.02,
         ],
         "scoring_thresholds": {
             ">=0.7": "PHYSICS-GROUNDED",
