@@ -1695,6 +1695,76 @@ class TestAIReferenceFolder:
             if "tools" in sys.path:
                 sys.path.remove("tools")
 
+    def test_glossary_covers_guard_and_audit_terms(self):
+        """The glossary should define the cross-module terms that
+        appear in the guard family, substrate_audit, and
+        domain_taxonomy."""
+        with open(
+            "ai_reference/glossary.md", encoding="utf-8",
+        ) as f:
+            content = f.read().lower()
+        expected_terms = (
+            "anchor",
+            "grounded vs self-referential",
+            "contamination",
+            "synthetic ancestry",
+            "embodied energy",
+            "eroei",
+            "substrate",
+            "self-terminating goal",
+            "projection",
+            "closure",
+            "metrology",
+            "feedback_latency",
+            "signal_fidelity",
+            "money_physics_coupling",
+            "incentive entropy",
+            "gameability",
+            "gradient alignment",
+            "reality coupling",
+            "asymmetric rigor",
+            "inverted gatekeeping",
+            "conditional vs assertion",
+            "intent contamination",
+        )
+        missing = [t for t in expected_terms if t not in content]
+        assert missing == [], (
+            "glossary missing terms: " + repr(missing)
+        )
+
+    def test_composition_recipes_cover_reality_audit_and_self_check(self):
+        """The composition recipes file should contain the
+        source-blind reality audit chain and the AI projection
+        self-check recipe."""
+        with open(
+            "ai_reference/composition_recipes.md", encoding="utf-8",
+        ) as f:
+            content = f.read()
+        assert "Source-blind reality audit" in content
+        assert "AI projection self-check" in content
+        # Source-blind recipe should name every stage module
+        for module in (
+            "input_validation_guard",
+            "self_referential_guard",
+            "model_collapse_guard",
+            "thermodynamic_price_guard",
+            "domain_taxonomy",
+            "substrate_audit",
+            "cascade_consequence_engine",
+        ):
+            assert module in content, (
+                "reality-audit recipe missing " + module
+            )
+        # Self-check recipe should name all three meta-tools
+        for module in (
+            "perspective_guard",
+            "reflexive_bias_guard",
+            "conditional_logic_parser",
+        ):
+            assert module in content, (
+                "self-check recipe missing " + module
+            )
+
 
 # ─────────────────────────────────────────────
 # GUARD FAMILY — minimal import + basic behavior
