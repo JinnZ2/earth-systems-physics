@@ -338,15 +338,36 @@ CATALOGS = [
         "module": "substrate_audit",
         "symbol": "REFERENCE_SYSTEMS",
         "description": (
-            "Six reference SystemScore instances with all 11 "
+            "Six reference SystemScore instances with all 17 "
             "scoring dimensions (maintainer_control, "
             "outcome_measurement, scope_justification, "
             "credential_tested, emotion_integrated, meta_learning, "
             "substrate_intelligence, tek_integration, "
             "feedback_latency, signal_fidelity, "
-            "money_physics_coupling). Covers the full spectrum "
-            "from corporation (CHURCH) to mycorrhizal network "
-            "(PHYSICS-GROUNDED)."
+            "money_physics_coupling, latency_quality, "
+            "signal_compression_efficiency, "
+            "incentive_field_coherence, "
+            "knowledge_transmission_resilience, "
+            "constraint_feasibility, generalization_capacity). "
+            "Covers the full spectrum from corporation (CHURCH) "
+            "to mycorrhizal network (PHYSICS-GROUNDED)."
+        ),
+    },
+    # ── magnomechanical layer ─────────────────────────────────
+    {
+        "name": "skyrmion_materials",
+        "module": "skyrmion_rkky",
+        "symbol": "SKYRMION_MATERIALS",
+        "description": (
+            "Five reference materials hosting magnetic skyrmion "
+            "lattice phases. Each entry has type "
+            "(centrosymmetric vs non-centrosymmetric), skyrmion "
+            "radius in nm, ordering temperature, stabilization "
+            "mechanism (DMI for non-centrosymmetric MnSi/FeGe; "
+            "RKKY frustration for centrosymmetric Gd2PdSi3 / "
+            "Gd3Ru4Al12 / GdRu2Si2), and a literature reference. "
+            "rkky_relevant flag separates the two stabilization "
+            "regimes."
         ),
     },
 ]

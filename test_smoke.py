@@ -2483,3 +2483,175 @@ class TestDomainTaxonomy:
         assert "MEASUREMENT DOMAINS" in captured.out
         assert "INCENTIVE PROFILES" in captured.out
         assert "INTEGRATION WITH substrate_audit" in captured.out
+
+
+# ─────────────────────────────────────────────
+# SKYRMIONS + RKKY + LLG
+# ─────────────────────────────────────────────
+
+class TestSkyrmionRKKY:
+    def test_import(self):
+        import skyrmion_rkky  # noqa: F401
+
+    def test_uniform_field_has_zero_topological_charge(self):
+        from skyrmion_rkky import (
+            make_uniform_field, compute_topological_charge,
+        )
+        m = make_uniform_field(64, 64)
+        Q = compute_topological_charge(m)
+        assert abs(Q) < 1e-9
+
+    def test_skyrmion_ansatz_unit_norm(self):
+        from skyrmion_rkky import make_skyrmion_field
+        import numpy as np
+        m = make_skyrmion_field(nx=32, ny=32, radius=8.0)
+        norms = np.sqrt(np.sum(m ** 2, axis=-1))
+        # Every site should have |m|=1 within float tolerance
+        assert np.all(np.abs(norms - 1.0) < 1e-9)
+
+    def test_skyrmion_topological_charge_close_to_minus_one(self):
+        """Néel skyrmion with polarity=+1, vorticity=+1 should
+        yield Q close to -1 (within ~5% on a 128x128 grid)."""
+        from skyrmion_rkky import (
+            make_skyrmion_field, compute_topological_charge,
+        )
+        m = make_skyrmion_field(
+            nx=128, ny=128, radius=12.0,
+            polarity=1, vorticity=1, helicity=0.0,
+        )
+        Q = compute_topological_charge(m)
+        assert abs(Q - (-1.0)) < 0.05, f"got Q={Q}"
+
+    def test_polarity_flip_flips_topological_charge(self):
+        """Flipping polarity from +1 to -1 should flip Q from -1
+        to +1."""
+        from skyrmion_rkky import (
+            make_skyrmion_field, compute_topological_charge,
+        )
+        m_pos = make_skyrmion_field(
+            nx=128, ny=128, radius=12.0,
+            polarity=1, vorticity=1,
+        )
+        m_neg = make_skyrmion_field(
+            nx=128, ny=128, radius=12.0,
+            polarity=-1, vorticity=1,
+        )
+        Q_pos = compute_topological_charge(m_pos)
+        Q_neg = compute_topological_charge(m_neg)
+        # Sum should be near zero (they cancel)
+        assert abs(Q_pos + Q_neg) < 1e-6
+
+    def test_helicity_does_not_affect_topology(self):
+        """Néel and Bloch skyrmions differ only by in-plane phase;
+        Q should be the same."""
+        import math
+        from skyrmion_rkky import (
+            make_skyrmion_field, compute_topological_charge,
+        )
+        m_neel = make_skyrmion_field(
+            nx=128, ny=128, radius=12.0, helicity=0.0,
+        )
+        m_bloch = make_skyrmion_field(
+            nx=128, ny=128, radius=12.0, helicity=math.pi / 2,
+        )
+        Q_neel = compute_topological_charge(m_neel)
+        Q_bloch = compute_topological_charge(m_bloch)
+        assert abs(Q_neel - Q_bloch) < 1e-9
+
+    def test_rkky_oscillates_with_distance(self):
+        """RKKY coupling should change sign at least once across
+        a distance range of one full oscillation period."""
+        from skyrmion_rkky import rkky_coupling, rkky_period
+        k_F = 1.0
+        period = rkky_period(k_F)
+        # Sample over 2 periods to guarantee at least one sign change
+        rs = [0.5 + i * (2 * period / 20) for i in range(20)]
+        for d in (1, 2, 3):
+            values = [rkky_coupling(r, k_F, dimension=d) for r in rs]
+            signs = [1 if v > 0 else -1 if v < 0 else 0 for v in values]
+            sign_changes = sum(
+                1 for i in range(len(signs) - 1)
+                if signs[i] * signs[i + 1] < 0
+            )
+            assert sign_changes >= 1, (
+                f"dim={d}: no sign change across "
+                f"{2 * period:.2f} period range"
+            )
+
+    def test_rkky_invalid_inputs_raise(self):
+        import pytest
+        from skyrmion_rkky import rkky_coupling
+        with pytest.raises(ValueError):
+            rkky_coupling(0.0, k_F=1.0)
+        with pytest.raises(ValueError):
+            rkky_coupling(-1.0, k_F=1.0)
+        with pytest.raises(ValueError):
+            rkky_coupling(1.0, k_F=1.0, dimension=4)
+
+    def test_llg_step_preserves_norm(self):
+        """One LLG step should preserve |m|=1 to machine precision."""
+        import numpy as np
+        from skyrmion_rkky import llg_step
+        m = np.array([[[0.6, 0.0, 0.8]]])
+        H = np.array([[[0.0, 0.0, 1.0]]])
+        m_new = llg_step(m, H, alpha=0.05, dt=1e-13)
+        norm = float(np.linalg.norm(m_new[0, 0]))
+        assert abs(norm - 1.0) < 1e-9
+
+    def test_llg_step_aligned_field_no_torque(self):
+        """If m is parallel to H_eff, m × H_eff = 0 and the step
+        should leave m unchanged (no precession, no damping)."""
+        import numpy as np
+        from skyrmion_rkky import llg_step
+        m = np.array([[[0.0, 0.0, 1.0]]])
+        H = np.array([[[0.0, 0.0, 1.0]]])
+        m_new = llg_step(m, H, alpha=0.05, dt=1e-13)
+        # All three components essentially unchanged
+        assert abs(m_new[0, 0, 0] - 0.0) < 1e-12
+        assert abs(m_new[0, 0, 1] - 0.0) < 1e-12
+        assert abs(m_new[0, 0, 2] - 1.0) < 1e-12
+
+    def test_llg_step_perpendicular_field_precesses(self):
+        """If m is perpendicular to H_eff, m should precess: at
+        least one transverse component should change after a
+        single small step."""
+        import numpy as np
+        from skyrmion_rkky import llg_step
+        m = np.array([[[1.0, 0.0, 0.0]]])
+        H = np.array([[[0.0, 0.0, 1.0]]])
+        m_new = llg_step(m, H, alpha=0.05, dt=1e-13)
+        # m_y should pick up nonzero magnitude from precession
+        assert abs(m_new[0, 0, 1]) > 1e-6
+
+    def test_skyrmion_materials_catalog(self):
+        from skyrmion_rkky import SKYRMION_MATERIALS
+        assert len(SKYRMION_MATERIALS) >= 5
+        # The 3 RKKY-stabilized centrosymmetric materials must be
+        # marked rkky_relevant=True
+        rkky_hosts = [
+            name for name, spec in SKYRMION_MATERIALS.items()
+            if spec["rkky_relevant"]
+        ]
+        for required in ("Gd2PdSi3", "Gd3Ru4Al12", "GdRu2Si2"):
+            assert required in rkky_hosts
+        # MnSi and FeGe are DMI-stabilized, not RKKY
+        assert SKYRMION_MATERIALS["MnSi"]["rkky_relevant"] is False
+        assert SKYRMION_MATERIALS["FeGe"]["rkky_relevant"] is False
+        # Every entry has the required fields
+        for name, spec in SKYRMION_MATERIALS.items():
+            for field in ("type", "skyrmion_radius_nm",
+                          "ordering_temperature_K",
+                          "stabilization_mechanism",
+                          "rkky_relevant", "notes"):
+                assert field in spec, (
+                    f"{name} missing {field}"
+                )
+
+    def test_print_summary_runs(self, capsys):
+        from skyrmion_rkky import print_summary
+        print_summary()
+        captured = capsys.readouterr()
+        assert "SKYRMION" in captured.out
+        assert "RKKY" in captured.out
+        assert "TOPOLOGICAL CHARGE" in captured.out
+        assert "LLG STEP" in captured.out

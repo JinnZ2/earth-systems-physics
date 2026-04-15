@@ -351,7 +351,7 @@
       "path": "catalogs/substrate_reference_systems.jsonl",
       "source_module": "substrate_audit",
       "source_symbol": "REFERENCE_SYSTEMS",
-      "description": "Six reference SystemScore instances with all 11 scoring dimensions (maintainer_control, outcome_measurement, scope_justification, credential_tested, emotion_integrated, meta_learning, substrate_intelligence, tek_integration, feedback_latency, signal_fidelity, money_physics_coupling). Covers the full spectrum from corporation (CHURCH) to mycorrhizal network (PHYSICS-GROUNDED).",
+      "description": "Six reference SystemScore instances with all 17 scoring dimensions (maintainer_control, outcome_measurement, scope_justification, credential_tested, emotion_integrated, meta_learning, substrate_intelligence, tek_integration, feedback_latency, signal_fidelity, money_physics_coupling, latency_quality, signal_compression_efficiency, incentive_field_coherence, knowledge_transmission_resilience, constraint_feasibility, generalization_capacity). Covers the full spectrum from corporation (CHURCH) to mycorrhizal network (PHYSICS-GROUNDED).",
       "record_count": 6,
       "schema": {
         "name": "str",
@@ -372,6 +372,22 @@
         "knowledge_transmission_resilience": "float",
         "constraint_feasibility": "float",
         "generalization_capacity": "float"
+      }
+    },
+    "skyrmion_materials": {
+      "path": "catalogs/skyrmion_materials.jsonl",
+      "source_module": "skyrmion_rkky",
+      "source_symbol": "SKYRMION_MATERIALS",
+      "description": "Five reference materials hosting magnetic skyrmion lattice phases. Each entry has type (centrosymmetric vs non-centrosymmetric), skyrmion radius in nm, ordering temperature, stabilization mechanism (DMI for non-centrosymmetric MnSi/FeGe; RKKY frustration for centrosymmetric Gd2PdSi3 / Gd3Ru4Al12 / GdRu2Si2), and a literature reference. rkky_relevant flag separates the two stabilization regimes.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "type": "str",
+        "skyrmion_radius_nm": "float",
+        "ordering_temperature_K": "float",
+        "stabilization_mechanism": "str",
+        "rkky_relevant": "bool",
+        "notes": "str"
       }
     }
   }

@@ -12,7 +12,7 @@ Coupled differential equation framework mapping Earth physics as constraint laye
 pip install -r requirements.txt
 python cascade_engine.py              # Run all forcing scenarios
 python assumption_validator/api.py    # Start REST API on port 5000
-pytest -v                             # Run test suite (233 tests)
+pytest -v                             # Run test suite (246 tests)
 ```
 
 ## Architecture
@@ -58,7 +58,7 @@ earth-systems-physics/
 │
 ├── cascade_engine.py                  # Core forcing propagation engine
 ├── energy_audit.py                    # Cross-layer energy conservation audit
-├── test_smoke.py                      # 233 tests — all layers, scenarios, validators, audits
+├── test_smoke.py                      # 246 tests — all layers, scenarios, validators, audits
 │
 ├── ocean_timber_sequestration_audit.py # Full-cycle carbon audit of wood-in-ocean schemes
 ├── dollar_energy_metabolism.py        # Recursive energy cost model for climate finance
@@ -93,7 +93,7 @@ earth-systems-physics/
 │   ├── glossary.md                    # Unified terminology across modules
 │   ├── composition_recipes.md         # Cross-module analysis patterns
 │   ├── index.json                     # Provenance + schema for every catalog
-│   └── catalogs/                      # 26 .jsonl catalogs auto-exported from sources
+│   └── catalogs/                      # 27 .jsonl catalogs auto-exported from sources
 │
 ├── experiments/
 │   ├── magnetometer_build.py          # $5 smoky-quartz + HDD-magnet magnetometer build guide
@@ -121,6 +121,7 @@ earth-systems-physics/
 │
 ├── electrostatic_transducer.py        # Piezo voltage → electrostatic MEMS motor
 ├── device_scaling.py                  # Min resources for 11 applications + junkyard builds
+├── skyrmion_rkky.py                   # Topological charge + RKKY oscillatory coupling + LLG integrator
 │
 └── assumption_validator/
     ├── __init__.py                    # Package exports (v0.1.0)
@@ -170,7 +171,7 @@ All physics functions require docstrings with: description, parameters (with typ
 
 ## Testing
 
-Framework: **pytest** — 233 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
+Framework: **pytest** — 246 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
 
 ```bash
 pytest                    # Run all tests
@@ -283,7 +284,7 @@ ai_reference/
 │                           cascade, layer, signal, delta, buffer, etc.)
 ├── composition_recipes.md  Cross-module analysis patterns
 ├── index.json              Provenance + schema for every catalog
-└── catalogs/               26 .jsonl catalogs (192 records total)
+└── catalogs/               27 .jsonl catalogs (198 records total)
     ├── mechanisms.jsonl                    (7 records)
     ├── epigenetic_factors.jsonl            (6)
     ├── constraint_domains.jsonl            (7)
@@ -309,7 +310,8 @@ ai_reference/
     ├── substrate_five_why.jsonl            (5)     # substrate_audit
     ├── substrate_causal_loop.jsonl         (5)     # substrate_audit
     ├── substrate_dmaic.jsonl               (5)     # substrate_audit
-    └── substrate_reference_systems.jsonl   (6)     # substrate_audit
+    ├── substrate_reference_systems.jsonl   (6)     # substrate_audit
+    └── skyrmion_materials.jsonl            (5)     # skyrmion_rkky
 ```
 
 ### Regenerating the catalogs
@@ -432,6 +434,7 @@ The sub-layer connects Layer 0 (Electromagnetics) to Layer 5 (Lithosphere) throu
 | `banded_crystal_computer.py` | Phonon band structure in layered magnonic crystals |
 | `cold_climate_crystal.py` | Temperature-dependent sensitivity (Morin transition) |
 | `crystal_device_gradient.py` | Practical magnetometer designs ($25 to $300) |
+| `skyrmion_rkky.py` | Topological charge `Q = (1/4π) ∫ m·(∂m/∂x × ∂m/∂y)`; RKKY oscillatory coupling `J(r) ∝ cos(2k_F r)/r^d` for stabilizing skyrmion lattices in centrosymmetric materials (no DMI); single-step Landau-Lifshitz-Gilbert integrator; reference parameters for 5 skyrmion-hosting materials (MnSi, FeGe + Gd2PdSi3 / Gd3Ru4Al12 / GdRu2Si2) |
 
 ### Key Physics Results
 
