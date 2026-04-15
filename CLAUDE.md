@@ -12,7 +12,7 @@ Coupled differential equation framework mapping Earth physics as constraint laye
 pip install -r requirements.txt
 python cascade_engine.py              # Run all forcing scenarios
 python assumption_validator/api.py    # Start REST API on port 5000
-pytest -v                             # Run test suite (166 tests)
+pytest -v                             # Run test suite (213 tests)
 ```
 
 ## Architecture
@@ -50,6 +50,7 @@ Each higher layer imports from lower layers. The cascade engine imports all laye
 ```
 earth-systems-physics/
 ├── CLAUDE.md
+├── ASSESS.md                          # Assessment protocol for AI systems (report closure, not motive)
 ├── README.md
 ├── LICENSE
 ├── requirements.txt
@@ -57,7 +58,7 @@ earth-systems-physics/
 │
 ├── cascade_engine.py                  # Core forcing propagation engine
 ├── energy_audit.py                    # Cross-layer energy conservation audit
-├── test_smoke.py                      # 166 tests — all layers, scenarios, validators, audits
+├── test_smoke.py                      # 213 tests — all layers, scenarios, validators, audits
 │
 ├── ocean_timber_sequestration_audit.py # Full-cycle carbon audit of wood-in-ocean schemes
 ├── dollar_energy_metabolism.py        # Recursive energy cost model for climate finance
@@ -70,6 +71,17 @@ earth-systems-physics/
 ├── consequence_velocity.py            # Consequence as process with velocity, coupling, phase transitions
 ├── constraint_accountability_chain.py # Meta-layer: vocabulary, patterns, examples, and AI reference for the decision-ancestry model
 ├── constraint_accountability_engine.py # Engine: walks the chain, computes ratchet depth, cascade risk, reversion energy
+│
+├── self_referential_guard.py          # Detects self-referential loops vs grounded feedback; false precision; model-reality gap
+├── model_collapse_guard.py            # Tracks data provenance (measured/derived/synthetic) and forecast chain grounding
+├── thermodynamic_price_guard.py       # Validates monetary claims against embodied energy; EROEI; labor energy budget
+├── input_validation_guard.py          # Source-blind claim validation against conservation laws (energy, mass, entropy, value, Shannon)
+├── cascade_consequence_engine.py      # Traces self-terminating goal trajectories via substrate cascade propagation
+├── perspective_guard.py               # Projection detector + module manifest + assessment protocol generator
+├── scientific_pluralism_guard.py      # Measurement-system validation and consequence-closure validator
+├── reflexive_bias_guard.py            # Meta-validator: asymmetric rigor, inverted gatekeeping, framework favoritism, self-check
+├── conditional_logic_parser.py        # Parses conditional logic; detects intent contamination in AI responses
+├── substrate_audit.py                 # Thermodynamic audit of hierarchical capital control: falsifiable claims + DMAIC + scoring
 │
 ├── tools/
 │   ├── fix_paste_artifacts.py         # Repair .py files pasted from markdown (see recovery section)
@@ -157,7 +169,7 @@ All physics functions require docstrings with: description, parameters (with typ
 
 ## Testing
 
-Framework: **pytest** — 166 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
+Framework: **pytest** — 213 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
 
 ```bash
 pytest                    # Run all tests
@@ -185,6 +197,16 @@ laws) to non-physical systems:
 | `consequence_velocity.py` | Consequence modeled as a process with velocity, coupling, and phase transitions, not a fixed future cost |
 | `constraint_accountability_chain.py` | **Meta-layer** above every other module: vocabulary (7 mechanisms, 6 epigenetic factors, 7 constraint domains), 5 named failure patterns, 4 worked example chains, validators, a builder that instantiates live chains from the examples, and an `AI_REFERENCE` table of contents designed for fresh AI sessions. Run as a script (`python constraint_accountability_chain.py`) or call `print_summary()` for a full walkthrough. |
 | `constraint_accountability_engine.py` | Runnable engine for the chain model: `DecisionNode` and `AccountabilityChain` classes, builds decision ancestries, computes ratchet depth, reversion energy, cascade risk, and finds comfort origin |
+| `self_referential_guard.py` | `DependencyGraph` for cycle / grounding detection (self-referential loops vs grounded feedback); `false_precision_check`; `model_reality_gap`; `axiom_grounding_check`; `EXAMPLE_AXIOMS` catalog |
+| `model_collapse_guard.py` | `ContaminationTracker` (MEASURED / DERIVED / SYNTHETIC provenance, collapse risk); `ForecastChain` (depth to measurement, groundedness) |
+| `thermodynamic_price_guard.py` | `MATERIAL_ENERGY` catalog; `embodied_energy`, `price_energy_check` (INFLATED / WASTEFUL / PLAUSIBLE), `labor_energy_budget`, `eroei_check` |
+| `input_validation_guard.py` | `decompose_claim` structural grading; `ConstraintRegistry` + `build_default_registry` (energy / mass / entropy / value / Shannon); `reality_audit`; source-blind `validate_input` |
+| `cascade_consequence_engine.py` | `SubstrateMap`, `ActionEffect`, `CascadeEngine` — propagates secondary/tertiary cascade damage; detects self-terminating goals when cumulative damage exceeds progress |
+| `perspective_guard.py` | `ModuleManifest`; `PROJECTION_PATTERNS` (8 categories: moral_framing, political_projection, survivalist, romanticism, disappointment, western_gatekeeping, motive_assumption, dominance); `audit_ai_response`; `generate_assess_md` |
+| `scientific_pluralism_guard.py` | `MeasurementSystem` validator (any tradition on equal physics grounds); `GATEKEEPING_PATTERNS`; `ConsequenceProfile` + consequence-closure validator; peer-review comparator |
+| `reflexive_bias_guard.py` | Meta-validator: `RigorAudit` for asymmetric thresholds; `detect_inverted_gatekeeping`; `detect_framework_favoritism`; `validator_self_check` with honest limitations; `full_reflexive_audit` |
+| `conditional_logic_parser.py` | `extract_conditionals` (if/then, causal, constraint); `INTENT_CONTAMINATION_PATTERNS`; `detect_intent_contamination`; `audit_statement_handling` |
+| `substrate_audit.py` | Thermodynamic audit of hierarchical capital control: falsifiable claims with null hypotheses, 5-Why chain, causal feedback loop topology check, DMAIC audit, multi-dimension `SystemScore` engine, cross-model JSON export |
 
 These modules are standalone — they don't import from the physics layers —
 but they share conventions (dataclasses, `dict` state exports, pure-Python

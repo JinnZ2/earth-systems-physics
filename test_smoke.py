@@ -1694,3 +1694,427 @@ class TestAIReferenceFolder:
         finally:
             if "tools" in sys.path:
                 sys.path.remove("tools")
+
+
+# ─────────────────────────────────────────────
+# GUARD FAMILY — minimal import + basic behavior
+# ─────────────────────────────────────────────
+
+class TestSelfReferentialGuard:
+    def test_import(self):
+        import self_referential_guard  # noqa: F401
+
+    def test_cycle_detection(self):
+        from self_referential_guard import DependencyGraph
+        g = DependencyGraph()
+        g.add_variable("credit", ["money"])
+        g.add_variable("money", ["credit"])
+        report = g.audit()
+        assert report["cycles_found"] >= 1
+        assert len(report["hazards"]) >= 1
+
+    def test_grounded_cycle_not_hazard(self):
+        from self_referential_guard import DependencyGraph
+        g = DependencyGraph()
+        g.add_variable("heater", ["thermostat"])
+        g.add_variable("room_temp", ["heater"])
+        g.add_variable("thermostat", ["room_temp"])
+        g.mark_anchor("room_temp", "thermometer")
+        report = g.audit()
+        assert len(report["hazards"]) == 0
+        assert len(report["grounded"]) >= 1
+
+    def test_example_axioms_present(self):
+        from self_referential_guard import EXAMPLE_AXIOMS
+        assert "conservation_of_energy" in EXAMPLE_AXIOMS
+        assert "efficient_market" in EXAMPLE_AXIOMS
+
+
+class TestModelCollapseGuard:
+    def test_import(self):
+        import model_collapse_guard  # noqa: F401
+
+    def test_contamination_tracker_detects_synthetic_cascade(self):
+        from model_collapse_guard import ContaminationTracker
+        ct = ContaminationTracker()
+        ct.add_measured("sensor_1", "instrument")
+        ct.add_synthetic("gen1", "model_a", ["sensor_1"])
+        ct.add_synthetic("gen2", "model_a", ["gen1"])
+        ct.add_synthetic("gen3", "model_a", ["gen2"])
+        ct.add_synthetic("gen4", "model_a", ["gen3"])
+        ct.add_synthetic("gen5", "model_a", ["gen4"])
+        risk = ct.collapse_risk()
+        assert risk["risk"] in ("HIGH", "CRITICAL")
+
+    def test_forecast_chain_grounding(self):
+        from model_collapse_guard import ForecastChain
+        fc = ForecastChain()
+        fc.add_measurement("gdp_q1", 25.4, "trillion USD")
+        fc.add_forecast("gdp_q2", ["gdp_q1"], 25.6)
+        result = fc.analyze()
+        assert result["grounded"] is True
+
+
+class TestThermodynamicPriceGuard:
+    def test_import(self):
+        import thermodynamic_price_guard  # noqa: F401
+
+    def test_material_energy_catalog(self):
+        from thermodynamic_price_guard import MATERIAL_ENERGY
+        assert "copper" in MATERIAL_ENERGY
+        assert "steel" in MATERIAL_ENERGY
+        assert MATERIAL_ENERGY["copper"] > 0
+
+    def test_embodied_energy(self):
+        from thermodynamic_price_guard import embodied_energy
+        result = embodied_energy(materials={"copper": 10.0})
+        assert result["extraction_kwh"] > 0
+        assert result["total_kwh"] > 0
+
+    def test_price_energy_inflated(self):
+        from thermodynamic_price_guard import price_energy_check
+        result = price_energy_check(price_usd=5000.0, embodied_kwh=20.0)
+        assert result["hazard"] is True
+        assert result["status"] in ("INFLATED", "INFLATED_EXTREME")
+
+    def test_eroei_net_sink(self):
+        from thermodynamic_price_guard import eroei_check
+        result = eroei_check(
+            energy_produced_kwh=0.8, energy_invested_kwh=1.0,
+        )
+        assert result["status"] == "NET_SINK"
+        assert result["hazard"] is True
+
+
+class TestInputValidationGuard:
+    def test_import(self):
+        import input_validation_guard  # noqa: F401
+
+    def test_energy_conservation_violation_rejected(self):
+        from input_validation_guard import validate_input
+        result = validate_input(
+            data={"claims": [{
+                "statement": "Produces 500 kWh from 100 kWh input",
+                "quantity": 500.0, "unit": "kWh",
+                "falsifiable": True,
+                "energy_in": 100.0, "energy_out": 500.0,
+            }]},
+            metadata={"proprietary": False},
+        )
+        assert result["verdict"] == "REJECT"
+
+    def test_untestable_claim_accepted_with_notes(self):
+        from input_validation_guard import validate_input
+        result = validate_input(
+            data={"claims": [{
+                "statement": "Asset prices reflect all information",
+                "quantity": None, "unit": None, "falsifiable": False,
+            }]},
+        )
+        assert result["verdict"] == "ACCEPT_WITH_NOTES"
+
+
+class TestCascadeConsequenceEngine:
+    def test_import(self):
+        import cascade_consequence_engine  # noqa: F401
+
+    def test_substrate_map_goal_tree(self):
+        from cascade_consequence_engine import SubstrateMap
+        sm = SubstrateMap()
+        sm.add_substrate("a", 0.5, 0.1)
+        sm.add_substrate("b", 0.5, 0.1)
+        sm.add_substrate("c", 0.5, 0.1)
+        sm.add_dependency("a", "b")
+        sm.add_dependency("b", "c")
+        sm.mark_goal_dependency("a")
+        tree = sm.get_goal_full_tree()
+        assert {"a", "b", "c"} <= tree
+
+    def test_cascade_engine_runs(self):
+        from cascade_consequence_engine import (
+            SubstrateMap, ActionEffect, CascadeEngine,
+        )
+        sm = SubstrateMap()
+        sm.add_substrate("water", 0.8, 0.2, regeneration_rate=0.01)
+        sm.mark_goal_dependency("water")
+        action = ActionEffect("drain", goal_progress=0.1)
+        action.add_effect("water", -0.05)
+        engine = CascadeEngine(sm)
+        result = engine.simulate([action], steps=10)
+        assert "self_terminating" in result
+        assert "total_goal_progress" in result
+
+
+class TestPerspectiveGuard:
+    def test_import(self):
+        import perspective_guard  # noqa: F401
+
+    def test_projection_patterns_catalog(self):
+        from perspective_guard import PROJECTION_PATTERNS
+        expected = {
+            "moral_framing", "political_projection",
+            "romanticism", "western_science_gatekeeping",
+        }
+        assert expected <= set(PROJECTION_PATTERNS.keys())
+
+    def test_audit_ai_response_clean(self):
+        from perspective_guard import audit_ai_response
+        clean = (
+            "Module takes substrate levels as input. Propagates "
+            "cascade damage through dependency graph. Closes on "
+            "energy conservation."
+        )
+        result = audit_ai_response(clean)
+        assert result["contamination_level"] == "CLEAN"
+
+    def test_audit_ai_response_heavy_contamination(self):
+        from perspective_guard import audit_ai_response
+        contaminated = (
+            "This is an inspiring and noble project driven by a "
+            "passionate activist with a radical anti-capitalist "
+            "ideology. The author must feel disappointed."
+        )
+        result = audit_ai_response(contaminated)
+        assert result["contamination_level"] in ("MODERATE", "HEAVY")
+
+    def test_module_manifest_roundtrip(self):
+        from perspective_guard import ModuleManifest
+        m = ModuleManifest("test_module")
+        m.add_input("x", "kg", "test input")
+        m.add_output("y", "J", "test output")
+        m.add_conservation_law("mass")
+        m.set_closure_statement("Test closure")
+        d = m.to_dict()
+        assert d["module"] == "test_module"
+        assert d["inputs"][0]["name"] == "x"
+        assert "mass" in d["conservation_laws"]
+
+
+class TestScientificPluralismGuard:
+    def test_import(self):
+        import scientific_pluralism_guard  # noqa: F401
+
+    def test_measurement_system_validates(self):
+        from scientific_pluralism_guard import MeasurementSystem
+        s = MeasurementSystem("test", tradition="lab")
+        s.add_quantity("temperature", "K")
+        s.add_instrument("thermometer")
+        s.set_reproducibility(0.95, 0.92, 0.90)
+        s.falsifiability = "If reading disagrees with reference"
+        s.conservation_laws = ["energy"]
+        result = s.validate()
+        assert result["valid"] is True
+
+    def test_gatekeeping_detection(self):
+        from scientific_pluralism_guard import detect_gatekeeping
+        bad = (
+            "This is folklore and anecdotal. It is not peer reviewed. "
+            "It is unscientific and primitive."
+        )
+        result = detect_gatekeeping(bad)
+        assert result["gatekeeping_level"] in ("MODERATE", "HEAVY")
+
+    def test_consequence_profile_assessment(self):
+        from scientific_pluralism_guard import ConsequenceProfile
+        cp = ConsequenceProfile("test claim")
+        cp.severity = "life"
+        cp.feedback_time = "hours"
+        cp.feedback_steps = 1
+        cp.who_decides = "self"
+        cp.who_suffers = "self"
+        cp.accountability_gap = False
+        cp.reversible = False
+        result = cp.assess()
+        assert result["classification"] == "CONSEQUENCE_GROUNDED"
+
+
+class TestReflexiveBiasGuard:
+    def test_import(self):
+        import reflexive_bias_guard  # noqa: F401
+
+    def test_rigor_audit_detects_asymmetry(self):
+        from reflexive_bias_guard import RigorAudit
+        audit = RigorAudit()
+        audit.log_check("a", "T1", "repro", 0.95, 0.9, False)
+        audit.log_check("b", "T2", "repro", 0.50, 0.9, True)
+        result = audit.detect_asymmetry()
+        assert result["asymmetry_detected"] is True
+
+    def test_inverted_gatekeeping_detection(self):
+        from reflexive_bias_guard import detect_inverted_gatekeeping
+        bad = (
+            "Western science is a religion. Only indigenous "
+            "knowledge is valid. Laboratory knowledge is worthless."
+        )
+        result = detect_inverted_gatekeeping(bad)
+        assert result["inverted_gatekeeping_detected"] is True
+
+    def test_validator_self_check_runs(self):
+        from reflexive_bias_guard import validator_self_check
+        result = validator_self_check()
+        assert "self_check_passed" in result
+        assert "honest_limitations" in result
+        assert len(result["honest_limitations"]) > 0
+
+
+class TestConditionalLogicParser:
+    def test_import(self):
+        import conditional_logic_parser  # noqa: F401
+
+    def test_extract_conditional(self):
+        from conditional_logic_parser import extract_conditionals
+        results = extract_conditionals(
+            "If X declares itself the only framework, then it "
+            "functions as a religion."
+        )
+        assert any(r["structure"] == "CONDITIONAL" for r in results)
+
+    def test_intent_contamination_heavy(self):
+        from conditional_logic_parser import detect_intent_contamination
+        bad = (
+            "You seem frustrated. What you're really saying is that "
+            "you feel strongly about this. That's a valid concern "
+            "and you raise an important point. It's more nuanced "
+            "than that. Both sides have valid points."
+        )
+        result = detect_intent_contamination(bad)
+        assert result["contamination_level"] in ("MODERATE", "HEAVY")
+
+    def test_statement_handling_aligned(self):
+        from conditional_logic_parser import audit_statement_handling
+        conditional_input = [
+            "If the feedback loop is disconnected from consequence, "
+            "bad theory persists.",
+        ]
+        good_response = (
+            "The condition you stated is: feedback loop is "
+            "disconnected from consequence. The consequence follows "
+            "because without feedback there is no correction signal."
+        )
+        result = audit_statement_handling(
+            conditional_input, good_response,
+        )
+        assert result["verdict"] == "ALIGNED"
+
+
+class TestSubstrateAudit:
+    def test_import(self):
+        import substrate_audit  # noqa: F401
+
+    def test_claims_present(self):
+        from substrate_audit import CLAIMS, Verdict
+        assert len(CLAIMS) >= 7
+        for c in CLAIMS:
+            assert c.id.startswith("TC-")
+            assert isinstance(c.verdict, Verdict)
+
+    def test_five_why_chain(self):
+        from substrate_audit import FIVE_WHY
+        assert len(FIVE_WHY) == 5
+        for entry in FIVE_WHY:
+            assert "why" in entry and "question" in entry and "answer" in entry
+
+    def test_causal_loop_is_closed(self):
+        from substrate_audit import CAUSAL_LOOP, loop_is_closed
+        assert loop_is_closed(CAUSAL_LOOP) is True
+
+    def test_maintainer_excluded(self):
+        from substrate_audit import CAUSAL_LOOP, maintainer_in_loop
+        # MAINTAIN has no outgoing edges — excluded from power loop
+        assert maintainer_in_loop(CAUSAL_LOOP) is False
+
+    def test_dmaic_audit(self):
+        from substrate_audit import DMAIC_AUDIT, Verdict
+        assert len(DMAIC_AUDIT) == 5
+        for phase in DMAIC_AUDIT:
+            assert phase.verdict in (
+                Verdict.PASS, Verdict.FAIL, Verdict.CIRCULAR,
+                Verdict.UNTESTED,
+            )
+
+    def test_system_score_bounds(self):
+        from substrate_audit import SystemScore
+        s = SystemScore(
+            name="test",
+            maintainer_control=0.5,
+            outcome_measurement=0.5,
+            scope_justification=0.5,
+            credential_tested=0.5,
+            emotion_integrated=0.5,
+            meta_learning=0.5,
+            substrate_intelligence=0.5,
+        )
+        assert 0.0 <= s.thermodynamic_alignment <= 1.0
+        assert 0.0 <= s.church_index <= 1.0
+        assert s.verdict in (
+            "PHYSICS-GROUNDED",
+            "MIXED — partial faith-based operation",
+            "CHURCH — operating on faith, not evidence",
+        )
+
+    def test_json_export_well_formed(self):
+        import json as json_mod
+        from substrate_audit import to_json
+        data = json_mod.loads(to_json())
+        assert "claims" in data
+        assert "five_why" in data
+        assert "causal_loop" in data
+        assert "dmaic" in data
+        assert "reference_scores" in data
+
+    def test_v3_ten_claims_with_money_and_information(self):
+        """v3 adds TC-8 (TEK), TC-9 (money metrology),
+        TC-10 (information as physical work)."""
+        from substrate_audit import CLAIMS
+        assert len(CLAIMS) == 10
+        ids = {c.id for c in CLAIMS}
+        assert {"TC-8", "TC-9", "TC-10"} <= ids
+        by_id = {c.id: c for c in CLAIMS}
+        # TC-9 is the money metrology claim
+        assert "money" in by_id["TC-9"].claim.lower()
+        # TC-10 is the information/coordination claim
+        assert "information" in by_id["TC-10"].claim.lower()
+        # TC-8 is the TEK claim
+        assert "tek" in by_id["TC-8"].claim.lower() or "indigenous" in by_id["TC-8"].claim.lower()
+
+    def test_v3_eleven_scoring_dimensions(self):
+        """v3 adds tek_integration, feedback_latency, signal_fidelity,
+        money_physics_coupling to the scoring engine."""
+        from substrate_audit import SystemScore
+        s = SystemScore(
+            name="test",
+            maintainer_control=0.5, outcome_measurement=0.5,
+            scope_justification=0.5, credential_tested=0.5,
+            emotion_integrated=0.5, meta_learning=0.5,
+            substrate_intelligence=0.5,
+            tek_integration=0.5, feedback_latency=0.5,
+            signal_fidelity=0.5, money_physics_coupling=0.5,
+        )
+        # With all dimensions at 0.5, thermodynamic_alignment should be 0.5
+        assert abs(s.thermodynamic_alignment - 0.5) < 1e-6
+
+    def test_v3_tek_reference_system_grounded(self):
+        """v3 adds a TEK-managed landscape reference system that
+        should score as PHYSICS-GROUNDED."""
+        from substrate_audit import REFERENCE_SYSTEMS
+        tek = [s for s in REFERENCE_SYSTEMS if "TEK" in s.name]
+        assert len(tek) == 1
+        assert tek[0].verdict == "PHYSICS-GROUNDED"
+
+    def test_v3_json_export_includes_prompt_and_schema(self):
+        """v3 embeds a cross-model prompt + scoring schema in the
+        JSON export so downstream AI can apply the audit directly."""
+        import json as json_mod
+        from substrate_audit import to_json
+        data = json_mod.loads(to_json())
+        assert "prompt" in data
+        assert "scoring_dimensions" in data
+        assert "scoring_weights" in data
+        assert "scoring_thresholds" in data
+        assert len(data["scoring_dimensions"]) == 11
+        # Weights should sum to 1.0 (float-safe comparison)
+        assert abs(sum(data["scoring_weights"]) - 1.0) < 1e-9
+        # New dimension keys must be present
+        for dim in ("feedback_latency", "signal_fidelity",
+                    "money_physics_coupling", "tek_integration"):
+            assert dim in data["scoring_dimensions"]
