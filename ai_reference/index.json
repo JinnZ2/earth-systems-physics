@@ -177,6 +177,196 @@
         "recursive_r": "float",
         "description": "str"
       }
+    },
+    "example_axioms": {
+      "path": "catalogs/example_axioms.jsonl",
+      "source_module": "self_referential_guard",
+      "source_symbol": "EXAMPLE_AXIOMS",
+      "description": "Worked examples of grounded vs ungrounded axioms (conservation of energy, fractional reserve, efficient market, crystal navigation, landscape encoding). Each has testable / physical_unit / conservation_law fields that drive the grounding score in axiom_grounding_check.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "statement": "str",
+        "testable": "bool",
+        "physical_unit": "mixed",
+        "conservation_law": "mixed"
+      }
+    },
+    "material_energy": {
+      "path": "catalogs/material_energy.jsonl",
+      "source_module": "thermodynamic_price_guard",
+      "source_symbol": "MATERIAL_ENERGY",
+      "description": "Material extraction energy in kWh per kg. Order-of-magnitude values from embodied-energy literature: copper, aluminum, steel, concrete, silicon (metallurgical and solar grade), lithium, gold, water desalination, wheat, lumber, polyethylene.",
+      "record_count": 12,
+      "schema": {
+        "name": "str",
+        "value": "float"
+      }
+    },
+    "projection_patterns": {
+      "path": "catalogs/projection_patterns.jsonl",
+      "source_module": "perspective_guard",
+      "source_symbol": "PROJECTION_PATTERNS",
+      "description": "Eight categories of projection that AI systems make onto non-institutional code: moral_framing, political_projection, survivalist_framing, romanticism, disappointment_projection, western_science_gatekeeping, human_motive_assumption, dominance_framing. Each has trigger phrases and a correction describing what the projection masks.",
+      "record_count": 8,
+      "schema": {
+        "name": "str",
+        "triggers": "list",
+        "what_it_masks": "str"
+      }
+    },
+    "gatekeeping_patterns": {
+      "path": "catalogs/gatekeeping_patterns.jsonl",
+      "source_module": "scientific_pluralism_guard",
+      "source_symbol": "GATEKEEPING_PATTERNS",
+      "description": "Five epistemological gatekeeping patterns that substitute institutional authority for thermodynamic closure: institutional_authority, instrument_gatekeeping, authority_dismissal, methodology_gatekeeping, temporal_gatekeeping.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "triggers": "list",
+        "correction": "str"
+      }
+    },
+    "inverted_gatekeeping_patterns": {
+      "path": "catalogs/inverted_gatekeeping_patterns.jsonl",
+      "source_module": "reflexive_bias_guard",
+      "source_symbol": "INVERTED_GATEKEEPING_PATTERNS",
+      "description": "Four patterns that catch anti-gatekeeping when it becomes its own gatekeeping: reflexive_western_dismissal, romanticizing_indigenous, authority_reversal, consequence_absolutism. Dismissing Western science reflexively is the same epistemological error as dismissing indigenous science reflexively.",
+      "record_count": 4,
+      "schema": {
+        "name": "str",
+        "triggers": "list",
+        "correction": "str"
+      }
+    },
+    "intent_contamination_patterns": {
+      "path": "catalogs/intent_contamination_patterns.jsonl",
+      "source_module": "conditional_logic_parser",
+      "source_symbol": "INTENT_CONTAMINATION_PATTERNS",
+      "description": "Five patterns where AI models infer emotional or narrative intent that was not present in conditional input: emotional_inference, motive_insertion, narrative_construction, moral_mapping, hedging_against_precision.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "triggers": "list",
+        "what_happened": "str"
+      }
+    },
+    "condition_markers": {
+      "path": "catalogs/condition_markers.jsonl",
+      "source_module": "conditional_logic_parser",
+      "source_symbol": "CONDITION_MARKERS",
+      "description": "Three classes of conditional logic markers (if_then, causal, constraint), each with condition_words and consequence_words. Used by extract_conditionals to parse logical structure without inferring intent.",
+      "record_count": 3,
+      "schema": {
+        "name": "str",
+        "condition_words": "list",
+        "consequence_words": "list"
+      }
+    },
+    "measurement_domains": {
+      "path": "catalogs/measurement_domains.jsonl",
+      "source_module": "domain_taxonomy",
+      "source_symbol": "MEASUREMENT_DOMAINS",
+      "description": "Six measurement/validation domains: clinical_surgical, affective_neuroscience, cellular_biochemical, ecological_network, tek_traditional, institutional_economic. Each has scope, goal, primary_unit, method_structure, validation_loop, strengths, limitations, failure_mode, and the question it answers.",
+      "record_count": 6,
+      "schema": {
+        "name": "str",
+        "scope": "str",
+        "goal": "str",
+        "primary_unit": "list",
+        "method_structure": "list",
+        "validation_loop": "str",
+        "strengths": "list",
+        "limitations": "list",
+        "failure_mode": "str",
+        "question_answered": "str"
+      }
+    },
+    "incentive_profiles": {
+      "path": "catalogs/incentive_profiles.jsonl",
+      "source_module": "domain_taxonomy",
+      "source_symbol": "REFERENCE_PROFILES",
+      "description": "Six pre-built IncentiveAudit instances, one per measurement domain, showing typical values for outcome_coupling, reward_latency, gradient_alignment, gameability, and reward_distribution. Includes computed alignment via dataclass fields.",
+      "record_count": 6,
+      "schema": {
+        "name": "str",
+        "channels": "list"
+      }
+    },
+    "substrate_claims": {
+      "path": "catalogs/substrate_claims.jsonl",
+      "source_module": "substrate_audit",
+      "source_symbol": "CLAIMS",
+      "description": "Ten falsifiable claims (TC-1 through TC-10) audit the data-quality of hierarchical capital control. Each carries id, claim, null_hypothesis, required_measurement, known_evidence, verdict (PASS/FAIL/UNTESTED/CIRCULAR), and note.",
+      "record_count": 10,
+      "schema": {
+        "id": "str",
+        "claim": "str",
+        "null_hypothesis": "str",
+        "required_measurement": "str",
+        "known_evidence": "str",
+        "verdict": "str",
+        "note": "str"
+      }
+    },
+    "substrate_five_why": {
+      "path": "catalogs/substrate_five_why.jsonl",
+      "source_module": "substrate_audit",
+      "source_symbol": "FIVE_WHY",
+      "description": "5-Why root cause chain from 'Why are CEOs rewarded more than mechanics?' to the positive feedback loop between legal title and coercive power.",
+      "record_count": 5,
+      "schema": {
+        "why": "str",
+        "question": "str",
+        "answer": "str"
+      }
+    },
+    "substrate_causal_loop": {
+      "path": "catalogs/substrate_causal_loop.jsonl",
+      "source_module": "substrate_audit",
+      "source_symbol": "CAUSAL_LOOP",
+      "description": "Causal feedback loop: TITLE -> SURPLUS -> POWER -> ENFORCE -> TITLE (self-reinforcing), with MAINTAIN explicitly excluded from the loop despite being thermodynamically necessary.",
+      "record_count": 5,
+      "schema": {
+        "id": "str",
+        "label": "str",
+        "drives": "list",
+        "is_self_reinforcing": "bool"
+      }
+    },
+    "substrate_dmaic": {
+      "path": "catalogs/substrate_dmaic.jsonl",
+      "source_module": "substrate_audit",
+      "source_symbol": "DMAIC_AUDIT",
+      "description": "Six Sigma DMAIC audit of credentialing as a quality system: DEFINE, MEASURE, ANALYZE, IMPROVE, CONTROL. All five phases FAIL or CIRCULAR.",
+      "record_count": 5,
+      "schema": {
+        "phase": "str",
+        "requirement": "str",
+        "observed": "str",
+        "verdict": "str"
+      }
+    },
+    "substrate_reference_systems": {
+      "path": "catalogs/substrate_reference_systems.jsonl",
+      "source_module": "substrate_audit",
+      "source_symbol": "REFERENCE_SYSTEMS",
+      "description": "Six reference SystemScore instances with all 11 scoring dimensions (maintainer_control, outcome_measurement, scope_justification, credential_tested, emotion_integrated, meta_learning, substrate_intelligence, tek_integration, feedback_latency, signal_fidelity, money_physics_coupling). Covers the full spectrum from corporation (CHURCH) to mycorrhizal network (PHYSICS-GROUNDED).",
+      "record_count": 6,
+      "schema": {
+        "name": "str",
+        "maintainer_control": "float",
+        "outcome_measurement": "float",
+        "scope_justification": "float",
+        "credential_tested": "float",
+        "emotion_integrated": "float",
+        "meta_learning": "float",
+        "substrate_intelligence": "float",
+        "tek_integration": "float",
+        "feedback_latency": "float",
+        "signal_fidelity": "float",
+        "money_physics_coupling": "float"
+      }
     }
   }
 }

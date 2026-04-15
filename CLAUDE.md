@@ -93,7 +93,7 @@ earth-systems-physics/
 │   ├── glossary.md                    # Unified terminology across modules
 │   ├── composition_recipes.md         # Cross-module analysis patterns
 │   ├── index.json                     # Provenance + schema for every catalog
-│   └── catalogs/                      # 12 .jsonl catalogs auto-exported from sources
+│   └── catalogs/                      # 26 .jsonl catalogs auto-exported from sources
 │
 ├── experiments/
 │   ├── magnetometer_build.py          # $5 smoky-quartz + HDD-magnet magnetometer build guide
@@ -283,7 +283,7 @@ ai_reference/
 │                           cascade, layer, signal, delta, buffer, etc.)
 ├── composition_recipes.md  Cross-module analysis patterns
 ├── index.json              Provenance + schema for every catalog
-└── catalogs/               12 .jsonl catalogs (107 records total)
+└── catalogs/               26 .jsonl catalogs (192 records total)
     ├── mechanisms.jsonl                    (7 records)
     ├── epigenetic_factors.jsonl            (6)
     ├── constraint_domains.jsonl            (7)
@@ -295,7 +295,21 @@ ai_reference/
     ├── assumption_boundaries.jsonl         (37)
     ├── overhead_layers.jsonl               (5)
     ├── climate_projects.jsonl              (2)
-    └── finance_scenarios.jsonl             (4)
+    ├── finance_scenarios.jsonl             (4)
+    ├── example_axioms.jsonl                (5)     # self_referential_guard
+    ├── material_energy.jsonl               (12)    # thermodynamic_price_guard
+    ├── projection_patterns.jsonl           (8)     # perspective_guard
+    ├── gatekeeping_patterns.jsonl          (5)     # scientific_pluralism_guard
+    ├── inverted_gatekeeping_patterns.jsonl (4)     # reflexive_bias_guard
+    ├── intent_contamination_patterns.jsonl (5)     # conditional_logic_parser
+    ├── condition_markers.jsonl             (3)     # conditional_logic_parser
+    ├── measurement_domains.jsonl           (6)     # domain_taxonomy
+    ├── incentive_profiles.jsonl            (6)     # domain_taxonomy
+    ├── substrate_claims.jsonl              (10)    # substrate_audit
+    ├── substrate_five_why.jsonl            (5)     # substrate_audit
+    ├── substrate_causal_loop.jsonl         (5)     # substrate_audit
+    ├── substrate_dmaic.jsonl               (5)     # substrate_audit
+    └── substrate_reference_systems.jsonl   (6)     # substrate_audit
 ```
 
 ### Regenerating the catalogs

@@ -26,6 +26,7 @@ are recorded in each affected record's `_excluded_keys` field.
 
 import argparse
 import dataclasses
+import enum
 import importlib
 import json
 import sys
@@ -171,6 +172,183 @@ CATALOGS = [
             "carbon_speculation."
         ),
     },
+    # ── guard family ──────────────────────────────────────────
+    {
+        "name": "example_axioms",
+        "module": "self_referential_guard",
+        "symbol": "EXAMPLE_AXIOMS",
+        "description": (
+            "Worked examples of grounded vs ungrounded axioms "
+            "(conservation of energy, fractional reserve, "
+            "efficient market, crystal navigation, landscape "
+            "encoding). Each has testable / physical_unit / "
+            "conservation_law fields that drive the grounding "
+            "score in axiom_grounding_check."
+        ),
+    },
+    {
+        "name": "material_energy",
+        "module": "thermodynamic_price_guard",
+        "symbol": "MATERIAL_ENERGY",
+        "description": (
+            "Material extraction energy in kWh per kg. "
+            "Order-of-magnitude values from embodied-energy "
+            "literature: copper, aluminum, steel, concrete, "
+            "silicon (metallurgical and solar grade), lithium, "
+            "gold, water desalination, wheat, lumber, polyethylene."
+        ),
+    },
+    {
+        "name": "projection_patterns",
+        "module": "perspective_guard",
+        "symbol": "PROJECTION_PATTERNS",
+        "description": (
+            "Eight categories of projection that AI systems make "
+            "onto non-institutional code: moral_framing, "
+            "political_projection, survivalist_framing, "
+            "romanticism, disappointment_projection, "
+            "western_science_gatekeeping, human_motive_assumption, "
+            "dominance_framing. Each has trigger phrases and a "
+            "correction describing what the projection masks."
+        ),
+    },
+    {
+        "name": "gatekeeping_patterns",
+        "module": "scientific_pluralism_guard",
+        "symbol": "GATEKEEPING_PATTERNS",
+        "description": (
+            "Five epistemological gatekeeping patterns that "
+            "substitute institutional authority for thermodynamic "
+            "closure: institutional_authority, "
+            "instrument_gatekeeping, authority_dismissal, "
+            "methodology_gatekeeping, temporal_gatekeeping."
+        ),
+    },
+    {
+        "name": "inverted_gatekeeping_patterns",
+        "module": "reflexive_bias_guard",
+        "symbol": "INVERTED_GATEKEEPING_PATTERNS",
+        "description": (
+            "Four patterns that catch anti-gatekeeping when it "
+            "becomes its own gatekeeping: "
+            "reflexive_western_dismissal, romanticizing_indigenous, "
+            "authority_reversal, consequence_absolutism. "
+            "Dismissing Western science reflexively is the same "
+            "epistemological error as dismissing indigenous science "
+            "reflexively."
+        ),
+    },
+    {
+        "name": "intent_contamination_patterns",
+        "module": "conditional_logic_parser",
+        "symbol": "INTENT_CONTAMINATION_PATTERNS",
+        "description": (
+            "Five patterns where AI models infer emotional or "
+            "narrative intent that was not present in conditional "
+            "input: emotional_inference, motive_insertion, "
+            "narrative_construction, moral_mapping, "
+            "hedging_against_precision."
+        ),
+    },
+    {
+        "name": "condition_markers",
+        "module": "conditional_logic_parser",
+        "symbol": "CONDITION_MARKERS",
+        "description": (
+            "Three classes of conditional logic markers "
+            "(if_then, causal, constraint), each with "
+            "condition_words and consequence_words. Used by "
+            "extract_conditionals to parse logical structure "
+            "without inferring intent."
+        ),
+    },
+    # ── domain taxonomy ───────────────────────────────────────
+    {
+        "name": "measurement_domains",
+        "module": "domain_taxonomy",
+        "symbol": "MEASUREMENT_DOMAINS",
+        "description": (
+            "Six measurement/validation domains: clinical_surgical, "
+            "affective_neuroscience, cellular_biochemical, "
+            "ecological_network, tek_traditional, "
+            "institutional_economic. Each has scope, goal, "
+            "primary_unit, method_structure, validation_loop, "
+            "strengths, limitations, failure_mode, and the question "
+            "it answers."
+        ),
+    },
+    {
+        "name": "incentive_profiles",
+        "module": "domain_taxonomy",
+        "symbol": "REFERENCE_PROFILES",
+        "description": (
+            "Six pre-built IncentiveAudit instances, one per "
+            "measurement domain, showing typical values for "
+            "outcome_coupling, reward_latency, gradient_alignment, "
+            "gameability, and reward_distribution. Includes "
+            "computed alignment via dataclass fields."
+        ),
+    },
+    # ── substrate audit ───────────────────────────────────────
+    {
+        "name": "substrate_claims",
+        "module": "substrate_audit",
+        "symbol": "CLAIMS",
+        "description": (
+            "Ten falsifiable claims (TC-1 through TC-10) audit the "
+            "data-quality of hierarchical capital control. Each "
+            "carries id, claim, null_hypothesis, "
+            "required_measurement, known_evidence, verdict "
+            "(PASS/FAIL/UNTESTED/CIRCULAR), and note."
+        ),
+    },
+    {
+        "name": "substrate_five_why",
+        "module": "substrate_audit",
+        "symbol": "FIVE_WHY",
+        "description": (
+            "5-Why root cause chain from 'Why are CEOs rewarded "
+            "more than mechanics?' to the positive feedback loop "
+            "between legal title and coercive power."
+        ),
+    },
+    {
+        "name": "substrate_causal_loop",
+        "module": "substrate_audit",
+        "symbol": "CAUSAL_LOOP",
+        "description": (
+            "Causal feedback loop: TITLE -> SURPLUS -> POWER -> "
+            "ENFORCE -> TITLE (self-reinforcing), with MAINTAIN "
+            "explicitly excluded from the loop despite being "
+            "thermodynamically necessary."
+        ),
+    },
+    {
+        "name": "substrate_dmaic",
+        "module": "substrate_audit",
+        "symbol": "DMAIC_AUDIT",
+        "description": (
+            "Six Sigma DMAIC audit of credentialing as a quality "
+            "system: DEFINE, MEASURE, ANALYZE, IMPROVE, CONTROL. "
+            "All five phases FAIL or CIRCULAR."
+        ),
+    },
+    {
+        "name": "substrate_reference_systems",
+        "module": "substrate_audit",
+        "symbol": "REFERENCE_SYSTEMS",
+        "description": (
+            "Six reference SystemScore instances with all 11 "
+            "scoring dimensions (maintainer_control, "
+            "outcome_measurement, scope_justification, "
+            "credential_tested, emotion_integrated, meta_learning, "
+            "substrate_intelligence, tek_integration, "
+            "feedback_latency, signal_fidelity, "
+            "money_physics_coupling). Covers the full spectrum "
+            "from corporation (CHURCH) to mycorrhizal network "
+            "(PHYSICS-GROUNDED)."
+        ),
+    },
 ]
 
 
@@ -183,12 +361,16 @@ def _is_dataclass_instance(obj):
 def _to_jsonl_safe(value):
     """Recursively convert a Python value to a JSON-serializable form.
 
-    Dataclasses become dicts via asdict. Callables become the literal
-    string "<callable>" so consumers can detect exclusions. Unknown
-    types fall back to their str() representation.
+    Dataclasses become dicts via asdict. Enum instances are converted
+    to their .value (and then recursively if the value itself is a
+    structured type). Callables become the literal string "<callable>"
+    so consumers can detect exclusions. Unknown types fall back to
+    their str() representation.
     """
     if _is_dataclass_instance(value):
         return _to_jsonl_safe(dataclasses.asdict(value))
+    if isinstance(value, enum.Enum):
+        return _to_jsonl_safe(value.value)
     if isinstance(value, dict):
         return {str(k): _to_jsonl_safe(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
