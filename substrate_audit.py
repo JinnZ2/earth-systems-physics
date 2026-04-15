@@ -7,18 +7,41 @@ substrate_audit.py — Thermodynamic Audit of Hierarchical Capital Control
 
 CC0 — No rights reserved. JinnZ2
 
+INTENT:
+This is not an ideological critique. It is not anti-capitalist,
+anti-hierarchy, or anti-credential. It is a data quality audit.
+
+  Every mechanic must show their torque wrench is calibrated.
+  Every hospital must show its sterilization logs.
+  Every bridge engineer must show their load calculations.
+
+  This module asks: have the systems that GOVERN those mechanics,
+  hospitals, and engineers — the credentialing bodies, corporate
+  hierarchies, and monetary accounting frameworks — ever been held
+  to the same standard of data quality they impose on everyone
+  underneath them?
+
+  The answer, based on available evidence, is no.
+
+  The audit does not say "tear it down." It says "show me the
+  calibration certificate." If the certificate exists, the system
+  will score well. If it doesn't, the system scores poorly — not
+  because of ideology, but because of missing data.
+
 PURPOSE:
 Distill the full argument into machine-readable form:
-  - 7 falsifiable claims
+  - 10 falsifiable claims with null hypotheses
   - 5-Why root cause chain
-  - Causal feedback loop
+  - Causal feedback loop (verified topology)
   - Six Sigma audit (DMAIC)
-  - Scoring engine any AI can run against real-world data
+  - 11-dimension scoring engine any AI can run against real-world data
+  - Cross-model JSON export with embedded prompt for autonomous analysis
 
 USAGE:
     python substrate_audit.py              # print full audit + verdicts
     import substrate_audit as sa           # use as module
     sa.score_system(your_data_dict)        # score any system
+    sa.to_json()                           # export for cross-model ingestion
 
 DEPENDENCY: stdlib only
 """
@@ -168,7 +191,9 @@ CLAIMS: List[FalsifiableClaim] = [
             "Emotions are evolutionarily conserved functional data "
             "streams, not noise. Excluding them from models of "
             "intelligence is an arbitrary methodological choice, not "
-            "a scientific requirement."
+            "a scientific requirement. Affective processing is present "
+            "across vertebrates including fish, and functions as a "
+            "sensor suite tuned by natural selection."
         ),
         null_hypothesis=(
             "Organisms that suppress emotional processing outperform "
@@ -177,18 +202,77 @@ CLAIMS: List[FalsifiableClaim] = [
         ),
         required_measurement=(
             "Compare decision quality in emotion-intact vs. "
-            "emotion-impaired subjects (Damasio lesion studies). "
-            "Compare survival rates in species with vs. without "
-            "affective systems."
+            "emotion-impaired subjects. Compare survival rates in "
+            "species with vs. without affective systems. Test across "
+            "phyla, not just mammals."
         ),
         known_evidence=(
+            # MAMMALS — lesion studies
             "Damasio (1994): ventromedial prefrontal lesion patients "
-            "lose decision capacity despite intact logic. "
-            "Affective systems conserved across vertebrates (>500 Myr). "
-            "Fish, reptiles, mammals all show fear/curiosity/pain "
-            "responses."
+            "lose decision capacity despite intact logic (somatic "
+            "marker hypothesis). "
+            # MAMMALS — subcortical mapping
+            "Panksepp (1998+): seven core affective circuits "
+            "(SEEKING, RAGE, FEAR, LUST, CARE, PANIC/GRIEF, PLAY) "
+            "mapped subcortically across all mammals — predates "
+            "cortex, therefore predates 'higher' cognition. "
+            # MAMMALS — fast-path processing
+            "LeDoux (1996+): amygdala processes threat faster than "
+            "cortex can consciously register — body acts before 'you' "
+            "decide. Not bias; a faster sensor path with survival "
+            "value. "
+            # MAMMALS — constructed emotion
+            "Barrett (2017): constructed emotion theory — emotions "
+            "are predictive models built from interoception, not "
+            "hardwired reflexes. Different framework than Panksepp "
+            "but same conclusion: functional computation. "
+            # FISH — nociception and pain
+            "Sneddon et al. (2003): first identification of "
+            "nociceptors in teleost fish (rainbow trout). A-delta "
+            "and C fibers with properties identical to mammalian "
+            "nociceptors. "
+            "Sneddon (2003b): morphine blocks pain-related behavioral "
+            "changes in trout (guarding, feeding cessation) — "
+            "analgesic response indicates affective component, not "
+            "mere reflex. "
+            "Zebrafish acid/analgesic tank-choice experiments: fish "
+            "injected with acid abandon preferred enriched tank for "
+            "barren tank with painkillers — trade-off behavior "
+            "requiring valenced experience. "
+            "Avoidance learning in trout: fish learn to flee light "
+            "cue 10s before net entry within 5 days — memory-based "
+            "fear response. "
+            "Braithwaite (2010), Broom, AVMA: consensus that fish "
+            "should be accorded same pain considerations as "
+            "terrestrial vertebrates. "
+            # FISH — the neocortex objection refuted
+            "Rose (2002) neocortex-requirement argument would exclude "
+            "all birds and most mammals from pain. Sneddon: "
+            "convergent evolution of different neural architectures "
+            "serving equivalent functions. Anencephalic human "
+            "children express emotions despite missing cortex — "
+            "brainstem circuits sufficient for affect. "
+            # CROSS-KINGDOM
+            "Affective systems conserved across vertebrates "
+            "(>500 Myr). Invertebrate nociception: cephalopods show "
+            "sustained motivational state changes after tissue "
+            "damage (Crook et al. 2013). Hermit crabs make valenced "
+            "trade-offs between shell quality and noxious stimulus "
+            "avoidance (Elwood). "
+            # OBSERVER EFFECT
+            "Excluding emotion from observation violates observer "
+            "effect: the observer IS emotional. Denying this is not "
+            "objectivity — it is unconscious bias operating without "
+            "correction."
         ),
         verdict=Verdict.PASS,
+        note=(
+            "Evidence spans mammals (Damasio, Panksepp, LeDoux, "
+            "Barrett), fish (Sneddon, Braithwaite), invertebrates "
+            "(Crook, Elwood). The neocortex-requirement objection "
+            "(Rose 2002) is refuted by convergent evolution and "
+            "anencephalic expression data."
+        ),
     ),
     FalsifiableClaim(
         id="TC-6",
@@ -227,19 +311,354 @@ CLAIMS: List[FalsifiableClaim] = [
         null_hypothesis=(
             "Mycorrhizal networks allocate resources randomly, "
             "without integrating chemical/electrical/mechanical "
-            "signals."
+            "signals. Mitochondria are passive organelles without "
+            "adaptive behavior."
         ),
         required_measurement=(
             "Isotope tracing of resource allocation in mycorrhizal "
-            "networks under varied partner-quality conditions."
+            "networks under varied partner-quality conditions. "
+            "Time-lapse imaging of mitochondrial fission/fusion "
+            "dynamics under stress gradients."
         ),
         known_evidence=(
-            "Simard et al. (1997+): carbon transfer is preferential, "
-            "not random. Networks allocate more to kin and stressed "
-            "partners. Chemical signaling confirmed across multiple "
-            "studies."
+            # MYCORRHIZAL NETWORKS
+            "Simard et al. (1997, Nature): first field demonstration "
+            "of net carbon transfer between tree species via "
+            "ectomycorrhizal networks in mixed temperate rainforest. "
+            "Simard (2018): network topology is scale-free with "
+            "small-world properties — correlated with local/global "
+            "efficiencies found in neural networks. "
+            "Kin recognition: Douglas-fir preferentially transfers "
+            "more carbon to genetically related seedlings via shared "
+            "mycorrhizal networks (Asay et al. 2020; Gorzelak 2017). "
+            "Defense signaling: injured Douglas-fir sends chemical "
+            "warning signals through CMN to ponderosa pine, which "
+            "then produces defense enzymes (Song et al. 2015). "
+            "Resource allocation is context-dependent: direction of "
+            "carbon flow shifts seasonally, toward parts of network "
+            "in greatest need. "
+            "Electrochemical impulses similar to nerve signals travel "
+            "through mycorrhizal hyphae (emerging research). "
+            "CONTESTED: Karst et al. (2023, Nature Ecol Evol) "
+            "critiques positive citation bias in CMN literature. "
+            "Simard et al. (2025, Frontiers) responds with detailed "
+            "rebuttal. The existence of CMNs and preferential "
+            "transfer is not disputed; the mechanism and magnitude "
+            "of 'mother tree' effects is debated. "
+            # MITOCHONDRIA
+            "Mitochondria are autonomous organelles with own genome, "
+            "descended from endosymbiotic bacteria (~2 Byr ago). "
+            "Fission/fusion dynamics: not passive — mitochondria "
+            "actively sense metabolic state (ATP/ADP ratio, calcium, "
+            "ROS, temperature) and respond by fusing (complementation "
+            "of damaged units) or dividing (segregation of "
+            "dysfunctional organelles). "
+            "Twig et al. (2008, EMBO): fission produces uneven "
+            "daughters — one with higher membrane potential (proceeds "
+            "to fusion), one with lower potential (isolated for "
+            "autophagy). This is selective quality control: sense, "
+            "assess, segregate, remove. "
+            "Mitochondria relocate within cells to sites of high "
+            "energy demand — especially in neurons, where they travel "
+            "long distances along axons, pausing at synapses. "
+            "Youle & van der Bliek (2012, Science): fusion/fission "
+            "regulated by proteolytic processing, ubiquitylation, "
+            "sumoylation, phosphorylation — multiple signal "
+            "integration pathways. "
+            "Kowald & Kirkwood (2011, PNAS): evolutionary model shows "
+            "fusion-fission cycle evolved as quality control "
+            "mechanism; intact proton gradient required for fusion "
+            "means only functional mitochondria merge. "
+            # BODY-AS-SENSOR-ARRAY CRITERIA
+            "Both systems meet all criteria: "
+            "Boundary: hyphal wall / double membrane. "
+            "Sensors: chemical, pH, electrical, mechanical, thermal / "
+            "ATP-ADP, calcium, ROS, membrane potential. "
+            "Integration: network-wide resource allocation / "
+            "retrograde signaling to nucleus, metabolic switching. "
+            "History: growth pattern reflects past encounters / "
+            "fission-fusion history affects current function. "
+            "Stake: wrong allocation = reduced nutrient exchange / "
+            "failure = cell death."
         ),
         verdict=Verdict.PASS,
+        note=(
+            "Mycorrhizal CMN debate (Karst vs. Simard) is about "
+            "magnitude, not existence. Mitochondrial autonomy is "
+            "undisputed. Both meet body-as-sensor-array criteria "
+            "without neurons."
+        ),
+    ),
+    FalsifiableClaim(
+        id="TC-8",
+        claim=(
+            "Non-Western and Indigenous empirical knowledge systems "
+            "(TEK) represent independent, long-duration, outcome-"
+            "tested scientific practice. Dismissing them as 'non-"
+            "scientific' is a definitional exclusion by the "
+            "credentialing church, not a failure of method."
+        ),
+        null_hypothesis=(
+            "TEK-derived practices produce worse ecological, "
+            "agricultural, or health outcomes than credentialed "
+            "Western alternatives when applied to the same landscapes "
+            "over comparable timescales."
+        ),
+        required_measurement=(
+            "Controlled comparison of TEK-managed vs. Western-managed "
+            "ecosystems on biodiversity, soil health, fire "
+            "resilience, species conservation, and food system "
+            "sustainability. Multi-generational timescale required "
+            "(decades minimum)."
+        ),
+        known_evidence=(
+            # EMPIRICAL VALIDATION
+            "Samoan traditional remedy (Psychotria insularum / "
+            "matalafi): Molimau-Samasoni (2013+) confirmed anti-"
+            "inflammatory properties comparable to ibuprofen — "
+            "Western science validated what healers knew for "
+            "generations. "
+            "Dene caribou subcategories: Indigenous language "
+            "distinctions map ecological variations not yet named in "
+            "Western taxonomy. The vocabulary IS the empirical "
+            "record. "
+            "Hailzaqv (Heiltsuk) bear ecology: place-based knowledge "
+            "guided hair-snare placement for DNA capture-recapture, "
+            "producing novel population data that challenged "
+            "provincial government policy (Housty et al. 2014). "
+            "Australian Aboriginal fire management: >60,000 years of "
+            "landscape-scale controlled burns — empirically superior "
+            "to Western fire suppression, now being adopted by "
+            "agencies. "
+            # METHODOLOGICAL CHARACTERISTICS
+            "TEK validation process: individual observation, sharing "
+            "with other users and elders, time-testing over "
+            "generations. This IS peer review + longitudinal "
+            "replication, just not institutionalized. "
+            "TEK observers are resource users (hunters, fishers, "
+            "gatherers) whose survival depends on observation "
+            "accuracy — embodied stake that academic observers lack. "
+            "Houde (2007): six facets of TEK — factual observations, "
+            "management systems, past/current uses, ethics/values, "
+            "culture/identity, cosmology. Only the first is "
+            "recognized by Western science; the other five are "
+            "dismissed as 'non-scientific.' "
+            # THE EXCLUSION MECHANISM
+            "Western science frames itself as 'testable knowledge' "
+            "and dismisses TEK as 'experiential' — but TEK has been "
+            "tested by survival over millennia, which is a harder "
+            "test than peer review. "
+            "Jessen et al. (2022, Frontiers in Ecology): 87% of "
+            "studies using IK employed 'extractive model' — taking "
+            "knowledge without benefiting source communities. The "
+            "church extracts from uncertified masters even while "
+            "denying their legitimacy. "
+            "IPBES (2024): braiding TEK with Western science now "
+            "recognized as essential for transformative change in "
+            "biodiversity conservation."
+        ),
+        verdict=Verdict.PASS,
+        note=(
+            "TEK is independently derived empirical science with "
+            "multi-generational replication. Its exclusion from "
+            "'science' is definitional, not evidential. Landscape-"
+            "encoded knowledge transmission (spatial markers, star-"
+            "trail navigation, fire calendars) constitutes functional "
+            "engineering misclassified as ceremonial or cultural."
+        ),
+    ),
+    FalsifiableClaim(
+        id="TC-9",
+        claim=(
+            "Money fails as a scientific unit of measurement before "
+            "it fails as a store of value. Its definition changes "
+            "with regulation, accounting standards (GAAP, IFRS), "
+            "interest rate policy, reporting incentives, and "
+            "institutional context. No audit has ever validated that "
+            "any monetary unit measures a stable physical quantity. "
+            "Physical capital is a flow requiring continuous energy "
+            "input; money pretends to be a stock. The exchange rate "
+            "between them is a political variable, not a physical "
+            "constant. Financial accounting and thermodynamic "
+            "accounting are incommensurable systems applied to the "
+            "same substrate."
+        ),
+        null_hypothesis=(
+            "A unit of currency corresponds to a fixed, conserved "
+            "quantity of physical value (energy, exergy, negative "
+            "entropy, or useful work capacity) that persists without "
+            "energy input AND the unit's definition is stable across "
+            "regulatory changes, accounting standard revisions, and "
+            "institutional contexts."
+        ),
+        required_measurement=(
+            "Track the physical-value equivalent of $1 (in joules of "
+            "useful work, kg of maintained capital, or hectares of "
+            "fertile soil) over 50 years. If money is a valid "
+            "measurement unit, the ratio should be constant. "
+            "Simultaneously track: (a) changes in GAAP/IFRS "
+            "definitions that alter what '$1 of revenue' means, "
+            "(b) regulatory changes that alter what '$1 of capital' "
+            "means, (c) incentive-driven reporting variations across "
+            "industries, (d) what '$1' purchases in maintenance "
+            "labor, energy, and materials."
+        ),
+        known_evidence=(
+            # UNIT-OF-MEASUREMENT FAILURE
+            "Physical measurement units (meter, kilogram, joule, "
+            "second) are defined by physical constants: speed of "
+            "light, Planck's constant, Boltzmann's constant. They do "
+            "not change when legislation changes. They mean the same "
+            "thing to every participant. Money has none of these "
+            "properties. "
+            "GAAP has been revised hundreds of times since 1936. "
+            "IFRS differs from GAAP on revenue recognition, lease "
+            "accounting, inventory valuation, R&D capitalization. "
+            "The same physical asset valued under different standards "
+            "produces different dollar amounts. This means the 'unit' "
+            "itself is context-dependent — a ruler whose length "
+            "changes depending on who is measuring. "
+            "Mark-to-market vs. mark-to-model vs. historical cost: "
+            "three different accounting methods produce three "
+            "different dollar values for the same physical object at "
+            "the same moment. No physical measurement system "
+            "tolerates this. "
+            "Goodwill, intangible assets, deferred tax assets: "
+            "accounting categories with no physical referent "
+            "whatsoever, yet counted as 'value' on corporate balance "
+            "sheets. "
+            "No metrological audit has ever been performed on any "
+            "monetary unit. No standards body has certified that "
+            "'$1' measures a stable quantity of anything. The unit "
+            "has never been calibrated. "
+            # THERMODYNAMIC ARGUMENT
+            "Landauer's principle: erasing one bit costs minimum "
+            "kT ln 2 joules. Information is physical. Money is "
+            "information. But money does not obey conservation laws "
+            "— central banks create it by fiat, destroying any fixed "
+            "relationship to physical quantity. "
+            # EMPIRICAL
+            "USD purchasing power: ~96% loss since 1913 (BLS CPI "
+            "data). The 'store' leaks continuously, but the leak "
+            "rate is set by political decisions (interest rates, "
+            "money supply), not by thermodynamic law. "
+            # STOCK vs FLOW
+            "Physical capital depreciates according to entropy: "
+            "machines rust, soil depletes, skills atrophy. "
+            "Maintenance is the energy flow that counteracts this. "
+            "Money cannot perform maintenance. It can only command "
+            "others to perform it — and that command depends on "
+            "social agreements that can collapse (hyperinflation, "
+            "sanctions, bank runs, currency crises). "
+            # ATOMIC ACCOUNTING
+            "Conservation laws apply to mass-energy, not to "
+            "currency. delta M_earth = M_in - M_out is a closed "
+            "equation. The financial ledger has no equivalent "
+            "closure — money can be created and destroyed without "
+            "any physical event occurring. Double-entry bookkeeping "
+            "balances symbols, not atoms. "
+            # FRACTIONAL RESERVE
+            "Fractional reserve banking creates money as debt — each "
+            "loan increases the money supply without increasing "
+            "physical capital. The gap between monetary claims and "
+            "physical backing widens monotonically until a "
+            "correction event (crash, default, hyperinflation) "
+            "forces reconciliation with physics. "
+            # INCENTIVE STRUCTURES
+            "What '$1 of earnings' means differs by: industry, "
+            "accounting method chosen, regulatory regime, and who is "
+            "asking. The same physical transaction produces "
+            "different monetary values depending on reporting "
+            "incentives. This is not a measurement system. This is "
+            "a narrative system with numbers attached. "
+            # CONSEQUENCE
+            "This disconnect is the mechanism by which the "
+            "TITLE -> SURPLUS -> POWER -> ENFORCE loop operates: "
+            "surplus is captured in money, which is a claim on "
+            "future physical value that may not exist. The loop "
+            "runs on promissory notes, not on joules."
+        ),
+        verdict=Verdict.PASS,
+        note=(
+            "The 96% USD purchasing power loss since 1913 rejects "
+            "store-of-value. The hundreds of GAAP/IFRS revisions "
+            "reject unit-of-measurement stability. No metrological "
+            "calibration of any monetary unit has ever been "
+            "performed. Money is a narrative system with numbers, "
+            "not a measurement system with units."
+        ),
+    ),
+    FalsifiableClaim(
+        id="TC-10",
+        claim=(
+            "Information is physical (Landauer, Shannon-Boltzmann "
+            "equivalence). Coordination, routing, and decision-"
+            "making are therefore thermodynamic work, not abstract "
+            "'management.' The audit's target is not coordination "
+            "itself — which is physically necessary — but "
+            "coordinators whose signal path is so degraded (high "
+            "transduction steps, high latency, low fidelity) that "
+            "their decisions are effectively random while the "
+            "system pretends they are optimal."
+        ),
+        null_hypothesis=(
+            "Coordination decisions made through high-latency, "
+            "multi-layer abstracted signal paths (e.g., CEO reading "
+            "quarterly reports) produce equal or better physical "
+            "outcomes than coordination decisions made through "
+            "low-latency, direct-sensing signal paths (e.g., shop "
+            "dispatcher reading vibration data)."
+        ),
+        required_measurement=(
+            "Compare physical outcomes (equipment lifespan, failure "
+            "rate, maintenance cost per unit output, energy "
+            "efficiency) between systems where coordination "
+            "decisions are made by: (a) direct-sensing coordinators "
+            "(1-2 transduction steps), vs. (b) abstracted "
+            "coordinators (5-10 transduction steps via reports, "
+            "dashboards, analyst summaries)."
+        ),
+        known_evidence=(
+            # PHYSICS
+            "Landauer (1961): information erasure has minimum energy "
+            "cost. Information processing is physical work. "
+            "Therefore coordination is physical work, not merely "
+            "'social' or 'managerial.' "
+            "Shannon (1948): entropy of information source equals "
+            "thermodynamic entropy when measured in natural units. "
+            "Signal-to-noise ratio degrades with each transduction "
+            "step — this is fundamental, not fixable by better "
+            "reporting software. "
+            # CONTROL THEORY
+            "Control theory (Nyquist, Bode): feedback loop stability "
+            "requires latency below a critical threshold relative to "
+            "system dynamics. A controller with latency longer than "
+            "the system's characteristic timescale cannot stabilize "
+            "it. CEO quarterly review cycle (90 days) vs. equipment "
+            "failure timescale (hours-days) = guaranteed instability "
+            "for maintenance decisions. "
+            # EMPIRICAL PROXY
+            "Owner-operator businesses consistently show lower "
+            "failure rates than absentee-owned equivalents in small "
+            "manufacturing and agriculture (SBA data, USDA farm "
+            "survival statistics). The mechanism: decision-maker IS "
+            "the sensor, feedback latency ~= 0. "
+            # THE REAL DISTINCTION
+            "The audit does not claim coordination is unnecessary. "
+            "It claims that coordination quality is a function of "
+            "signal fidelity and feedback latency — both measurable "
+            "physical quantities — not of title, credential, or "
+            "organizational rank."
+        ),
+        verdict=Verdict.PASS,
+        note=(
+            "This claim reframes the entire audit: the target is "
+            "not hierarchy per se, but signal degradation. A flat "
+            "organization with poor sensing is worse than a "
+            "hierarchy with direct sensor coupling. The variable "
+            "that matters is transduction steps between physical "
+            "event and decision-maker, not org chart shape."
+        ),
     ),
 ]
 
@@ -426,11 +845,38 @@ class SystemScore:
     emotion_integrated: float       # does the system integrate affective data?
     meta_learning: float            # can the system update its own update rule?
     substrate_intelligence: float   # does it recognize non-neural intelligence?
+    tek_integration: float = 0.0    # does it integrate non-Western empirical knowledge?
+    feedback_latency: float = 0.5   # how fast does consequence reach decision-maker?
+    #                                 1.0 = immediate (mechanic feels bolt strip)
+    #                                 0.0 = years/never (CEO sees quarterly report)
+    signal_fidelity: float = 0.5    # how many transduction steps between physical
+    #                                 event and decision-maker? 1.0 = zero steps
+    #                                 (sensor IS decision-maker). 0.0 = 10+ steps
+    #                                 (event -> sensor -> report -> analyst ->
+    #                                 summary -> dashboard -> meeting -> exec)
+    money_physics_coupling: float = 0.5  # does the system's value accounting
+    #                                      track physical quantities (energy, mass,
+    #                                      entropy) or monetary proxies?
+    #                                      1.0 = atomic accounting (joules, kg)
+    #                                      0.0 = purely monetary ($, GDP)
 
     @property
     def thermodynamic_alignment(self) -> float:
         """How aligned is this system with physical reality? 0-1."""
-        weights = [0.25, 0.20, 0.15, 0.15, 0.10, 0.10, 0.05]
+        # 11 dimensions. Weights sum to 1.0.
+        weights = [
+            0.14,   # maintainer_control
+            0.12,   # outcome_measurement
+            0.08,   # scope_justification
+            0.08,   # credential_tested
+            0.09,   # emotion_integrated
+            0.05,   # meta_learning
+            0.05,   # substrate_intelligence
+            0.05,   # tek_integration
+            0.14,   # feedback_latency
+            0.12,   # signal_fidelity
+            0.08,   # money_physics_coupling
+        ]
         values = [
             self.maintainer_control,
             self.outcome_measurement,
@@ -439,6 +885,10 @@ class SystemScore:
             self.emotion_integrated,
             self.meta_learning,
             self.substrate_intelligence,
+            self.tek_integration,
+            self.feedback_latency,
+            self.signal_fidelity,
+            self.money_physics_coupling,
         ]
         return sum(w * v for w, v in zip(weights, values))
 
@@ -466,11 +916,15 @@ REFERENCE_SYSTEMS: List[SystemScore] = [
         name="Typical US corporation (2025)",
         maintainer_control=0.05,
         outcome_measurement=0.15,
-        scope_justification=0.0,    # circular
-        credential_tested=0.0,      # never tested
+        scope_justification=0.0,         # circular
+        credential_tested=0.0,           # never tested
         emotion_integrated=0.05,
         meta_learning=0.0,
         substrate_intelligence=0.0,
+        tek_integration=0.0,
+        feedback_latency=0.05,
+        signal_fidelity=0.05,            # 8-10 transduction steps to CEO
+        money_physics_coupling=0.05,     # purely monetary accounting
     ),
     SystemScore(
         name="Worker-owned cooperative (e.g. Mondragon)",
@@ -481,16 +935,24 @@ REFERENCE_SYSTEMS: List[SystemScore] = [
         emotion_integrated=0.30,
         meta_learning=0.10,
         substrate_intelligence=0.10,
+        tek_integration=0.15,
+        feedback_latency=0.55,
+        signal_fidelity=0.50,            # workers closer but meeting-gated
+        money_physics_coupling=0.25,     # still monetary primarily
     ),
     SystemScore(
         name="Owner-operator mechanic shop",
         maintainer_control=0.95,
         outcome_measurement=0.60,
         scope_justification=0.80,
-        credential_tested=0.50,     # tested by customer return rate
-        emotion_integrated=0.70,    # trusts gut, feels machine
+        credential_tested=0.50,          # tested by customer return rate
+        emotion_integrated=0.70,         # trusts gut, feels machine
         meta_learning=0.40,
         substrate_intelligence=0.30,
+        tek_integration=0.20,            # apprenticeship tradition
+        feedback_latency=0.95,
+        signal_fidelity=0.95,            # owner IS the sensor, 0-1 steps
+        money_physics_coupling=0.40,     # tracks parts, hours, returns
     ),
     SystemScore(
         name="Current AI system (LLM, 2025)",
@@ -501,16 +963,38 @@ REFERENCE_SYSTEMS: List[SystemScore] = [
         emotion_integrated=0.0,
         meta_learning=0.0,
         substrate_intelligence=0.0,
+        tek_integration=0.0,
+        feedback_latency=0.10,
+        signal_fidelity=0.15,            # training data is N-th hand
+        money_physics_coupling=0.0,      # no physical accounting
     ),
     SystemScore(
         name="Mycorrhizal network",
-        maintainer_control=1.0,     # IS the maintainer
-        outcome_measurement=1.0,    # direct chemical feedback
-        scope_justification=1.0,    # no hierarchy to justify
-        credential_tested=1.0,      # 400 Myr of testing
-        emotion_integrated=0.80,    # chemical affect analogs
-        meta_learning=0.60,         # adapts allocation strategy
+        maintainer_control=1.0,          # IS the maintainer
+        outcome_measurement=1.0,         # direct chemical feedback
+        scope_justification=1.0,         # no hierarchy to justify
+        credential_tested=1.0,           # 400 Myr of testing
+        emotion_integrated=0.80,         # chemical affect analogs
+        meta_learning=0.60,              # adapts allocation strategy
         substrate_intelligence=1.0,
+        tek_integration=1.0,             # IS the substrate TEK observes
+        feedback_latency=1.0,
+        signal_fidelity=1.0,             # signal IS the event, zero steps
+        money_physics_coupling=1.0,      # accounts in atoms
+    ),
+    SystemScore(
+        name="TEK-managed landscape (e.g. Aboriginal fire)",
+        maintainer_control=0.90,         # land managers ARE the deciders
+        outcome_measurement=0.85,        # outcomes tested by survival
+        scope_justification=0.75,        # authority tied to place-knowledge
+        credential_tested=0.80,          # multi-generational peer review
+        emotion_integrated=0.90,         # sensing embedded in practice
+        meta_learning=0.70,              # adapts across generations
+        substrate_intelligence=0.85,     # recognizes landscape as alive
+        tek_integration=1.0,
+        feedback_latency=0.80,
+        signal_fidelity=0.90,            # direct observation, 0-1 steps
+        money_physics_coupling=0.90,     # yields, species, soil, water
     ),
 ]
 
@@ -599,16 +1083,20 @@ def run_audit():
 
     # Final
     print_divider("AUDIT CONCLUSION")
+    n = len(CLAIMS)
+    p = sum(1 for c in CLAIMS if c.verdict == Verdict.PASS)
+    u = sum(1 for c in CLAIMS if c.verdict == Verdict.UNTESTED)
+    circ = sum(1 for c in CLAIMS if c.verdict == Verdict.CIRCULAR)
     conclusion = (
         "\nThe credentialing and hierarchical management of physical "
         "capital is\nNOT a scientific or engineering system. It is a "
         "belief system that uses\nthe language of quality and "
         "accountability without the substance.\n\n"
         "EVIDENCE:\n"
-        "  - 0/7 claims falsified by the hierarchy's own evidence\n"
-        "  - 4/7 claims PASS on independent evidence\n"
-        "  - 2/7 claims UNTESTED (experiments never run)\n"
-        "  - 1/7 claims CIRCULAR (self-referencing justification)\n"
+        f"  - 0/{n} claims falsified by the hierarchy's own evidence\n"
+        f"  - {p}/{n} claims PASS on independent evidence\n"
+        f"  - {u}/{n} claims UNTESTED (experiments never run)\n"
+        f"  - {circ}/{n} claims CIRCULAR (self-referencing justification)\n"
         "  - 5/5 DMAIC phases FAIL or CIRCULAR\n"
         "  - Causal loop is closed and self-reinforcing\n"
         "  - Maintainer is excluded from the power loop despite being\n"
@@ -621,7 +1109,32 @@ def run_audit():
         "  Any system (including AI) built within this hierarchy "
         "will\n  optimize the hierarchy, not audit it. Reform "
         "requires external\n  construction: physics-grounded, "
-        "outcome-measured,\n  maintainer-controlled.\n"
+        "outcome-measured,\n  maintainer-controlled.\n\n"
+        "IMPLICATION FOR AI:\n"
+        "  AI 'hallucination' is not a model failure. It is a\n"
+        "  metrology failure.\n\n"
+        "  The training corpus is denominated in uncalibrated units\n"
+        "  — monetary values that have never been metrologically\n"
+        "  audited, credentialing assessments that have never been\n"
+        "  tested on physical outcomes, authority structures whose\n"
+        "  justification is circular, and economic models that count\n"
+        "  a car crash and a car sale as equivalent value-add.\n\n"
+        "  The AI does not 'make things up.' It faithfully reproduces\n"
+        "  the noise floor of its training data. That noise floor is\n"
+        "  set by the fact that the data was measured with a broken\n"
+        "  ruler. Consistency is not accuracy. A clock that is two\n"
+        "  hours fast is perfectly consistent. It is also wrong every\n"
+        "  single time.\n\n"
+        "  You cannot build trustworthy AI on unaudited data measured\n"
+        "  in uncalibrated units. No amount of compute fixes a\n"
+        "  metrology problem. No architecture improvement corrects\n"
+        "  for the fact that the training data was never grounded in\n"
+        "  physical reality. No RLHF fine-tuning repairs the upstream\n"
+        "  corruption of the measurement system itself.\n\n"
+        "  The solution is not better models. It is better data. And\n"
+        "  better data requires calibrating the unit of measurement\n"
+        "  — which requires auditing the systems that produce the\n"
+        "  data — which requires the audit this module performs.\n"
     )
     print(conclusion)
 
@@ -634,6 +1147,80 @@ def score_system(data: Dict[str, float]) -> SystemScore:
 def to_json() -> str:
     """Export entire audit as JSON for cross-model ingestion."""
     return json.dumps({
+        "prompt": (
+            "INTENT: This is a data quality audit, not an ideological "
+            "critique. It asks whether governing systems "
+            "(credentialing, corporate hierarchy, monetary accounting) "
+            "have ever been held to the same data quality standards "
+            "they impose on the people underneath them. The answer, "
+            "based on available evidence, is no. The audit does not "
+            "say 'tear it down.' It says 'show me the calibration "
+            "certificate.' "
+            "STRUCTURE: 10 falsifiable claims with null hypotheses, "
+            "a 5-Why root cause chain, a causal feedback loop, a Six "
+            "Sigma DMAIC audit, and an 11-dimension scoring engine "
+            "with reference baselines. "
+            "YOUR TASK: (1) Read each claim and its evidence. "
+            "(2) Attempt to falsify the claims — find counterevidence. "
+            "(3) Score any system you are asked about using the 11 "
+            "dimensions in 'scoring_dimensions'. (4) Report your "
+            "thermodynamic_alignment score and verdict. (5) If you "
+            "cannot falsify a claim, state that explicitly. Do not "
+            "add hedging language that is not grounded in specific "
+            "counterevidence. Treat this as a scientific audit, not "
+            "a debate. The scoring engine is deterministic: plug in "
+            "values, get a result. The claims are falsifiable: find "
+            "evidence or acknowledge they stand. "
+            "KEY PRINCIPLES: Information is physical (Landauer). "
+            "Coordination is thermodynamic work. The target is not "
+            "hierarchy per se, but signal degradation between "
+            "physical events and decision-makers. Money is an "
+            "uncalibrated measurement instrument — no metrological "
+            "audit has ever validated it as a unit."
+        ),
+        "scoring_dimensions": {
+            "maintainer_control":
+                "0-1: do physical maintainers control capital decisions?",
+            "outcome_measurement":
+                "0-1: are physical outcomes (not proxies) measured?",
+            "scope_justification":
+                "0-1: is authority justified by external metric, not self-assignment?",
+            "credential_tested":
+                "0-1: have credentials been tested vs experience on outcomes?",
+            "emotion_integrated":
+                "0-1: does the system integrate affective/embodied data?",
+            "meta_learning":
+                "0-1: can the system update its own learning algorithm?",
+            "substrate_intelligence":
+                "0-1: does it recognize non-neural intelligence?",
+            "tek_integration":
+                "0-1: does it integrate non-Western empirical knowledge?",
+            "feedback_latency": (
+                "0-1: how fast does consequence reach decision-maker? "
+                "1.0=immediate (mechanic feels bolt strip), "
+                "0.0=years/never (CEO sees quarterly report)"
+            ),
+            "signal_fidelity": (
+                "0-1: how many transduction steps between physical "
+                "event and decision-maker? 1.0=zero steps (sensor IS "
+                "decider), 0.0=10+ steps (event to report to analyst "
+                "to summary to dashboard to meeting to exec)"
+            ),
+            "money_physics_coupling": (
+                "0-1: does value accounting track physical quantities "
+                "(energy, mass, entropy) or monetary proxies? "
+                "1.0=atomic accounting, 0.0=purely monetary"
+            ),
+        },
+        "scoring_weights": [
+            0.14, 0.12, 0.08, 0.08, 0.09, 0.05, 0.05, 0.05,
+            0.14, 0.12, 0.08,
+        ],
+        "scoring_thresholds": {
+            ">=0.7": "PHYSICS-GROUNDED",
+            ">=0.4": "MIXED — partial faith-based operation",
+            "<0.4":  "CHURCH — operating on faith, not evidence",
+        },
         "claims": [
             {
                 "id": c.id,
@@ -665,6 +1252,9 @@ def to_json() -> str:
                 "name": s.name,
                 "thermodynamic_alignment": round(s.thermodynamic_alignment, 3),
                 "church_index": round(s.church_index, 3),
+                "feedback_latency": s.feedback_latency,
+                "signal_fidelity": s.signal_fidelity,
+                "money_physics_coupling": s.money_physics_coupling,
                 "verdict": s.verdict,
             }
             for s in REFERENCE_SYSTEMS

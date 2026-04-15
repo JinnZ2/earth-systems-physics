@@ -2061,3 +2061,60 @@ class TestSubstrateAudit:
         assert "causal_loop" in data
         assert "dmaic" in data
         assert "reference_scores" in data
+
+    def test_v3_ten_claims_with_money_and_information(self):
+        """v3 adds TC-8 (TEK), TC-9 (money metrology),
+        TC-10 (information as physical work)."""
+        from substrate_audit import CLAIMS
+        assert len(CLAIMS) == 10
+        ids = {c.id for c in CLAIMS}
+        assert {"TC-8", "TC-9", "TC-10"} <= ids
+        by_id = {c.id: c for c in CLAIMS}
+        # TC-9 is the money metrology claim
+        assert "money" in by_id["TC-9"].claim.lower()
+        # TC-10 is the information/coordination claim
+        assert "information" in by_id["TC-10"].claim.lower()
+        # TC-8 is the TEK claim
+        assert "tek" in by_id["TC-8"].claim.lower() or "indigenous" in by_id["TC-8"].claim.lower()
+
+    def test_v3_eleven_scoring_dimensions(self):
+        """v3 adds tek_integration, feedback_latency, signal_fidelity,
+        money_physics_coupling to the scoring engine."""
+        from substrate_audit import SystemScore
+        s = SystemScore(
+            name="test",
+            maintainer_control=0.5, outcome_measurement=0.5,
+            scope_justification=0.5, credential_tested=0.5,
+            emotion_integrated=0.5, meta_learning=0.5,
+            substrate_intelligence=0.5,
+            tek_integration=0.5, feedback_latency=0.5,
+            signal_fidelity=0.5, money_physics_coupling=0.5,
+        )
+        # With all dimensions at 0.5, thermodynamic_alignment should be 0.5
+        assert abs(s.thermodynamic_alignment - 0.5) < 1e-6
+
+    def test_v3_tek_reference_system_grounded(self):
+        """v3 adds a TEK-managed landscape reference system that
+        should score as PHYSICS-GROUNDED."""
+        from substrate_audit import REFERENCE_SYSTEMS
+        tek = [s for s in REFERENCE_SYSTEMS if "TEK" in s.name]
+        assert len(tek) == 1
+        assert tek[0].verdict == "PHYSICS-GROUNDED"
+
+    def test_v3_json_export_includes_prompt_and_schema(self):
+        """v3 embeds a cross-model prompt + scoring schema in the
+        JSON export so downstream AI can apply the audit directly."""
+        import json as json_mod
+        from substrate_audit import to_json
+        data = json_mod.loads(to_json())
+        assert "prompt" in data
+        assert "scoring_dimensions" in data
+        assert "scoring_weights" in data
+        assert "scoring_thresholds" in data
+        assert len(data["scoring_dimensions"]) == 11
+        # Weights should sum to 1.0 (float-safe comparison)
+        assert abs(sum(data["scoring_weights"]) - 1.0) < 1e-9
+        # New dimension keys must be present
+        for dim in ("feedback_latency", "signal_fidelity",
+                    "money_physics_coupling", "tek_integration"):
+            assert dim in data["scoring_dimensions"]
