@@ -584,6 +584,30 @@ class TestMagnomechanicalSublayer:
         has_l0 = any(s["target_layer"] == 0 for s in r5.cascade_signals)
         assert has_l0, "L5 forcing did not produce L0 cascade signal"
 
+    def test_earth_magnomechanical_predictions_include_skyrmion(self):
+        """The 5th testable prediction in earth_magnomechanical
+        covers skyrmion-like textures in natural Fe-bearing
+        centrosymmetric minerals. Every prediction must have the
+        required fields; prediction #5 must reference the
+        stabilization physics module (skyrmion_rkky) and the
+        mode-frequency module (skyrmion_phonon_coupling)."""
+        from earth_magnomechanical import testable_predictions
+        preds = testable_predictions()
+        assert len(preds) >= 5
+        # Every entry has the baseline fields
+        for p in preds:
+            for field in (
+                "prediction", "mechanism", "test", "signal_level",
+            ):
+                assert field in p
+        # 5th prediction should mention skyrmions and RKKY
+        fifth = preds[4]
+        assert "skyrmion" in fifth["prediction"].lower()
+        assert "RKKY" in fifth["mechanism"]
+        # Should cross-reference the two supporting modules
+        assert "skyrmion_rkky" in fifth["mechanism"]
+        assert "skyrmion_phonon_coupling" in fifth["mechanism"]
+
 
 # ─────────────────────────────────────────────
 # ELECTROSTATIC TRANSDUCER
