@@ -12,7 +12,7 @@ Coupled differential equation framework mapping Earth physics as constraint laye
 pip install -r requirements.txt
 python cascade_engine.py              # Run all forcing scenarios
 python assumption_validator/api.py    # Start REST API on port 5000
-pytest -v                             # Run test suite (213 tests)
+pytest -v                             # Run test suite (266 tests)
 ```
 
 ## Architecture
@@ -58,7 +58,7 @@ earth-systems-physics/
 │
 ├── cascade_engine.py                  # Core forcing propagation engine
 ├── energy_audit.py                    # Cross-layer energy conservation audit
-├── test_smoke.py                      # 213 tests — all layers, scenarios, validators, audits
+├── test_smoke.py                      # 266 tests — all layers, scenarios, validators, audits
 │
 ├── ocean_timber_sequestration_audit.py # Full-cycle carbon audit of wood-in-ocean schemes
 ├── dollar_energy_metabolism.py        # Recursive energy cost model for climate finance
@@ -82,6 +82,7 @@ earth-systems-physics/
 ├── reflexive_bias_guard.py            # Meta-validator: asymmetric rigor, inverted gatekeeping, framework favoritism, self-check
 ├── conditional_logic_parser.py        # Parses conditional logic; detects intent contamination in AI responses
 ├── substrate_audit.py                 # Thermodynamic audit of hierarchical capital control: falsifiable claims + DMAIC + scoring
+├── domain_taxonomy.py                 # Six measurement/validation domains + IncentiveChannel/IncentiveAudit for reward-signal decoupling
 │
 ├── tools/
 │   ├── fix_paste_artifacts.py         # Repair .py files pasted from markdown (see recovery section)
@@ -92,7 +93,7 @@ earth-systems-physics/
 │   ├── glossary.md                    # Unified terminology across modules
 │   ├── composition_recipes.md         # Cross-module analysis patterns
 │   ├── index.json                     # Provenance + schema for every catalog
-│   └── catalogs/                      # 12 .jsonl catalogs auto-exported from sources
+│   └── catalogs/                      # 29 .jsonl catalogs auto-exported from sources
 │
 ├── experiments/
 │   ├── magnetometer_build.py          # $5 smoky-quartz + HDD-magnet magnetometer build guide
@@ -120,6 +121,8 @@ earth-systems-physics/
 │
 ├── electrostatic_transducer.py        # Piezo voltage → electrostatic MEMS motor
 ├── device_scaling.py                  # Min resources for 11 applications + junkyard builds
+├── skyrmion_rkky.py                   # Topological charge + RKKY oscillatory coupling + LLG integrator
+├── skyrmion_phonon_coupling.py        # Skyrmion internal modes (gyrotropic / breathing / elliptic) + phonon coupling
 │
 └── assumption_validator/
     ├── __init__.py                    # Package exports (v0.1.0)
@@ -169,7 +172,7 @@ All physics functions require docstrings with: description, parameters (with typ
 
 ## Testing
 
-Framework: **pytest** — 213 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
+Framework: **pytest** — 266 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
 
 ```bash
 pytest                    # Run all tests
@@ -207,6 +210,7 @@ laws) to non-physical systems:
 | `reflexive_bias_guard.py` | Meta-validator: `RigorAudit` for asymmetric thresholds; `detect_inverted_gatekeeping`; `detect_framework_favoritism`; `validator_self_check` with honest limitations; `full_reflexive_audit` |
 | `conditional_logic_parser.py` | `extract_conditionals` (if/then, causal, constraint); `INTENT_CONTAMINATION_PATTERNS`; `detect_intent_contamination`; `audit_statement_handling` |
 | `substrate_audit.py` | Thermodynamic audit of hierarchical capital control: falsifiable claims with null hypotheses, 5-Why chain, causal feedback loop topology check, DMAIC audit, multi-dimension `SystemScore` engine, cross-model JSON export |
+| `domain_taxonomy.py` | Six measurement/validation domains (clinical, neuroscience, cellular, ecological, TEK, institutional) with scope/method/validation/failure-mode specs; `IncentiveChannel` + `IncentiveAudit` for tracking how reward structures distort signal fidelity; 6 reference profiles; maps directly into `substrate_audit.SystemScore` dimensions |
 
 These modules are standalone — they don't import from the physics layers —
 but they share conventions (dataclasses, `dict` state exports, pure-Python
@@ -281,7 +285,7 @@ ai_reference/
 │                           cascade, layer, signal, delta, buffer, etc.)
 ├── composition_recipes.md  Cross-module analysis patterns
 ├── index.json              Provenance + schema for every catalog
-└── catalogs/               12 .jsonl catalogs (107 records total)
+└── catalogs/               29 .jsonl catalogs (206 records total)
     ├── mechanisms.jsonl                    (7 records)
     ├── epigenetic_factors.jsonl            (6)
     ├── constraint_domains.jsonl            (7)
@@ -293,7 +297,24 @@ ai_reference/
     ├── assumption_boundaries.jsonl         (37)
     ├── overhead_layers.jsonl               (5)
     ├── climate_projects.jsonl              (2)
-    └── finance_scenarios.jsonl             (4)
+    ├── finance_scenarios.jsonl             (4)
+    ├── example_axioms.jsonl                (5)     # self_referential_guard
+    ├── material_energy.jsonl               (12)    # thermodynamic_price_guard
+    ├── projection_patterns.jsonl           (8)     # perspective_guard
+    ├── gatekeeping_patterns.jsonl          (5)     # scientific_pluralism_guard
+    ├── inverted_gatekeeping_patterns.jsonl (4)     # reflexive_bias_guard
+    ├── intent_contamination_patterns.jsonl (5)     # conditional_logic_parser
+    ├── condition_markers.jsonl             (3)     # conditional_logic_parser
+    ├── measurement_domains.jsonl           (6)     # domain_taxonomy
+    ├── incentive_profiles.jsonl            (6)     # domain_taxonomy
+    ├── substrate_claims.jsonl              (10)    # substrate_audit
+    ├── substrate_five_why.jsonl            (5)     # substrate_audit
+    ├── substrate_causal_loop.jsonl         (6)     # substrate_audit
+    ├── substrate_dmaic.jsonl               (5)     # substrate_audit
+    ├── substrate_reference_systems.jsonl   (6)     # substrate_audit
+    ├── skyrmion_materials.jsonl            (5)     # skyrmion_rkky
+    ├── skyrmion_internal_modes.jsonl       (3)     # skyrmion_phonon_coupling
+    └── skyrmion_spinwave_params.jsonl      (5)     # skyrmion_phonon_coupling
 ```
 
 ### Regenerating the catalogs
@@ -416,6 +437,8 @@ The sub-layer connects Layer 0 (Electromagnetics) to Layer 5 (Lithosphere) throu
 | `banded_crystal_computer.py` | Phonon band structure in layered magnonic crystals |
 | `cold_climate_crystal.py` | Temperature-dependent sensitivity (Morin transition) |
 | `crystal_device_gradient.py` | Practical magnetometer designs ($25 to $300) |
+| `skyrmion_rkky.py` | Topological charge `Q = (1/4π) ∫ m·(∂m/∂x × ∂m/∂y)`; RKKY oscillatory coupling `J(r) ∝ cos(2k_F r)/r^d` for stabilizing skyrmion lattices in centrosymmetric materials (no DMI); single-step Landau-Lifshitz-Gilbert integrator; reference parameters for 5 skyrmion-hosting materials (MnSi, FeGe + Gd2PdSi3 / Gd3Ru4Al12 / GdRu2Si2) |
+| `skyrmion_phonon_coupling.py` | Three skyrmion internal modes (gyrotropic ~ γK_eff/(4π M_s \|Q\|); breathing ~ γ·2A/(M_s R²); elliptic ≈ 2·ω_B) with closed-form frequency estimates. Per-mode phonon channel (shear / longitudinal / anisotropic). Spin-wave parameters catalog (A, M_s, K_eff, sound speed) for the same 5 materials as `skyrmion_rkky.py`. Coupling strength estimator via η_spatial = R/λ_phonon and magnetoelastic g_me. |
 
 ### Key Physics Results
 
@@ -435,3 +458,4 @@ The sub-layer connects Layer 0 (Electromagnetics) to Layer 5 (Lithosphere) throu
 2. Banded iron formations should show phonon band gaps at frequencies set by band spacing
 3. Fe-doped quartz veins should produce measurable voltage during geomagnetic storms
 4. Storm sudden commencements should produce acoustic transients at magnetite-bearing sites
+5. Natural Fe-bearing centrosymmetric minerals (magnetite above Verwey, pyrrhotite, Ti-magnetites, ilmenite-hematite exsolution) should host skyrmion-like textures at specific T and H where RKKY frustration is competitive with exchange — detectable by SANS / Lorentz-TEM / MFM at 2-100 nm periodicity, with internal modes at 0.1-10 GHz

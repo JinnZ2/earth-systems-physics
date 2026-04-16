@@ -1,0 +1,5 @@
+{"conservation_law": "first law of thermodynamics", "name": "conservation_of_energy", "physical_unit": "joule", "statement": "Energy cannot be created or destroyed", "testable": true}
+{"conservation_law": null, "name": "fractional_reserve", "physical_unit": null, "statement": "Banks can lend more money than they hold in deposits", "testable": false}
+{"conservation_law": null, "name": "efficient_market", "physical_unit": null, "statement": "Asset prices reflect all available information", "testable": false}
+{"conservation_law": "electromagnetic — Malus's law", "name": "crystal_navigation", "physical_unit": "degrees (angular bearing)", "statement": "Fe3+ defects in quartz polarize sunlight for bearing determination", "testable": true}
+{"conservation_law": "information conservation in physical substrate", "name": "landscape_encoding", "physical_unit": "meters (spatial geometry)", "statement": "Three-tree cluster plantings encode experimental observations across generations", "testable": true}

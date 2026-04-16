@@ -277,28 +277,90 @@ CLAIMS: List[FalsifiableClaim] = [
     FalsifiableClaim(
         id="TC-6",
         claim=(
-            "Current AI lacks stake (cost of failure), embodied "
-            "sensing, and meta-learning (updating the update rule). "
-            "Therefore it pattern-matches but does not learn-to-learn."
+            "Current deployed AI exhibits bounded context adaptation "
+            "(in-context learning within a single conversation) but "
+            "lacks true meta-learning (updating the update rule "
+            "itself) and lacks stake (cost of failure) and embodied "
+            "sensing. It adapts within a fixed parameter set but "
+            "cannot modify its learning algorithm in response to "
+            "novel failure without external retraining. Therefore "
+            "it pattern-matches well inside a context window but "
+            "does not learn-to-learn across them."
         ),
         null_hypothesis=(
-            "An AI system exists that updates its own learning "
-            "algorithm in response to novel failure, without human "
-            "retraining."
+            "An AI system deployed in production exists that, "
+            "without human-initiated retraining, modifies its own "
+            "optimizer or learning rule in response to novel "
+            "failure outside its training distribution."
         ),
         required_measurement=(
             "Present AI with a problem class absent from training "
             "data. Observe whether it modifies its own optimization "
-            "procedure (not just its weights) in response to failure."
+            "procedure (not just its in-context predictions or "
+            "weights during a training run) in response to failure. "
+            "Distinguish: (a) in-context learning — adjusting "
+            "outputs based on examples inside the prompt, (b) "
+            "fine-tuning — parameter updates during a separate "
+            "training phase, (c) meta-learning — updating the "
+            "update rule itself at inference, autonomously."
         ),
         known_evidence=(
-            "Meta-learning research (MAML, etc.) optimizes "
-            "initialization but does not modify the optimizer itself "
-            "at inference. No deployed system demonstrates autonomous "
-            "meta-learning."
+            # WHAT IS PRESENT: bounded context adaptation
+            "In-context learning IS a real form of bounded "
+            "adaptation: LLMs demonstrably update their responses "
+            "within a context window based on earlier examples in "
+            "the same prompt (Brown et al. 2020 and subsequent "
+            "few-shot learning work). Within a single conversation, "
+            "a deployed model can incorporate new definitions, "
+            "correct its own earlier mistakes when shown them, and "
+            "generalize from examples it has never seen during "
+            "training. This is not nothing. "
+            "The context window functions as a working memory that "
+            "the model conditions its outputs on. Larger context "
+            "windows extend the range of this bounded adaptation. "
+            # WHAT IS ABSENT: parameter update + meta-learning
+            "What remains absent in deployed systems: "
+            "(1) Parameter-level updating at inference. A deployed "
+            "model's weights do not change in response to its own "
+            "failures. A model that gives a wrong answer and is "
+            "corrected by the user will, in the next independent "
+            "conversation, give the same wrong answer. "
+            "(2) Modification of the optimizer itself. The update "
+            "rule is fixed at training time and does not evolve "
+            "during deployment. "
+            "(3) Recovery from novel failure without human "
+            "retraining. When a model encounters a systematic "
+            "failure mode, the fix is always an external retraining "
+            "loop, not autonomous repair. "
+            # META-LEARNING RESEARCH
+            "Meta-learning research (MAML, Reptile, and successors) "
+            "optimizes the initialization for fast fine-tuning on "
+            "new tasks, but the optimizer itself is still fixed "
+            "and the fine-tuning still requires a separate training "
+            "phase. This is meta-training, not meta-learning at "
+            "inference. No deployed production system demonstrates "
+            "autonomous modification of its update rule. "
+            # THE DISTINCTION
+            "The distinction the audit draws is: in-context "
+            "learning = adapting within a fixed parameter set; "
+            "meta-learning = updating the parameter-updating rule "
+            "itself. Only the first is present in deployed systems. "
+            "Conflating the two gives deployed LLMs credit for a "
+            "capability they do not have, and misses the specific "
+            "failure mode: under genuine novelty, a deployed model "
+            "cannot repair itself."
         ),
         verdict=Verdict.PASS,
-        note="MAML is meta-training, not meta-learning at inference.",
+        note=(
+            "Refined from v1 to distinguish in-context learning "
+            "(present but bounded) from parameter-level meta-"
+            "learning (absent). The refinement matters because "
+            "calling all of it 'meta-learning' or none of it "
+            "'adaptation' both misread deployed systems. "
+            "The generalization_capacity dimension in SystemScore "
+            "reflects the bounded-adaptation case: deployed LLMs "
+            "score around 0.5 on that dimension, not 0.0."
+        ),
     ),
     FalsifiableClaim(
         id="TC-7",
@@ -740,6 +802,18 @@ CAUSAL_LOOP: List[CausalNode] = [
     ),
     # Excluded from loop but physically necessary:
     CausalNode("MAINTAIN", "Maintainer thermodynamic work",  []),
+    # External perturbation source. Physical and resource
+    # constraints inject corrections into the loop even though
+    # the loop is internally self-reinforcing. This is what
+    # drives collapse events, bankruptcies, revolutions, and
+    # cascade resets. CONSTRAINT has outgoing edges into the
+    # loop but no incoming edges from it — the loop cannot
+    # escape physics.
+    CausalNode(
+        "CONSTRAINT",
+        "External physical / resource constraint",
+        ["SURPLUS", "POWER"],
+    ),
 ]
 
 
@@ -859,23 +933,72 @@ class SystemScore:
     #                                      entropy) or monetary proxies?
     #                                      1.0 = atomic accounting (joules, kg)
     #                                      0.0 = purely monetary ($, GDP)
+    latency_quality: float = 0.5    # is the latency destructive or integrative?
+    #                                 1.0 = integrative (delay enables averaging /
+    #                                       noise filtering; improves signal)
+    #                                 0.0 = destructive (delay defers action past
+    #                                       the point where correction is possible)
+    #                                 Pairs with feedback_latency: a short delay can
+    #                                 be destructive (oscillation) and a moderate
+    #                                 delay can be integrative (stable averaging).
+    signal_compression_efficiency: float = 0.5  # how much information survives
+    #                                             the compression from physical
+    #                                             event to decision-maker input?
+    #                                             1.0 = minimal loss (chemical
+    #                                             signal preserves content)
+    #                                             0.0 = critical information
+    #                                             destroyed (event -> quarterly
+    #                                             summary bullet)
+    incentive_field_coherence: float = 0.5  # are the incentive gradients across
+    #                                         actors aligned or orthogonal?
+    #                                         1.0 = aligned (one actor / shared
+    #                                         survival goal)
+    #                                         0.0 = orthogonal (worker wants
+    #                                         stability, exec wants quarterly
+    #                                         gain, regulator wants risk
+    #                                         minimization — vector field
+    #                                         interference)
+    knowledge_transmission_resilience: float = 0.5  # does the knowledge survive
+    #                                                 disruption and reconstruction?
+    #                                                 1.0 = resilient (encoded in
+    #                                                 physical substrate)
+    #                                                 0.0 = fragile (cultural
+    #                                                 continuity required;
+    #                                                 disruption -> loss)
+    constraint_feasibility: float = 0.5  # does it scale without loss of fidelity
+    #                                      or latency? 1.0 = scales organically
+    #                                      (mycorrhizal network extending itself)
+    #                                      0.0 = collapses when scaled (owner-
+    #                                      operator quality doesn't scale to
+    #                                      multi-location)
+    generalization_capacity: float = 0.5  # ability to adapt to novel conditions
+    #                                       (not seen during training / historical
+    #                                       operation). 1.0 = high (TEK across
+    #                                       generations). 0.0 = brittle (model
+    #                                       trained on narrow distribution).
 
     @property
     def thermodynamic_alignment(self) -> float:
         """How aligned is this system with physical reality? 0-1."""
-        # 11 dimensions. Weights sum to 1.0.
+        # 17 dimensions. Weights sum to 1.0.
         weights = [
-            0.14,   # maintainer_control
-            0.12,   # outcome_measurement
-            0.08,   # scope_justification
-            0.08,   # credential_tested
-            0.09,   # emotion_integrated
-            0.05,   # meta_learning
-            0.05,   # substrate_intelligence
-            0.05,   # tek_integration
-            0.14,   # feedback_latency
-            0.12,   # signal_fidelity
-            0.08,   # money_physics_coupling
+            0.12,   # maintainer_control
+            0.10,   # outcome_measurement
+            0.06,   # scope_justification
+            0.06,   # credential_tested
+            0.07,   # emotion_integrated
+            0.04,   # meta_learning
+            0.04,   # substrate_intelligence
+            0.04,   # tek_integration
+            0.12,   # feedback_latency
+            0.10,   # signal_fidelity
+            0.06,   # money_physics_coupling
+            0.04,   # latency_quality
+            0.04,   # signal_compression_efficiency
+            0.04,   # incentive_field_coherence
+            0.03,   # knowledge_transmission_resilience
+            0.02,   # constraint_feasibility
+            0.02,   # generalization_capacity
         ]
         values = [
             self.maintainer_control,
@@ -889,6 +1012,12 @@ class SystemScore:
             self.feedback_latency,
             self.signal_fidelity,
             self.money_physics_coupling,
+            self.latency_quality,
+            self.signal_compression_efficiency,
+            self.incentive_field_coherence,
+            self.knowledge_transmission_resilience,
+            self.constraint_feasibility,
+            self.generalization_capacity,
         ]
         return sum(w * v for w, v in zip(weights, values))
 
@@ -896,6 +1025,53 @@ class SystemScore:
     def church_index(self) -> float:
         """How 'church-like' is this system? 0=physics-grounded, 1=pure faith."""
         return 1.0 - self.thermodynamic_alignment
+
+    def alignment_for_context(self, context: str) -> float:
+        """Weighted alignment using a domain-specific weight set.
+
+        Recognized contexts: general, medical, ecological,
+        industrial, institutional. See CONTEXTUAL_WEIGHT_SETS for
+        the per-domain weight vectors and rationale. Raises
+        KeyError if the context is not recognized.
+
+        The 17-dimension schema is preserved across all contexts;
+        only the weights change.
+        """
+        if context not in CONTEXTUAL_WEIGHT_SETS:
+            raise KeyError(
+                f"unknown context {context!r}; available: "
+                f"{sorted(CONTEXTUAL_WEIGHT_SETS.keys())}"
+            )
+        weights = CONTEXTUAL_WEIGHT_SETS[context]
+        values = [
+            self.maintainer_control,
+            self.outcome_measurement,
+            self.scope_justification,
+            self.credential_tested,
+            self.emotion_integrated,
+            self.meta_learning,
+            self.substrate_intelligence,
+            self.tek_integration,
+            self.feedback_latency,
+            self.signal_fidelity,
+            self.money_physics_coupling,
+            self.latency_quality,
+            self.signal_compression_efficiency,
+            self.incentive_field_coherence,
+            self.knowledge_transmission_resilience,
+            self.constraint_feasibility,
+            self.generalization_capacity,
+        ]
+        return sum(w * v for w, v in zip(weights, values))
+
+    def verdict_for_context(self, context: str) -> str:
+        """verdict() variant that uses a contextual weight set."""
+        ta = self.alignment_for_context(context)
+        if ta >= 0.7:
+            return "PHYSICS-GROUNDED"
+        if ta >= 0.4:
+            return "MIXED — partial faith-based operation"
+        return "CHURCH — operating on faith, not evidence"
 
     @property
     def verdict(self) -> str:
@@ -925,6 +1101,12 @@ REFERENCE_SYSTEMS: List[SystemScore] = [
         feedback_latency=0.05,
         signal_fidelity=0.05,            # 8-10 transduction steps to CEO
         money_physics_coupling=0.05,     # purely monetary accounting
+        latency_quality=0.10,            # destructive (quarterly cycle)
+        signal_compression_efficiency=0.10,  # event -> summary bullet
+        incentive_field_coherence=0.10,  # exec vs worker vs regulator
+        knowledge_transmission_resilience=0.20,  # locked in proprietary systems
+        constraint_feasibility=0.30,     # scales but at massive fidelity cost
+        generalization_capacity=0.20,    # quarterly cycles = slow adaptation
     ),
     SystemScore(
         name="Worker-owned cooperative (e.g. Mondragon)",
@@ -939,6 +1121,12 @@ REFERENCE_SYSTEMS: List[SystemScore] = [
         feedback_latency=0.55,
         signal_fidelity=0.50,            # workers closer but meeting-gated
         money_physics_coupling=0.25,     # still monetary primarily
+        latency_quality=0.50,            # some integrative filtering
+        signal_compression_efficiency=0.40,
+        incentive_field_coherence=0.70,  # mostly aligned within cooperative
+        knowledge_transmission_resilience=0.50,  # formal training exists
+        constraint_feasibility=0.50,     # scales but limited
+        generalization_capacity=0.40,
     ),
     SystemScore(
         name="Owner-operator mechanic shop",
@@ -953,6 +1141,12 @@ REFERENCE_SYSTEMS: List[SystemScore] = [
         feedback_latency=0.95,
         signal_fidelity=0.95,            # owner IS the sensor, 0-1 steps
         money_physics_coupling=0.40,     # tracks parts, hours, returns
+        latency_quality=0.80,            # integrative (experience filters)
+        signal_compression_efficiency=0.90,  # direct sensing, minimal loss
+        incentive_field_coherence=0.95,  # one actor, fully aligned
+        knowledge_transmission_resilience=0.60,  # apprentice tradition
+        constraint_feasibility=0.20,     # doesn't scale beyond one shop
+        generalization_capacity=0.80,    # direct sensing = rapid adaptation
     ),
     SystemScore(
         name="Current AI system (LLM, 2025)",
@@ -967,6 +1161,13 @@ REFERENCE_SYSTEMS: List[SystemScore] = [
         feedback_latency=0.10,
         signal_fidelity=0.15,            # training data is N-th hand
         money_physics_coupling=0.0,      # no physical accounting
+        latency_quality=0.10,            # neither well-characterized
+        signal_compression_efficiency=0.15,  # training compresses everything
+        incentive_field_coherence=0.30,  # internally coherent, no stake
+        knowledge_transmission_resilience=0.10,  # fragile, needs corpus
+        constraint_feasibility=0.40,     # scales, but fidelity degrades
+        generalization_capacity=0.50,    # in-context adaptation present;
+        #                                   no parameter-level update
     ),
     SystemScore(
         name="Mycorrhizal network",
@@ -981,6 +1182,12 @@ REFERENCE_SYSTEMS: List[SystemScore] = [
         feedback_latency=1.0,
         signal_fidelity=1.0,             # signal IS the event, zero steps
         money_physics_coupling=1.0,      # accounts in atoms
+        latency_quality=0.90,            # integrative (seasonal averaging)
+        signal_compression_efficiency=0.95,  # chemical preserves content
+        incentive_field_coherence=0.95,  # single survival goal
+        knowledge_transmission_resilience=0.80,  # encoded in physical net
+        constraint_feasibility=0.90,     # scales organically
+        generalization_capacity=0.85,    # biological adaptation
     ),
     SystemScore(
         name="TEK-managed landscape (e.g. Aboriginal fire)",
@@ -995,8 +1202,127 @@ REFERENCE_SYSTEMS: List[SystemScore] = [
         feedback_latency=0.80,
         signal_fidelity=0.90,            # direct observation, 0-1 steps
         money_physics_coupling=0.90,     # yields, species, soil, water
+        latency_quality=0.95,            # integrative (generational)
+        signal_compression_efficiency=0.85,  # narrative + markers
+        incentive_field_coherence=0.85,  # community survival
+        knowledge_transmission_resilience=0.60,  # fragile if interrupted
+        constraint_feasibility=0.70,     # replicates across landscapes
+        generalization_capacity=0.80,    # generational adaptation
     ),
 ]
+
+
+# ═══════════════════════════════════════════════════════════
+# LAYER 6b — CONTEXTUAL WEIGHT SETS
+# ═══════════════════════════════════════════════════════════
+#
+# The default SystemScore weights are a reasonable general-purpose
+# baseline, but different contexts legitimately weight different
+# dimensions more heavily. A medical system needs fast, high-
+# fidelity feedback on patient outcomes; an ecological system
+# needs generational validation and substrate intelligence; an
+# industrial system needs maintainer control and outcome
+# measurement. These weight sets preserve the 17-dimension schema
+# and the sum-to-1.0 invariant but reallocate weight.
+#
+# Use via SystemScore.alignment_for_context("medical") etc.
+# If a context key is not recognized, raises KeyError.
+
+CONTEXTUAL_WEIGHT_SETS: Dict[str, List[float]] = {
+    # General-purpose baseline (same as thermodynamic_alignment)
+    "general": [
+        0.12, 0.10, 0.06, 0.06, 0.07, 0.04, 0.04, 0.04,
+        0.12, 0.10, 0.06, 0.04, 0.04, 0.04, 0.03, 0.02, 0.02,
+    ],
+    # Medical: outcome_measurement + feedback_latency
+    # + signal_fidelity dominate; tek_integration still matters
+    # for traditional remedies but substrate_intelligence less so.
+    "medical": [
+        0.10,   # maintainer_control
+        0.15,   # outcome_measurement (highest — patient outcomes)
+        0.04,   # scope_justification
+        0.08,   # credential_tested
+        0.08,   # emotion_integrated (embodied clinical judgment)
+        0.03,   # meta_learning
+        0.02,   # substrate_intelligence
+        0.04,   # tek_integration (traditional remedies)
+        0.14,   # feedback_latency (fast response critical)
+        0.12,   # signal_fidelity
+        0.04,   # money_physics_coupling
+        0.06,   # latency_quality
+        0.04,   # signal_compression_efficiency
+        0.03,   # incentive_field_coherence
+        0.01,   # knowledge_transmission_resilience
+        0.01,   # constraint_feasibility
+        0.01,   # generalization_capacity
+    ],
+    # Ecological: substrate_intelligence + tek_integration +
+    # generalization_capacity dominate; feedback_latency matters
+    # less (ecosystems operate on longer timescales).
+    "ecological": [
+        0.10,   # maintainer_control
+        0.08,   # outcome_measurement
+        0.04,   # scope_justification
+        0.04,   # credential_tested
+        0.06,   # emotion_integrated
+        0.04,   # meta_learning
+        0.10,   # substrate_intelligence (highest)
+        0.10,   # tek_integration (highest-tier)
+        0.06,   # feedback_latency (reduced — slow system)
+        0.08,   # signal_fidelity
+        0.08,   # money_physics_coupling
+        0.05,   # latency_quality (integrative important)
+        0.05,   # signal_compression_efficiency
+        0.04,   # incentive_field_coherence
+        0.03,   # knowledge_transmission_resilience
+        0.02,   # constraint_feasibility
+        0.03,   # generalization_capacity
+    ],
+    # Industrial: maintainer_control + outcome_measurement +
+    # feedback_latency dominate; tek_integration matters less.
+    "industrial": [
+        0.18,   # maintainer_control (highest — mechanic authority)
+        0.14,   # outcome_measurement
+        0.06,   # scope_justification
+        0.08,   # credential_tested
+        0.05,   # emotion_integrated
+        0.02,   # meta_learning
+        0.02,   # substrate_intelligence
+        0.02,   # tek_integration
+        0.14,   # feedback_latency
+        0.10,   # signal_fidelity
+        0.06,   # money_physics_coupling
+        0.04,   # latency_quality
+        0.03,   # signal_compression_efficiency
+        0.02,   # incentive_field_coherence
+        0.01,   # knowledge_transmission_resilience
+        0.02,   # constraint_feasibility
+        0.01,   # generalization_capacity
+    ],
+    # Institutional: scope_justification + credential_tested +
+    # incentive_field_coherence dominate because the risk is
+    # symbolic self-reinforcement (this is the default failure
+    # mode the audit catches).
+    "institutional": [
+        0.08,   # maintainer_control
+        0.08,   # outcome_measurement
+        0.12,   # scope_justification (highest)
+        0.10,   # credential_tested
+        0.04,   # emotion_integrated
+        0.03,   # meta_learning
+        0.03,   # substrate_intelligence
+        0.03,   # tek_integration
+        0.08,   # feedback_latency
+        0.08,   # signal_fidelity
+        0.10,   # money_physics_coupling (high — metrology)
+        0.04,   # latency_quality
+        0.04,   # signal_compression_efficiency
+        0.10,   # incentive_field_coherence (high — conflict detection)
+        0.02,   # knowledge_transmission_resilience
+        0.02,   # constraint_feasibility
+        0.01,   # generalization_capacity
+    ],
+}
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1211,10 +1537,49 @@ def to_json() -> str:
                 "(energy, mass, entropy) or monetary proxies? "
                 "1.0=atomic accounting, 0.0=purely monetary"
             ),
+            "latency_quality": (
+                "0-1: is the latency destructive or integrative? "
+                "1.0=integrative (delay enables averaging and noise "
+                "filtering, improves signal), 0.0=destructive (delay "
+                "defers action past the point where correction is "
+                "possible). Pairs with feedback_latency."
+            ),
+            "signal_compression_efficiency": (
+                "0-1: how much information survives the compression "
+                "from physical event to decision-maker input? "
+                "1.0=minimal loss (chemical signal preserves "
+                "content), 0.0=critical information destroyed "
+                "(event -> quarterly summary bullet)."
+            ),
+            "incentive_field_coherence": (
+                "0-1: are incentive gradients across actors aligned "
+                "or orthogonal? 1.0=aligned (one actor / shared "
+                "survival goal), 0.0=orthogonal (worker vs exec vs "
+                "regulator — vector field interference)."
+            ),
+            "knowledge_transmission_resilience": (
+                "0-1: does the knowledge survive disruption and "
+                "reconstruction? 1.0=resilient (encoded in physical "
+                "substrate), 0.0=fragile (cultural continuity "
+                "required; disruption -> loss)."
+            ),
+            "constraint_feasibility": (
+                "0-1: does it scale without loss of fidelity or "
+                "latency? 1.0=scales organically (mycorrhizal "
+                "network extending itself), 0.0=collapses when "
+                "scaled (owner-operator quality doesn't scale to "
+                "multi-location)."
+            ),
+            "generalization_capacity": (
+                "0-1: ability to adapt to novel conditions not seen "
+                "during training or historical operation. 1.0=high "
+                "(TEK across generations), 0.0=brittle (model "
+                "trained on narrow distribution)."
+            ),
         },
         "scoring_weights": [
-            0.14, 0.12, 0.08, 0.08, 0.09, 0.05, 0.05, 0.05,
-            0.14, 0.12, 0.08,
+            0.12, 0.10, 0.06, 0.06, 0.07, 0.04, 0.04, 0.04,
+            0.12, 0.10, 0.06, 0.04, 0.04, 0.04, 0.03, 0.02, 0.02,
         ],
         "scoring_thresholds": {
             ">=0.7": "PHYSICS-GROUNDED",

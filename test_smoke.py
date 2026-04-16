@@ -584,6 +584,30 @@ class TestMagnomechanicalSublayer:
         has_l0 = any(s["target_layer"] == 0 for s in r5.cascade_signals)
         assert has_l0, "L5 forcing did not produce L0 cascade signal"
 
+    def test_earth_magnomechanical_predictions_include_skyrmion(self):
+        """The 5th testable prediction in earth_magnomechanical
+        covers skyrmion-like textures in natural Fe-bearing
+        centrosymmetric minerals. Every prediction must have the
+        required fields; prediction #5 must reference the
+        stabilization physics module (skyrmion_rkky) and the
+        mode-frequency module (skyrmion_phonon_coupling)."""
+        from earth_magnomechanical import testable_predictions
+        preds = testable_predictions()
+        assert len(preds) >= 5
+        # Every entry has the baseline fields
+        for p in preds:
+            for field in (
+                "prediction", "mechanism", "test", "signal_level",
+            ):
+                assert field in p
+        # 5th prediction should mention skyrmions and RKKY
+        fifth = preds[4]
+        assert "skyrmion" in fifth["prediction"].lower()
+        assert "RKKY" in fifth["mechanism"]
+        # Should cross-reference the two supporting modules
+        assert "skyrmion_rkky" in fifth["mechanism"]
+        assert "skyrmion_phonon_coupling" in fifth["mechanism"]
+
 
 # ─────────────────────────────────────────────
 # ELECTROSTATIC TRANSDUCER
@@ -1695,6 +1719,76 @@ class TestAIReferenceFolder:
             if "tools" in sys.path:
                 sys.path.remove("tools")
 
+    def test_glossary_covers_guard_and_audit_terms(self):
+        """The glossary should define the cross-module terms that
+        appear in the guard family, substrate_audit, and
+        domain_taxonomy."""
+        with open(
+            "ai_reference/glossary.md", encoding="utf-8",
+        ) as f:
+            content = f.read().lower()
+        expected_terms = (
+            "anchor",
+            "grounded vs self-referential",
+            "contamination",
+            "synthetic ancestry",
+            "embodied energy",
+            "eroei",
+            "substrate",
+            "self-terminating goal",
+            "projection",
+            "closure",
+            "metrology",
+            "feedback_latency",
+            "signal_fidelity",
+            "money_physics_coupling",
+            "incentive entropy",
+            "gameability",
+            "gradient alignment",
+            "reality coupling",
+            "asymmetric rigor",
+            "inverted gatekeeping",
+            "conditional vs assertion",
+            "intent contamination",
+        )
+        missing = [t for t in expected_terms if t not in content]
+        assert missing == [], (
+            "glossary missing terms: " + repr(missing)
+        )
+
+    def test_composition_recipes_cover_reality_audit_and_self_check(self):
+        """The composition recipes file should contain the
+        source-blind reality audit chain and the AI projection
+        self-check recipe."""
+        with open(
+            "ai_reference/composition_recipes.md", encoding="utf-8",
+        ) as f:
+            content = f.read()
+        assert "Source-blind reality audit" in content
+        assert "AI projection self-check" in content
+        # Source-blind recipe should name every stage module
+        for module in (
+            "input_validation_guard",
+            "self_referential_guard",
+            "model_collapse_guard",
+            "thermodynamic_price_guard",
+            "domain_taxonomy",
+            "substrate_audit",
+            "cascade_consequence_engine",
+        ):
+            assert module in content, (
+                "reality-audit recipe missing " + module
+            )
+        # Self-check recipe should name all three meta-tools
+        for module in (
+            "perspective_guard",
+            "reflexive_bias_guard",
+            "conditional_logic_parser",
+        ):
+            assert module in content, (
+                "self-check recipe missing " + module
+            )
+
 
 # ─────────────────────────────────────────────
 # GUARD FAMILY — minimal import + basic behavior
@@ -2111,10 +2205,720 @@ class TestSubstrateAudit:
         assert "scoring_dimensions" in data
         assert "scoring_weights" in data
         assert "scoring_thresholds" in data
-        assert len(data["scoring_dimensions"]) == 11
+        # v3 + refinements now have 17 dimensions, not 11
+        assert len(data["scoring_dimensions"]) == 17
         # Weights should sum to 1.0 (float-safe comparison)
         assert abs(sum(data["scoring_weights"]) - 1.0) < 1e-9
-        # New dimension keys must be present
+        # Original v3 dimension keys must be present
         for dim in ("feedback_latency", "signal_fidelity",
                     "money_physics_coupling", "tek_integration"):
             assert dim in data["scoring_dimensions"]
+
+    def test_refined_17_scoring_dimensions(self):
+        """Commit-A refinement adds 6 new SystemScore dimensions:
+        latency_quality, signal_compression_efficiency,
+        incentive_field_coherence, knowledge_transmission_resilience,
+        constraint_feasibility, generalization_capacity."""
+        from substrate_audit import SystemScore, to_json
+        import json as json_mod
+
+        # Instantiate with all 17 fields explicitly at 0.5 -> alignment 0.5
+        s = SystemScore(
+            name="t",
+            maintainer_control=0.5, outcome_measurement=0.5,
+            scope_justification=0.5, credential_tested=0.5,
+            emotion_integrated=0.5, meta_learning=0.5,
+            substrate_intelligence=0.5, tek_integration=0.5,
+            feedback_latency=0.5, signal_fidelity=0.5,
+            money_physics_coupling=0.5, latency_quality=0.5,
+            signal_compression_efficiency=0.5,
+            incentive_field_coherence=0.5,
+            knowledge_transmission_resilience=0.5,
+            constraint_feasibility=0.5, generalization_capacity=0.5,
+        )
+        assert abs(s.thermodynamic_alignment - 0.5) < 1e-9
+
+        # All new dimensions must be in the JSON schema
+        data = json_mod.loads(to_json())
+        for dim in (
+            "latency_quality",
+            "signal_compression_efficiency",
+            "incentive_field_coherence",
+            "knowledge_transmission_resilience",
+            "constraint_feasibility",
+            "generalization_capacity",
+        ):
+            assert dim in data["scoring_dimensions"], (
+                "missing new dimension: " + dim
+            )
+
+    def test_refined_reference_systems_use_new_dimensions(self):
+        """Every REFERENCE_SYSTEMS entry should have non-default
+        values for the new dimensions (tests that the update was
+        applied to all 6 systems, not just the first few)."""
+        from substrate_audit import REFERENCE_SYSTEMS
+        # Each system should have a distinct latency_quality value
+        # (the new field we care most about — discriminates
+        # destructive from integrative delay)
+        latency_qualities = [s.latency_quality for s in REFERENCE_SYSTEMS]
+        # At least 4 distinct values across 6 systems
+        assert len(set(latency_qualities)) >= 4
+
+        # Mycorrhizal should have high values on all new dimensions
+        myc = [s for s in REFERENCE_SYSTEMS
+               if "Mycorrhizal" in s.name][0]
+        assert myc.latency_quality >= 0.8
+        assert myc.signal_compression_efficiency >= 0.8
+        assert myc.incentive_field_coherence >= 0.8
+
+        # Typical corporation should have low values on coherence
+        # (competing exec/worker/regulator gradients)
+        corp = [s for s in REFERENCE_SYSTEMS
+                if "corporation" in s.name.lower()][0]
+        assert corp.incentive_field_coherence <= 0.3
+
+    def test_causal_loop_includes_constraint_node(self):
+        """Commit-A adds an external CONSTRAINT node to CAUSAL_LOOP
+        that injects perturbations into SURPLUS and POWER. This
+        represents how physical constraints force corrections into
+        the self-reinforcing loop."""
+        from substrate_audit import CAUSAL_LOOP, loop_is_closed
+        constraint = [n for n in CAUSAL_LOOP if n.id == "CONSTRAINT"]
+        assert len(constraint) == 1
+        c = constraint[0]
+        assert "SURPLUS" in c.drives
+        assert "POWER" in c.drives
+        # CONSTRAINT is NOT self-reinforcing — it's an external
+        # perturbation source
+        assert c.is_self_reinforcing is False
+        # Adding CONSTRAINT must not break the existing loop closure
+        assert loop_is_closed(CAUSAL_LOOP) is True
+
+    def test_tc6_refined_distinguishes_context_adaptation(self):
+        """Commit-B refines TC-6 to distinguish bounded context
+        adaptation (present in deployed LLMs) from meta-learning
+        (absent). The refinement matters because calling all of it
+        'meta-learning' or none of it 'adaptation' both misread
+        deployed systems."""
+        from substrate_audit import CLAIMS
+        tc6 = [c for c in CLAIMS if c.id == "TC-6"][0]
+        # Claim should mention both in-context learning (present)
+        # and meta-learning (absent)
+        assert "in-context" in tc6.claim.lower() or "bounded context" in tc6.claim.lower()
+        assert "meta-learning" in tc6.claim.lower()
+        # Evidence should cite in-context learning literature
+        assert "in-context learning" in tc6.known_evidence.lower()
+        # Evidence should distinguish parameter-level update from
+        # in-context update
+        evidence_lower = tc6.known_evidence.lower()
+        assert "parameter" in evidence_lower
+        # Note should reference generalization_capacity dimension
+        assert "generalization_capacity" in tc6.note
+
+    def test_contextual_weight_sets_all_sum_to_one(self):
+        """Commit-B adds CONTEXTUAL_WEIGHT_SETS for domain-specific
+        scoring. All 5 weight vectors must sum to 1.0 exactly and
+        have 17 entries matching the 17-dimension schema."""
+        from substrate_audit import CONTEXTUAL_WEIGHT_SETS
+        expected_contexts = {
+            "general", "medical", "ecological",
+            "industrial", "institutional",
+        }
+        assert set(CONTEXTUAL_WEIGHT_SETS.keys()) == expected_contexts
+        for name, weights in CONTEXTUAL_WEIGHT_SETS.items():
+            assert len(weights) == 17, (
+                f"{name} has {len(weights)} weights, expected 17"
+            )
+            assert abs(sum(weights) - 1.0) < 1e-9, (
+                f"{name} weights sum to {sum(weights)}, expected 1.0"
+            )
+
+    def test_alignment_for_context_differs_from_general(self):
+        """alignment_for_context should produce different scores
+        for different contexts on systems where the domain weights
+        actually reallocate. Using TEK landscape which benefits
+        from ecological weighting."""
+        from substrate_audit import REFERENCE_SYSTEMS
+        tek = [s for s in REFERENCE_SYSTEMS if "TEK" in s.name][0]
+        general = tek.alignment_for_context("general")
+        ecological = tek.alignment_for_context("ecological")
+        # Ecological context should score TEK at least as high as
+        # general (same or higher), because tek_integration and
+        # substrate_intelligence carry more weight there.
+        assert ecological >= general
+        # Corporation should score low in every context
+        corp = [s for s in REFERENCE_SYSTEMS
+                if "corporation" in s.name.lower()][0]
+        for ctx in (
+            "general", "medical", "ecological",
+            "industrial", "institutional",
+        ):
+            assert corp.alignment_for_context(ctx) < 0.3
+
+    def test_alignment_for_context_unknown_raises_keyerror(self):
+        from substrate_audit import SystemScore
+        import pytest
+        s = SystemScore(
+            name="t", maintainer_control=0.5, outcome_measurement=0.5,
+            scope_justification=0.5, credential_tested=0.5,
+            emotion_integrated=0.5, meta_learning=0.5,
+            substrate_intelligence=0.5,
+        )
+        with pytest.raises(KeyError):
+            s.alignment_for_context("nonexistent_domain")
+
+    def test_verdict_for_context_uses_same_thresholds(self):
+        """verdict_for_context should apply the same >=0.7 /
+        >=0.4 / <0.4 thresholds as the default verdict,
+        against the contextual alignment score."""
+        from substrate_audit import REFERENCE_SYSTEMS
+        mycorrhizal = [s for s in REFERENCE_SYSTEMS
+                       if "Mycorrhizal" in s.name][0]
+        v = mycorrhizal.verdict_for_context("general")
+        assert v == "PHYSICS-GROUNDED"
+        # Should also be PHYSICS-GROUNDED in ecological context
+        assert mycorrhizal.verdict_for_context("ecological") == "PHYSICS-GROUNDED"
+
+
+# ─────────────────────────────────────────────
+# DOMAIN TAXONOMY + INCENTIVE AUDIT
+# ─────────────────────────────────────────────
+
+class TestDomainTaxonomy:
+    def test_import(self):
+        import domain_taxonomy  # noqa: F401
+
+    def test_six_measurement_domains(self):
+        from domain_taxonomy import MEASUREMENT_DOMAINS
+        expected = {
+            "clinical_surgical", "affective_neuroscience",
+            "cellular_biochemical", "ecological_network",
+            "tek_traditional", "institutional_economic",
+        }
+        assert set(MEASUREMENT_DOMAINS.keys()) == expected
+        for name, spec in MEASUREMENT_DOMAINS.items():
+            for key in ("scope", "goal", "primary_unit",
+                        "method_structure", "validation_loop",
+                        "strengths", "limitations", "failure_mode",
+                        "question_answered"):
+                assert key in spec, f"{name} missing {key}"
+
+    def test_incentive_channel_shape(self):
+        from domain_taxonomy import IncentiveChannel
+        c = IncentiveChannel(
+            name="test",
+            reward_basis="physical_outcome",
+            outcome_coupling=0.8,
+            reward_latency=0.9,
+            gradient_alignment=0.8,
+            gameability=0.1,
+            reward_distribution=0.9,
+        )
+        assert c.name == "test"
+        assert c.outcome_coupling == 0.8
+
+    def test_incentive_audit_alignment_ranges(self):
+        from domain_taxonomy import (
+            IncentiveAudit, IncentiveChannel,
+        )
+        # Perfect channel -> high alignment
+        perfect = IncentiveChannel(
+            name="perfect",
+            reward_basis="physical_outcome",
+            outcome_coupling=1.0,
+            reward_latency=1.0,
+            gradient_alignment=1.0,
+            gameability=0.0,
+            reward_distribution=1.0,
+        )
+        audit_good = IncentiveAudit(name="ideal", channels=[perfect])
+        assert audit_good.alignment == 1.0
+        assert audit_good.incentive_entropy() == 0.0
+        assert audit_good.verdict == "REALITY-COUPLED"
+
+        # Worst channel -> low alignment, high entropy
+        worst = IncentiveChannel(
+            name="worst",
+            reward_basis="symbolic/narrative",
+            outcome_coupling=0.0,
+            reward_latency=0.0,
+            gradient_alignment=0.0,
+            gameability=1.0,
+            reward_distribution=0.0,
+        )
+        audit_bad = IncentiveAudit(name="worst_case", channels=[worst])
+        assert audit_bad.alignment == 0.0
+        assert audit_bad.incentive_entropy() == 3.0
+        assert "DECOUPLED" in audit_bad.verdict
+
+    def test_empty_audit_returns_zero(self):
+        from domain_taxonomy import IncentiveAudit
+        empty = IncentiveAudit(name="empty")
+        assert empty.alignment == 0.0
+        assert empty.incentive_entropy() == 0.0
+
+    def test_reference_profiles_complete(self):
+        from domain_taxonomy import (
+            REFERENCE_PROFILES, MEASUREMENT_DOMAINS,
+        )
+        assert set(REFERENCE_PROFILES.keys()) == set(
+            MEASUREMENT_DOMAINS.keys()
+        )
+        for key, profile in REFERENCE_PROFILES.items():
+            assert len(profile.channels) >= 1
+            assert 0.0 <= profile.alignment <= 1.0
+
+    def test_tek_reality_coupled_institutional_decoupled(self):
+        from domain_taxonomy import REFERENCE_PROFILES
+        tek = REFERENCE_PROFILES["tek_traditional"]
+        inst = REFERENCE_PROFILES["institutional_economic"]
+        assert tek.verdict == "REALITY-COUPLED"
+        assert "DECOUPLED" in inst.verdict
+        assert tek.alignment > inst.alignment
+        # TEK has lower entropy than institutional
+        assert tek.incentive_entropy() < inst.incentive_entropy()
+
+    def test_compare_domains_table(self):
+        from domain_taxonomy import compare_domains, MEASUREMENT_DOMAINS
+        rows = compare_domains()
+        assert len(rows) == len(MEASUREMENT_DOMAINS)
+        for r in rows:
+            for key in ("domain", "measurement_type", "timescale",
+                        "control", "coupling_to_reality",
+                        "question", "failure_mode"):
+                assert key in r
+
+    def test_ai_reference_complete(self):
+        from domain_taxonomy import AI_REFERENCE
+        for key in ("purpose", "when_to_apply", "key_exports",
+                    "integration_with_substrate_audit",
+                    "common_mistakes"):
+            assert key in AI_REFERENCE
+        integ = AI_REFERENCE["integration_with_substrate_audit"]
+        for dim in ("outcome_coupling", "reward_latency",
+                    "reward_distribution", "gameability"):
+            assert dim in integ
+
+    def test_print_summary_runs(self, capsys):
+        from domain_taxonomy import print_summary
+        print_summary()
+        captured = capsys.readouterr()
+        assert "DOMAIN TAXONOMY" in captured.out
+        assert "MEASUREMENT DOMAINS" in captured.out
+        assert "INCENTIVE PROFILES" in captured.out
+        assert "INTEGRATION WITH substrate_audit" in captured.out
+
+
+# ─────────────────────────────────────────────
+# SKYRMIONS + RKKY + LLG
+# ─────────────────────────────────────────────
+
+class TestSkyrmionRKKY:
+    def test_import(self):
+        import skyrmion_rkky  # noqa: F401
+
+    def test_uniform_field_has_zero_topological_charge(self):
+        from skyrmion_rkky import (
+            make_uniform_field, compute_topological_charge,
+        )
+        m = make_uniform_field(64, 64)
+        Q = compute_topological_charge(m)
+        assert abs(Q) < 1e-9
+
+    def test_skyrmion_ansatz_unit_norm(self):
+        from skyrmion_rkky import make_skyrmion_field
+        import numpy as np
+        m = make_skyrmion_field(nx=32, ny=32, radius=8.0)
+        norms = np.sqrt(np.sum(m ** 2, axis=-1))
+        # Every site should have |m|=1 within float tolerance
+        assert np.all(np.abs(norms - 1.0) < 1e-9)
+
+    def test_skyrmion_topological_charge_close_to_minus_one(self):
+        """Néel skyrmion with polarity=+1, vorticity=+1 should
+        yield Q close to -1 (within ~5% on a 128x128 grid)."""
+        from skyrmion_rkky import (
+            make_skyrmion_field, compute_topological_charge,
+        )
+        m = make_skyrmion_field(
+            nx=128, ny=128, radius=12.0,
+            polarity=1, vorticity=1, helicity=0.0,
+        )
+        Q = compute_topological_charge(m)
+        assert abs(Q - (-1.0)) < 0.05, f"got Q={Q}"
+
+    def test_polarity_flip_flips_topological_charge(self):
+        """Flipping polarity from +1 to -1 should flip Q from -1
+        to +1."""
+        from skyrmion_rkky import (
+            make_skyrmion_field, compute_topological_charge,
+        )
+        m_pos = make_skyrmion_field(
+            nx=128, ny=128, radius=12.0,
+            polarity=1, vorticity=1,
+        )
+        m_neg = make_skyrmion_field(
+            nx=128, ny=128, radius=12.0,
+            polarity=-1, vorticity=1,
+        )
+        Q_pos = compute_topological_charge(m_pos)
+        Q_neg = compute_topological_charge(m_neg)
+        # Sum should be near zero (they cancel)
+        assert abs(Q_pos + Q_neg) < 1e-6
+
+    def test_helicity_does_not_affect_topology(self):
+        """Néel and Bloch skyrmions differ only by in-plane phase;
+        Q should be the same."""
+        import math
+        from skyrmion_rkky import (
+            make_skyrmion_field, compute_topological_charge,
+        )
+        m_neel = make_skyrmion_field(
+            nx=128, ny=128, radius=12.0, helicity=0.0,
+        )
+        m_bloch = make_skyrmion_field(
+            nx=128, ny=128, radius=12.0, helicity=math.pi / 2,
+        )
+        Q_neel = compute_topological_charge(m_neel)
+        Q_bloch = compute_topological_charge(m_bloch)
+        assert abs(Q_neel - Q_bloch) < 1e-9
+
+    def test_rkky_oscillates_with_distance(self):
+        """RKKY coupling should change sign at least once across
+        a distance range of one full oscillation period."""
+        from skyrmion_rkky import rkky_coupling, rkky_period
+        k_F = 1.0
+        period = rkky_period(k_F)
+        # Sample over 2 periods to guarantee at least one sign change
+        rs = [0.5 + i * (2 * period / 20) for i in range(20)]
+        for d in (1, 2, 3):
+            values = [rkky_coupling(r, k_F, dimension=d) for r in rs]
+            signs = [1 if v > 0 else -1 if v < 0 else 0 for v in values]
+            sign_changes = sum(
+                1 for i in range(len(signs) - 1)
+                if signs[i] * signs[i + 1] < 0
+            )
+            assert sign_changes >= 1, (
+                f"dim={d}: no sign change across "
+                f"{2 * period:.2f} period range"
+            )
+
+    def test_rkky_invalid_inputs_raise(self):
+        import pytest
+        from skyrmion_rkky import rkky_coupling
+        with pytest.raises(ValueError):
+            rkky_coupling(0.0, k_F=1.0)
+        with pytest.raises(ValueError):
+            rkky_coupling(-1.0, k_F=1.0)
+        with pytest.raises(ValueError):
+            rkky_coupling(1.0, k_F=1.0, dimension=4)
+
+    def test_llg_step_preserves_norm(self):
+        """One LLG step should preserve |m|=1 to machine precision."""
+        import numpy as np
+        from skyrmion_rkky import llg_step
+        m = np.array([[[0.6, 0.0, 0.8]]])
+        H = np.array([[[0.0, 0.0, 1.0]]])
+        m_new = llg_step(m, H, alpha=0.05, dt=1e-13)
+        norm = float(np.linalg.norm(m_new[0, 0]))
+        assert abs(norm - 1.0) < 1e-9
+
+    def test_llg_step_aligned_field_no_torque(self):
+        """If m is parallel to H_eff, m × H_eff = 0 and the step
+        should leave m unchanged (no precession, no damping)."""
+        import numpy as np
+        from skyrmion_rkky import llg_step
+        m = np.array([[[0.0, 0.0, 1.0]]])
+        H = np.array([[[0.0, 0.0, 1.0]]])
+        m_new = llg_step(m, H, alpha=0.05, dt=1e-13)
+        # All three components essentially unchanged
+        assert abs(m_new[0, 0, 0] - 0.0) < 1e-12
+        assert abs(m_new[0, 0, 1] - 0.0) < 1e-12
+        assert abs(m_new[0, 0, 2] - 1.0) < 1e-12
+
+    def test_llg_step_perpendicular_field_precesses(self):
+        """If m is perpendicular to H_eff, m should precess: at
+        least one transverse component should change after a
+        single small step."""
+        import numpy as np
+        from skyrmion_rkky import llg_step
+        m = np.array([[[1.0, 0.0, 0.0]]])
+        H = np.array([[[0.0, 0.0, 1.0]]])
+        m_new = llg_step(m, H, alpha=0.05, dt=1e-13)
+        # m_y should pick up nonzero magnitude from precession
+        assert abs(m_new[0, 0, 1]) > 1e-6
+
+    def test_skyrmion_materials_catalog(self):
+        from skyrmion_rkky import SKYRMION_MATERIALS
+        assert len(SKYRMION_MATERIALS) >= 5
+        # The 3 RKKY-stabilized centrosymmetric materials must be
+        # marked rkky_relevant=True
+        rkky_hosts = [
+            name for name, spec in SKYRMION_MATERIALS.items()
+            if spec["rkky_relevant"]
+        ]
+        for required in ("Gd2PdSi3", "Gd3Ru4Al12", "GdRu2Si2"):
+            assert required in rkky_hosts
+        # MnSi and FeGe are DMI-stabilized, not RKKY
+        assert SKYRMION_MATERIALS["MnSi"]["rkky_relevant"] is False
+        assert SKYRMION_MATERIALS["FeGe"]["rkky_relevant"] is False
+        # Every entry has the required fields
+        for name, spec in SKYRMION_MATERIALS.items():
+            for field in ("type", "skyrmion_radius_nm",
+                          "ordering_temperature_K",
+                          "stabilization_mechanism",
+                          "rkky_relevant", "notes"):
+                assert field in spec, (
+                    f"{name} missing {field}"
+                )
+
+    def test_print_summary_runs(self, capsys):
+        from skyrmion_rkky import print_summary
+        print_summary()
+        captured = capsys.readouterr()
+        assert "SKYRMION" in captured.out
+        assert "RKKY" in captured.out
+        assert "TOPOLOGICAL CHARGE" in captured.out
+        assert "LLG STEP" in captured.out
+
+
+# ─────────────────────────────────────────────
+# SKYRMION-PHONON COUPLING
+# ─────────────────────────────────────────────
+
+class TestSkyrmionPhononCoupling:
+    def test_import(self):
+        import skyrmion_phonon_coupling  # noqa: F401
+
+    def test_three_internal_modes_catalog(self):
+        from skyrmion_phonon_coupling import SKYRMION_INTERNAL_MODES
+        expected = {"gyrotropic", "breathing", "elliptic"}
+        assert set(SKYRMION_INTERNAL_MODES.keys()) == expected
+        for name, spec in SKYRMION_INTERNAL_MODES.items():
+            for field in (
+                "order", "symmetry", "typical_freq_GHz",
+                "freq_scaling", "phonon_channel", "coupling_type",
+                "observability",
+            ):
+                assert field in spec, (
+                    f"mode {name} missing {field}"
+                )
+
+    def test_spinwave_params_match_rkky_catalog(self):
+        """The spin-wave parameter catalog must cover the same
+        5 materials as skyrmion_rkky.SKYRMION_MATERIALS so that
+        modes_for_material can cross-reference radius lookups."""
+        from skyrmion_phonon_coupling import SKYRMION_SPINWAVE_PARAMS
+        from skyrmion_rkky import SKYRMION_MATERIALS
+        assert (
+            set(SKYRMION_SPINWAVE_PARAMS.keys())
+            == set(SKYRMION_MATERIALS.keys())
+        )
+
+    def test_breathing_frequency_scales_as_inverse_radius_squared(self):
+        """Breathing mode: ω_B ∝ 1/R². Doubling R should reduce
+        frequency by a factor of 4."""
+        from skyrmion_phonon_coupling import breathing_frequency_Hz
+        f_10 = breathing_frequency_Hz(10.0, 1e-12, 1e5)
+        f_20 = breathing_frequency_Hz(20.0, 1e-12, 1e5)
+        ratio = f_10 / f_20
+        assert abs(ratio - 4.0) < 0.01
+
+    def test_gyrotropic_frequency_scales_with_K_over_M_s(self):
+        """Gyrotropic in the symmetric approximation scales as
+        K_eff / M_s, independent of radius."""
+        from skyrmion_phonon_coupling import gyrotropic_frequency_Hz
+        # Double K_eff doubles the frequency
+        f_1 = gyrotropic_frequency_Hz(10.0, 1e5, 1e4)
+        f_2 = gyrotropic_frequency_Hz(10.0, 1e5, 2e4)
+        assert abs(f_2 / f_1 - 2.0) < 1e-9
+        # Same K_eff, different R -> same frequency
+        f_r1 = gyrotropic_frequency_Hz(5.0, 1e5, 1e4)
+        f_r2 = gyrotropic_frequency_Hz(50.0, 1e5, 1e4)
+        assert abs(f_r1 - f_r2) < 1e-3
+
+    def test_elliptic_is_twice_breathing_by_default(self):
+        from skyrmion_phonon_coupling import elliptic_frequency_Hz
+        f = elliptic_frequency_Hz(5e9)
+        assert abs(f - 1e10) < 1e-3
+        # Custom multiplier
+        f3 = elliptic_frequency_Hz(5e9, multiplier=3.0)
+        assert abs(f3 - 1.5e10) < 1e-3
+
+    def test_all_modes_for_mnsi_in_expected_ranges(self):
+        """MnSi has experimental gyrotropic ~0.3 GHz, breathing
+        ~9 GHz. Our closed-form predictions should be within
+        an order of magnitude."""
+        from skyrmion_phonon_coupling import all_internal_modes_Hz
+        m = all_internal_modes_Hz(
+            radius_nm=9.0,
+            A_exchange_Jm=8.2e-13,
+            M_s_A_m=1.52e5,
+            K_eff_Jm3=1.4e4,
+        )
+        # Gyrotropic: expect in 0.05 - 3 GHz
+        assert 5e7 < m["gyrotropic"] < 3e9
+        # Breathing: expect in 1 - 30 GHz
+        assert 1e9 < m["breathing"] < 3e10
+        # Elliptic = 2 * breathing
+        assert abs(m["elliptic"] - 2 * m["breathing"]) < 1e-3
+
+    def test_modes_for_material_uses_rkky_radius(self):
+        """modes_for_material with no radius override should
+        pull radius from skyrmion_rkky.SKYRMION_MATERIALS."""
+        from skyrmion_phonon_coupling import modes_for_material
+        m_default = modes_for_material("MnSi")
+        m_explicit = modes_for_material("MnSi", radius_nm=9.0)
+        # Default radius for MnSi in skyrmion_rkky is 9.0 nm
+        assert abs(
+            m_default["breathing"] - m_explicit["breathing"]
+        ) < 1e-3
+
+    def test_modes_for_material_unknown_raises(self):
+        import pytest
+        from skyrmion_phonon_coupling import modes_for_material
+        with pytest.raises(KeyError):
+            modes_for_material("UnobtainiumSi4")
+
+    def test_phonon_wavelength_inverse_of_frequency(self):
+        """λ = c / f; doubling frequency halves wavelength."""
+        from skyrmion_phonon_coupling import phonon_wavelength_m
+        lam_1 = phonon_wavelength_m(1e9, sound_speed_ms=5000.0)
+        lam_2 = phonon_wavelength_m(2e9, sound_speed_ms=5000.0)
+        assert abs(lam_1 / lam_2 - 2.0) < 1e-9
+
+    def test_coupling_strength_returns_expected_fields(self):
+        from skyrmion_phonon_coupling import coupling_strength
+        c = coupling_strength(
+            mode_name="breathing",
+            skyrmion_radius_nm=10.0,
+            mode_frequency_Hz=5e9,
+            sound_speed_ms=5000.0,
+        )
+        for field in (
+            "mode", "channel", "phonon_wavelength_nm",
+            "eta_spatial", "g_magnetoelastic",
+            "g_dimensionless", "notes",
+        ):
+            assert field in c
+
+    def test_coupling_strength_unknown_mode_raises(self):
+        import pytest
+        from skyrmion_phonon_coupling import coupling_strength
+        with pytest.raises(KeyError):
+            coupling_strength(
+                mode_name="made_up_mode",
+                skyrmion_radius_nm=10.0,
+                mode_frequency_Hz=5e9,
+            )
+
+    def test_ai_reference_complete(self):
+        from skyrmion_phonon_coupling import AI_REFERENCE
+        for key in (
+            "purpose", "when_to_apply", "key_exports",
+            "integration_with_other_modules",
+            "assumptions_stated",
+        ):
+            assert key in AI_REFERENCE
+        # Integration notes should reference sibling modules
+        integ = AI_REFERENCE["integration_with_other_modules"]
+        assert "skyrmion_rkky.py" in integ
+        assert "magnon_polaron_hybridization.py" in integ
+
+    def test_print_summary_runs(self, capsys):
+        from skyrmion_phonon_coupling import print_summary
+        print_summary()
+        captured = capsys.readouterr()
+        assert "SKYRMION-PHONON COUPLING" in captured.out
+        assert "THREE INTERNAL MODES" in captured.out
+        assert "MODE FREQUENCIES" in captured.out
+        assert "PHONON COUPLING" in captured.out
+
+    def test_internal_modes_catalog_exported(self):
+        """The SKYRMION_INTERNAL_MODES dict must be exported to
+        ai_reference/catalogs/skyrmion_internal_modes.jsonl with
+        3 records (gyrotropic, breathing, elliptic) and the core
+        schema fields downstream consumers need."""
+        import json
+        import os
+        path = os.path.join(
+            "ai_reference", "catalogs",
+            "skyrmion_internal_modes.jsonl",
+        )
+        assert os.path.isfile(path)
+        with open(path, encoding="utf-8") as f:
+            records = [json.loads(line) for line in f]
+        names = {r["name"] for r in records}
+        assert names == {"gyrotropic", "breathing", "elliptic"}
+        for r in records:
+            for field in ("order", "symmetry", "typical_freq_GHz",
+                          "freq_scaling", "phonon_channel",
+                          "coupling_type", "observability"):
+                assert field in r, r["name"] + " missing " + field
+
+    def test_spinwave_params_catalog_exported(self):
+        """The SKYRMION_SPINWAVE_PARAMS dict must be exported to
+        ai_reference/catalogs/skyrmion_spinwave_params.jsonl with
+        keys aligned to the skyrmion_materials catalog so joins
+        work."""
+        import json
+        import os
+        sw_path = os.path.join(
+            "ai_reference", "catalogs",
+            "skyrmion_spinwave_params.jsonl",
+        )
+        mat_path = os.path.join(
+            "ai_reference", "catalogs",
+            "skyrmion_materials.jsonl",
+        )
+        assert os.path.isfile(sw_path)
+        with open(sw_path, encoding="utf-8") as f:
+            sw = [json.loads(line) for line in f]
+        with open(mat_path, encoding="utf-8") as f:
+            mat = [json.loads(line) for line in f]
+        assert {r["name"] for r in sw} == {r["name"] for r in mat}
+        for r in sw:
+            for field in ("A_exchange_Jm", "M_s_A_m", "K_eff_Jm3",
+                          "sound_speed_ms", "reference_T_K",
+                          "notes"):
+                assert field in r, r["name"] + " missing " + field
+
+
+class TestMagnomechanicalRecipe:
+    """Recipe 8 of composition_recipes.md walks the full
+    magnomechanical stack. This class verifies the recipe exists
+    and names the modules + catalogs the full chain depends on.
+    """
+
+    RECIPE_PATH = "ai_reference/composition_recipes.md"
+
+    def test_recipe_8_present(self):
+        with open(self.RECIPE_PATH, encoding="utf-8") as f:
+            text = f.read()
+        assert "Recipe 8:" in text
+        assert "Magnomechanical transduction" in text
+
+    def test_recipe_8_names_full_module_chain(self):
+        with open(self.RECIPE_PATH, encoding="utf-8") as f:
+            text = f.read()
+        # The recipe should reference every module in the stack
+        for mod in (
+            "skyrmion_rkky.py",
+            "skyrmion_phonon_coupling.py",
+            "earth_magnomechanical.py",
+            "magnon_polaron_hybridization.py",
+            "confined_magnon_polaron.py",
+            "multi_channel_coupling.py",
+            "layer_0b_magnomechanical.py",
+            "cascade_engine.py",
+        ):
+            assert mod in text, "Recipe 8 missing module " + mod
+
+    def test_recipe_8_names_three_catalogs(self):
+        with open(self.RECIPE_PATH, encoding="utf-8") as f:
+            text = f.read()
+        for cat in (
+            "skyrmion_materials.jsonl",
+            "skyrmion_internal_modes.jsonl",
+            "skyrmion_spinwave_params.jsonl",
+        ):
+            assert cat in text, "Recipe 8 missing catalog " + cat
