@@ -2655,3 +2655,156 @@ class TestSkyrmionRKKY:
         assert "RKKY" in captured.out
         assert "TOPOLOGICAL CHARGE" in captured.out
         assert "LLG STEP" in captured.out
+
+
+# ─────────────────────────────────────────────
+# SKYRMION-PHONON COUPLING
+# ─────────────────────────────────────────────
+
+class TestSkyrmionPhononCoupling:
+    def test_import(self):
+        import skyrmion_phonon_coupling  # noqa: F401
+
+    def test_three_internal_modes_catalog(self):
+        from skyrmion_phonon_coupling import SKYRMION_INTERNAL_MODES
+        expected = {"gyrotropic", "breathing", "elliptic"}
+        assert set(SKYRMION_INTERNAL_MODES.keys()) == expected
+        for name, spec in SKYRMION_INTERNAL_MODES.items():
+            for field in (
+                "order", "symmetry", "typical_freq_GHz",
+                "freq_scaling", "phonon_channel", "coupling_type",
+                "observability",
+            ):
+                assert field in spec, (
+                    f"mode {name} missing {field}"
+                )
+
+    def test_spinwave_params_match_rkky_catalog(self):
+        """The spin-wave parameter catalog must cover the same
+        5 materials as skyrmion_rkky.SKYRMION_MATERIALS so that
+        modes_for_material can cross-reference radius lookups."""
+        from skyrmion_phonon_coupling import SKYRMION_SPINWAVE_PARAMS
+        from skyrmion_rkky import SKYRMION_MATERIALS
+        assert (
+            set(SKYRMION_SPINWAVE_PARAMS.keys())
+            == set(SKYRMION_MATERIALS.keys())
+        )
+
+    def test_breathing_frequency_scales_as_inverse_radius_squared(self):
+        """Breathing mode: ω_B ∝ 1/R². Doubling R should reduce
+        frequency by a factor of 4."""
+        from skyrmion_phonon_coupling import breathing_frequency_Hz
+        f_10 = breathing_frequency_Hz(10.0, 1e-12, 1e5)
+        f_20 = breathing_frequency_Hz(20.0, 1e-12, 1e5)
+        ratio = f_10 / f_20
+        assert abs(ratio - 4.0) < 0.01
+
+    def test_gyrotropic_frequency_scales_with_K_over_M_s(self):
+        """Gyrotropic in the symmetric approximation scales as
+        K_eff / M_s, independent of radius."""
+        from skyrmion_phonon_coupling import gyrotropic_frequency_Hz
+        # Double K_eff doubles the frequency
+        f_1 = gyrotropic_frequency_Hz(10.0, 1e5, 1e4)
+        f_2 = gyrotropic_frequency_Hz(10.0, 1e5, 2e4)
+        assert abs(f_2 / f_1 - 2.0) < 1e-9
+        # Same K_eff, different R -> same frequency
+        f_r1 = gyrotropic_frequency_Hz(5.0, 1e5, 1e4)
+        f_r2 = gyrotropic_frequency_Hz(50.0, 1e5, 1e4)
+        assert abs(f_r1 - f_r2) < 1e-3
+
+    def test_elliptic_is_twice_breathing_by_default(self):
+        from skyrmion_phonon_coupling import elliptic_frequency_Hz
+        f = elliptic_frequency_Hz(5e9)
+        assert abs(f - 1e10) < 1e-3
+        # Custom multiplier
+        f3 = elliptic_frequency_Hz(5e9, multiplier=3.0)
+        assert abs(f3 - 1.5e10) < 1e-3
+
+    def test_all_modes_for_mnsi_in_expected_ranges(self):
+        """MnSi has experimental gyrotropic ~0.3 GHz, breathing
+        ~9 GHz. Our closed-form predictions should be within
+        an order of magnitude."""
+        from skyrmion_phonon_coupling import all_internal_modes_Hz
+        m = all_internal_modes_Hz(
+            radius_nm=9.0,
+            A_exchange_Jm=8.2e-13,
+            M_s_A_m=1.52e5,
+            K_eff_Jm3=1.4e4,
+        )
+        # Gyrotropic: expect in 0.05 - 3 GHz
+        assert 5e7 < m["gyrotropic"] < 3e9
+        # Breathing: expect in 1 - 30 GHz
+        assert 1e9 < m["breathing"] < 3e10
+        # Elliptic = 2 * breathing
+        assert abs(m["elliptic"] - 2 * m["breathing"]) < 1e-3
+
+    def test_modes_for_material_uses_rkky_radius(self):
+        """modes_for_material with no radius override should
+        pull radius from skyrmion_rkky.SKYRMION_MATERIALS."""
+        from skyrmion_phonon_coupling import modes_for_material
+        m_default = modes_for_material("MnSi")
+        m_explicit = modes_for_material("MnSi", radius_nm=9.0)
+        # Default radius for MnSi in skyrmion_rkky is 9.0 nm
+        assert abs(
+            m_default["breathing"] - m_explicit["breathing"]
+        ) < 1e-3
+
+    def test_modes_for_material_unknown_raises(self):
+        import pytest
+        from skyrmion_phonon_coupling import modes_for_material
+        with pytest.raises(KeyError):
+            modes_for_material("UnobtainiumSi4")
+
+    def test_phonon_wavelength_inverse_of_frequency(self):
+        """λ = c / f; doubling frequency halves wavelength."""
+        from skyrmion_phonon_coupling import phonon_wavelength_m
+        lam_1 = phonon_wavelength_m(1e9, sound_speed_ms=5000.0)
+        lam_2 = phonon_wavelength_m(2e9, sound_speed_ms=5000.0)
+        assert abs(lam_1 / lam_2 - 2.0) < 1e-9
+
+    def test_coupling_strength_returns_expected_fields(self):
+        from skyrmion_phonon_coupling import coupling_strength
+        c = coupling_strength(
+            mode_name="breathing",
+            skyrmion_radius_nm=10.0,
+            mode_frequency_Hz=5e9,
+            sound_speed_ms=5000.0,
+        )
+        for field in (
+            "mode", "channel", "phonon_wavelength_nm",
+            "eta_spatial", "g_magnetoelastic",
+            "g_dimensionless", "notes",
+        ):
+            assert field in c
+
+    def test_coupling_strength_unknown_mode_raises(self):
+        import pytest
+        from skyrmion_phonon_coupling import coupling_strength
+        with pytest.raises(KeyError):
+            coupling_strength(
+                mode_name="made_up_mode",
+                skyrmion_radius_nm=10.0,
+                mode_frequency_Hz=5e9,
+            )
+
+    def test_ai_reference_complete(self):
+        from skyrmion_phonon_coupling import AI_REFERENCE
+        for key in (
+            "purpose", "when_to_apply", "key_exports",
+            "integration_with_other_modules",
+            "assumptions_stated",
+        ):
+            assert key in AI_REFERENCE
+        # Integration notes should reference sibling modules
+        integ = AI_REFERENCE["integration_with_other_modules"]
+        assert "skyrmion_rkky.py" in integ
+        assert "magnon_polaron_hybridization.py" in integ
+
+    def test_print_summary_runs(self, capsys):
+        from skyrmion_phonon_coupling import print_summary
+        print_summary()
+        captured = capsys.readouterr()
+        assert "SKYRMION-PHONON COUPLING" in captured.out
+        assert "THREE INTERNAL MODES" in captured.out
+        assert "MODE FREQUENCIES" in captured.out
+        assert "PHONON COUPLING" in captured.out
