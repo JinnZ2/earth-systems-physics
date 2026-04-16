@@ -444,3 +444,120 @@ to anything else. Conditional logic is not emotion. Parse
 structure before inferring intent.
 
 ---
+
+## Recipe 8: Magnomechanical transduction stack
+
+**Question**: Given a candidate Fe-bearing mineral outcrop or a
+proposed sensor crystal, what is the full physics chain that
+converts a geomagnetic or seismic perturbation into a measurable
+signal, and which testable predictions apply?
+
+**Modules** (in stack order, bottom up):
+- `layer_0_electromagnetics.py` — driving EM field (geomagnetic
+  baseline + perturbation)
+- `magnonic_sublayer.py` — spin-wave dispersion, damping
+- `magnon_polaron_hybridization.py` — bulk crossover analysis
+  (mode-volume problem)
+- `confined_magnon_polaron.py` — confinement fix for mm-scale
+  crystals
+- `multi_channel_coupling.py` — 5 coupling channels; spin-orbit
+  dominates for dilute Fe defects
+- `skyrmion_rkky.py` — topological charge, RKKY oscillatory
+  coupling, LLG step for centrosymmetric lattices
+- `skyrmion_phonon_coupling.py` — three internal modes
+  (gyrotropic / breathing / elliptic) and their phonon channels
+- `earth_magnomechanical.py` — geological-scale transduction +
+  5 testable predictions
+- `layer_0b_magnomechanical.py` — bidirectional EM ↔ lithosphere
+  coupling wired into the cascade
+- `layer_5_lithosphere.py` / `cascade_engine.py` — propagate the
+  coupled response through the rest of the physics stack
+
+**Catalogs used**:
+- `ai_reference/catalogs/skyrmion_materials.jsonl` — radius,
+  ordering T, stabilization mechanism (DMI vs RKKY)
+- `ai_reference/catalogs/skyrmion_internal_modes.jsonl` — three
+  modes with frequency scaling + phonon channel
+- `ai_reference/catalogs/skyrmion_spinwave_params.jsonl` —
+  A_exchange, M_s, K_eff, sound speed per material (keys align
+  with skyrmion_materials)
+
+**Steps**:
+
+1. **Identify the host material.** Look it up in
+   `skyrmion_materials.jsonl`. The `rkky_relevant` flag splits
+   DMI-stabilized (non-centrosymmetric, MnSi/FeGe) from
+   RKKY-stabilized (centrosymmetric Gd-based). Natural
+   Fe-bearing minerals (magnetite above Verwey, pyrrhotite,
+   Ti-magnetite, ilmenite-hematite exsolution) fall in the
+   centrosymmetric class and are the targets of prediction #5
+   in `earth_magnomechanical.py`.
+
+2. **Check confinement.** Call
+   `magnon_polaron_hybridization` at Earth-field magnon
+   frequencies (~1.4 kHz). Mode volume = λ³ ≈ 4,285 m³ → no
+   observable hybridization in bulk. If the sample is mm-scale
+   or larger, switch to `confined_magnon_polaron` — mode volume
+   = crystal volume and zero-point motion is enhanced 10⁵-10⁸×.
+
+3. **Pick the dominant coupling channel.** For dilute Fe
+   defects, `multi_channel_coupling` shows spin-orbit
+   (Fe³⁺ crystal field modulation, η ~ 0.1-3.4 cm⁻¹) is 10⁸×
+   stronger per ion than magnetostriction. For concentrated
+   magnetic phases (magnetite, pyrrhotite), magnetoelastic
+   B₁/B₂ coupling dominates — use the per-mode `coupling_type`
+   column in `skyrmion_internal_modes.jsonl`.
+
+4. **Compute mode frequencies.** Join
+   `skyrmion_spinwave_params.jsonl` to
+   `skyrmion_materials.jsonl` on material name. Feed
+   A_exchange, M_s, K_eff, and radius_nm into
+   `skyrmion_phonon_coupling.all_internal_modes_Hz` (or
+   `modes_for_material(name)` for defaults). Expect
+   gyrotropic 0.1-1 GHz, breathing 1-10 GHz, elliptic 2× breathing.
+
+5. **Estimate phonon coupling.** Call
+   `skyrmion_phonon_coupling.coupling_strength` with the
+   chosen mode and the material's sound speed. The returned
+   `eta_spatial = R / λ_phonon` tells you whether the
+   skyrmion is a point scatterer (η « 1) or a distributed
+   resonator (η ~ 1). `g_dimensionless` is the
+   magnetoelastic coupling normalized to the mode frequency.
+
+6. **Wire to the cascade.** `layer_0b_magnomechanical.py`
+   provides the bidirectional EM↔lithosphere coupling. Use
+   `cascade_engine.run_scenario("magnetite_acoustic_coupling")`
+   or set a custom `Forcing` on layer 0 variable
+   `B_geomagnetic_delta`. The cascade report will show gain
+   through the `Magnomechanical-EM` feedback loop in
+   `KNOWN_LOOPS`.
+
+7. **Map to a testable prediction.** The five predictions in
+   `earth_magnomechanical.PREDICTIONS` are:
+   1. Magnetite outcrops + Pc1 pulsations (0.2-5 Hz)
+   2. BIF phonon band gaps
+   3. Fe-doped quartz veins + geomagnetic storm voltage
+   4. Storm sudden-commencement acoustic transients
+   5. Skyrmion textures in natural centrosymmetric Fe minerals
+      (SANS / Lorentz-TEM / MFM, 2-100 nm periodicity,
+      internal modes 0.1-10 GHz)
+
+   Pick the prediction whose `host_material` and
+   `observation_technique` match your sample, then use its
+   `field_window_T`, `temperature_window_K`, and
+   `frequency_window_Hz` as the instrument-setting envelope.
+
+**Output**: a material → mode → phonon-channel → cascade-loop →
+testable-prediction chain. Every step is joined by name against
+a catalog under `ai_reference/catalogs/`; no step depends on
+running the physics modules (though running them gives sharper
+numbers than the order-of-magnitude catalog values).
+
+**Key invariant**: Centrosymmetric Fe-bearing minerals need
+RKKY frustration, not DMI, to host skyrmion-like textures.
+Applying MnSi/FeGe DMI parameters to magnetite or pyrrhotite
+produces a category error that will silently give wrong
+lifetimes and wrong fields. Always check `rkky_relevant`
+before joining spin-wave params.
+
+---

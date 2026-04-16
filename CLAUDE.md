@@ -12,7 +12,7 @@ Coupled differential equation framework mapping Earth physics as constraint laye
 pip install -r requirements.txt
 python cascade_engine.py              # Run all forcing scenarios
 python assumption_validator/api.py    # Start REST API on port 5000
-pytest -v                             # Run test suite (261 tests)
+pytest -v                             # Run test suite (266 tests)
 ```
 
 ## Architecture
@@ -58,7 +58,7 @@ earth-systems-physics/
 │
 ├── cascade_engine.py                  # Core forcing propagation engine
 ├── energy_audit.py                    # Cross-layer energy conservation audit
-├── test_smoke.py                      # 261 tests — all layers, scenarios, validators, audits
+├── test_smoke.py                      # 266 tests — all layers, scenarios, validators, audits
 │
 ├── ocean_timber_sequestration_audit.py # Full-cycle carbon audit of wood-in-ocean schemes
 ├── dollar_energy_metabolism.py        # Recursive energy cost model for climate finance
@@ -93,7 +93,7 @@ earth-systems-physics/
 │   ├── glossary.md                    # Unified terminology across modules
 │   ├── composition_recipes.md         # Cross-module analysis patterns
 │   ├── index.json                     # Provenance + schema for every catalog
-│   └── catalogs/                      # 27 .jsonl catalogs auto-exported from sources
+│   └── catalogs/                      # 29 .jsonl catalogs auto-exported from sources
 │
 ├── experiments/
 │   ├── magnetometer_build.py          # $5 smoky-quartz + HDD-magnet magnetometer build guide
@@ -172,7 +172,7 @@ All physics functions require docstrings with: description, parameters (with typ
 
 ## Testing
 
-Framework: **pytest** — 261 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
+Framework: **pytest** — 266 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
 
 ```bash
 pytest                    # Run all tests
@@ -285,7 +285,7 @@ ai_reference/
 │                           cascade, layer, signal, delta, buffer, etc.)
 ├── composition_recipes.md  Cross-module analysis patterns
 ├── index.json              Provenance + schema for every catalog
-└── catalogs/               27 .jsonl catalogs (198 records total)
+└── catalogs/               29 .jsonl catalogs (206 records total)
     ├── mechanisms.jsonl                    (7 records)
     ├── epigenetic_factors.jsonl            (6)
     ├── constraint_domains.jsonl            (7)
@@ -309,10 +309,12 @@ ai_reference/
     ├── incentive_profiles.jsonl            (6)     # domain_taxonomy
     ├── substrate_claims.jsonl              (10)    # substrate_audit
     ├── substrate_five_why.jsonl            (5)     # substrate_audit
-    ├── substrate_causal_loop.jsonl         (5)     # substrate_audit
+    ├── substrate_causal_loop.jsonl         (6)     # substrate_audit
     ├── substrate_dmaic.jsonl               (5)     # substrate_audit
     ├── substrate_reference_systems.jsonl   (6)     # substrate_audit
-    └── skyrmion_materials.jsonl            (5)     # skyrmion_rkky
+    ├── skyrmion_materials.jsonl            (5)     # skyrmion_rkky
+    ├── skyrmion_internal_modes.jsonl       (3)     # skyrmion_phonon_coupling
+    └── skyrmion_spinwave_params.jsonl      (5)     # skyrmion_phonon_coupling
 ```
 
 ### Regenerating the catalogs

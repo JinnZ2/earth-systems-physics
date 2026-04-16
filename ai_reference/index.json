@@ -300,6 +300,7 @@
       "description": "Ten falsifiable claims (TC-1 through TC-10) audit the data-quality of hierarchical capital control. Each carries id, claim, null_hypothesis, required_measurement, known_evidence, verdict (PASS/FAIL/UNTESTED/CIRCULAR), and note.",
       "record_count": 10,
       "schema": {
+        "name": "str",
         "id": "str",
         "claim": "str",
         "null_hypothesis": "str",
@@ -316,6 +317,7 @@
       "description": "5-Why root cause chain from 'Why are CEOs rewarded more than mechanics?' to the positive feedback loop between legal title and coercive power.",
       "record_count": 5,
       "schema": {
+        "name": "str",
         "why": "str",
         "question": "str",
         "answer": "str"
@@ -328,6 +330,7 @@
       "description": "Causal feedback loop: TITLE -> SURPLUS -> POWER -> ENFORCE -> TITLE (self-reinforcing), with MAINTAIN explicitly excluded from the loop despite being thermodynamically necessary.",
       "record_count": 6,
       "schema": {
+        "name": "str",
         "id": "str",
         "label": "str",
         "drives": "list",
@@ -341,6 +344,7 @@
       "description": "Six Sigma DMAIC audit of credentialing as a quality system: DEFINE, MEASURE, ANALYZE, IMPROVE, CONTROL. All five phases FAIL or CIRCULAR.",
       "record_count": 5,
       "schema": {
+        "name": "str",
         "phase": "str",
         "requirement": "str",
         "observed": "str",
@@ -387,6 +391,39 @@
         "ordering_temperature_K": "float",
         "stabilization_mechanism": "str",
         "rkky_relevant": "bool",
+        "notes": "str"
+      }
+    },
+    "skyrmion_internal_modes": {
+      "path": "catalogs/skyrmion_internal_modes.jsonl",
+      "source_module": "skyrmion_phonon_coupling",
+      "source_symbol": "SKYRMION_INTERNAL_MODES",
+      "description": "Three low-energy skyrmion internal modes with their characteristic frequency scaling and dominant phonon coupling channel: gyrotropic (rigid-body translation, ~ K_eff/(M_s·R²), shear TA phonons, B₂ coupling); breathing (radial expansion/contraction, ~ 2A/(M_s·R²), LA phonons, B₁ coupling); elliptic (2-fold shape distortion, ≈ 2·ω_breathing, anisotropic shear, quadrupolar strain). Each record carries order, symmetry, typical_freq_GHz, freq_scaling, phonon_channel, coupling_type, observability.",
+      "record_count": 3,
+      "schema": {
+        "name": "str",
+        "order": "int",
+        "symmetry": "str",
+        "typical_freq_GHz": "str",
+        "freq_scaling": "str",
+        "phonon_channel": "str",
+        "coupling_type": "str",
+        "observability": "str"
+      }
+    },
+    "skyrmion_spinwave_params": {
+      "path": "catalogs/skyrmion_spinwave_params.jsonl",
+      "source_module": "skyrmion_phonon_coupling",
+      "source_symbol": "SKYRMION_SPINWAVE_PARAMS",
+      "description": "Spin-wave material parameters for the same five skyrmion-hosting materials as skyrmion_materials: exchange stiffness A (J/m), saturation magnetization M_s (A/m), effective anisotropy K_eff (J/m³), representative sound speed (m/s), reference temperature (K), and literature-sourced notes. Inputs to gyrotropic_frequency_Hz / breathing_frequency_Hz / elliptic_frequency_Hz; keys align with SKYRMION_MATERIALS so modes_for_material can join them.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "A_exchange_Jm": "float",
+        "M_s_A_m": "float",
+        "K_eff_Jm3": "float",
+        "sound_speed_ms": "float",
+        "reference_T_K": "float",
         "notes": "str"
       }
     }

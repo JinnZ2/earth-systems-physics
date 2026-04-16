@@ -306,6 +306,7 @@ CATALOGS = [
         "name": "substrate_five_why",
         "module": "substrate_audit",
         "symbol": "FIVE_WHY",
+        "primary_key": "why",
         "description": (
             "5-Why root cause chain from 'Why are CEOs rewarded "
             "more than mechanics?' to the positive feedback loop "
@@ -327,6 +328,7 @@ CATALOGS = [
         "name": "substrate_dmaic",
         "module": "substrate_audit",
         "symbol": "DMAIC_AUDIT",
+        "primary_key": "phase",
         "description": (
             "Six Sigma DMAIC audit of credentialing as a quality "
             "system: DEFINE, MEASURE, ANALYZE, IMPROVE, CONTROL. "
@@ -368,6 +370,40 @@ CATALOGS = [
             "Gd3Ru4Al12 / GdRu2Si2), and a literature reference. "
             "rkky_relevant flag separates the two stabilization "
             "regimes."
+        ),
+    },
+    {
+        "name": "skyrmion_internal_modes",
+        "module": "skyrmion_phonon_coupling",
+        "symbol": "SKYRMION_INTERNAL_MODES",
+        "description": (
+            "Three low-energy skyrmion internal modes with their "
+            "characteristic frequency scaling and dominant phonon "
+            "coupling channel: gyrotropic (rigid-body translation, "
+            "~ K_eff/(M_s·R²), shear TA phonons, B₂ coupling); "
+            "breathing (radial expansion/contraction, ~ 2A/(M_s·R²), "
+            "LA phonons, B₁ coupling); elliptic (2-fold shape "
+            "distortion, ≈ 2·ω_breathing, anisotropic shear, "
+            "quadrupolar strain). Each record carries order, "
+            "symmetry, typical_freq_GHz, freq_scaling, "
+            "phonon_channel, coupling_type, observability."
+        ),
+    },
+    {
+        "name": "skyrmion_spinwave_params",
+        "module": "skyrmion_phonon_coupling",
+        "symbol": "SKYRMION_SPINWAVE_PARAMS",
+        "description": (
+            "Spin-wave material parameters for the same five "
+            "skyrmion-hosting materials as skyrmion_materials: "
+            "exchange stiffness A (J/m), saturation magnetization "
+            "M_s (A/m), effective anisotropy K_eff (J/m³), "
+            "representative sound speed (m/s), reference "
+            "temperature (K), and literature-sourced notes. "
+            "Inputs to gyrotropic_frequency_Hz / "
+            "breathing_frequency_Hz / elliptic_frequency_Hz; keys "
+            "align with SKYRMION_MATERIALS so modes_for_material "
+            "can join them."
         ),
     },
 ]
@@ -423,8 +459,14 @@ def _filter_callables(d):
 
 # ── Catalog extraction ────────────────────────────────────────────
 
-def _extract_records(obj, symbol_name):
-    """Convert a module-level dict or list into a list of JSONL records."""
+def _extract_records(obj, symbol_name, primary_key=None):
+    """Convert a module-level dict or list into a list of JSONL records.
+
+    Downstream consumers treat `name` as the primary key. For list-based
+    catalogs that expose their primary key under a different field
+    (e.g. `id`, `phase`, `why`), pass `primary_key` and its value will
+    be promoted to `name` on every record.
+    """
     records = []
     if isinstance(obj, dict):
         for key, value in obj.items():
@@ -445,6 +487,11 @@ def _extract_records(obj, symbol_name):
                 rec = _filter_callables(item)
             else:
                 rec = {"value": _to_jsonl_safe(item)}
+            if isinstance(rec, dict) and "name" not in rec:
+                if primary_key and primary_key in rec:
+                    rec = {"name": str(rec[primary_key]), **rec}
+                elif "id" in rec and isinstance(rec["id"], str):
+                    rec = {"name": rec["id"], **rec}
             records.append(rec)
     else:
         raise TypeError(
@@ -479,7 +526,9 @@ def _load_symbol(module_name, symbol_name):
 def build_catalog(spec):
     """Return (records, schema) for a CATALOGS entry."""
     obj = _load_symbol(spec["module"], spec["symbol"])
-    records = _extract_records(obj, spec["symbol"])
+    records = _extract_records(
+        obj, spec["symbol"], primary_key=spec.get("primary_key")
+    )
     schema = _schema_from_records(records)
     return records, schema
 

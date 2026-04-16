@@ -2832,3 +2832,93 @@ class TestSkyrmionPhononCoupling:
         assert "THREE INTERNAL MODES" in captured.out
         assert "MODE FREQUENCIES" in captured.out
         assert "PHONON COUPLING" in captured.out
+
+    def test_internal_modes_catalog_exported(self):
+        """The SKYRMION_INTERNAL_MODES dict must be exported to
+        ai_reference/catalogs/skyrmion_internal_modes.jsonl with
+        3 records (gyrotropic, breathing, elliptic) and the core
+        schema fields downstream consumers need."""
+        import json
+        import os
+        path = os.path.join(
+            "ai_reference", "catalogs",
+            "skyrmion_internal_modes.jsonl",
+        )
+        assert os.path.isfile(path)
+        with open(path, encoding="utf-8") as f:
+            records = [json.loads(line) for line in f]
+        names = {r["name"] for r in records}
+        assert names == {"gyrotropic", "breathing", "elliptic"}
+        for r in records:
+            for field in ("order", "symmetry", "typical_freq_GHz",
+                          "freq_scaling", "phonon_channel",
+                          "coupling_type", "observability"):
+                assert field in r, r["name"] + " missing " + field
+
+    def test_spinwave_params_catalog_exported(self):
+        """The SKYRMION_SPINWAVE_PARAMS dict must be exported to
+        ai_reference/catalogs/skyrmion_spinwave_params.jsonl with
+        keys aligned to the skyrmion_materials catalog so joins
+        work."""
+        import json
+        import os
+        sw_path = os.path.join(
+            "ai_reference", "catalogs",
+            "skyrmion_spinwave_params.jsonl",
+        )
+        mat_path = os.path.join(
+            "ai_reference", "catalogs",
+            "skyrmion_materials.jsonl",
+        )
+        assert os.path.isfile(sw_path)
+        with open(sw_path, encoding="utf-8") as f:
+            sw = [json.loads(line) for line in f]
+        with open(mat_path, encoding="utf-8") as f:
+            mat = [json.loads(line) for line in f]
+        assert {r["name"] for r in sw} == {r["name"] for r in mat}
+        for r in sw:
+            for field in ("A_exchange_Jm", "M_s_A_m", "K_eff_Jm3",
+                          "sound_speed_ms", "reference_T_K",
+                          "notes"):
+                assert field in r, r["name"] + " missing " + field
+
+
+class TestMagnomechanicalRecipe:
+    """Recipe 8 of composition_recipes.md walks the full
+    magnomechanical stack. This class verifies the recipe exists
+    and names the modules + catalogs the full chain depends on.
+    """
+
+    RECIPE_PATH = "ai_reference/composition_recipes.md"
+
+    def test_recipe_8_present(self):
+        with open(self.RECIPE_PATH, encoding="utf-8") as f:
+            text = f.read()
+        assert "Recipe 8:" in text
+        assert "Magnomechanical transduction" in text
+
+    def test_recipe_8_names_full_module_chain(self):
+        with open(self.RECIPE_PATH, encoding="utf-8") as f:
+            text = f.read()
+        # The recipe should reference every module in the stack
+        for mod in (
+            "skyrmion_rkky.py",
+            "skyrmion_phonon_coupling.py",
+            "earth_magnomechanical.py",
+            "magnon_polaron_hybridization.py",
+            "confined_magnon_polaron.py",
+            "multi_channel_coupling.py",
+            "layer_0b_magnomechanical.py",
+            "cascade_engine.py",
+        ):
+            assert mod in text, "Recipe 8 missing module " + mod
+
+    def test_recipe_8_names_three_catalogs(self):
+        with open(self.RECIPE_PATH, encoding="utf-8") as f:
+            text = f.read()
+        for cat in (
+            "skyrmion_materials.jsonl",
+            "skyrmion_internal_modes.jsonl",
+            "skyrmion_spinwave_params.jsonl",
+        ):
+            assert cat in text, "Recipe 8 missing catalog " + cat
