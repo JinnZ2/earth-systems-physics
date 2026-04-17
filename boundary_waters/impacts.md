@@ -80,11 +80,23 @@ Asymmetries worth flagging:
 	
 	•	409 cases × $1.2M/case lifetime = $491M in lifetime cognitive-loss cost that nobody pays into — it’s distributed across families, schools, Medicaid, and forgone adult earnings.
 
+
+•	Crop yield loss for downwind corn/soy (calculated but not costed)
 	
+	•	Mycorrhizal collapse irreversibility on 100-500yr horizon (currently binary flag)
+	
+	•	Second-order port: if Iron Range mining permits are pulled in response to BWCA contamination, 62% of Duluth tonnage is at stake, not the 5% I modeled
+	
+	•	Canadian retaliatory restrictions beyond refusal probability (ballast water treatment, customs inspection multipliers)
 
 Known limitations / next modules to bolt on:
+	
 	•	Monte Carlo over tailings failure timing (currently single-seed)
+	
 	•	Wildfire-AMD interaction (dry tailings + wildfire = airborne metal dispersal — relevant to your Fairmont corridor work)
+	
 	•	Climate cascade: rising temps accelerate oxidation kinetics (~2× per 10°C)
+	
 	•	Linkage to your earth-systems-physics L5 lithosphere layer for the geomechanical tailings-dam stability sub-model
+	
 	•	The port layer is currently simplified — Duluth-Superior coupling needs a separate St. Louis River tributary pathway
