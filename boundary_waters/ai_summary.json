@@ -1,0 +1,573 @@
+{
+  "format_version": "1.0",
+  "generated_by": "boundary_waters/export_ai_summary.py",
+  "license": "CC0",
+  "purpose": "Machine-readable summary of the BWCA sulfide-mine cascade simulation. One file, one read, full context for any AI agent.",
+  "one_line_finding": "Value exits the state as ore, revenue, and dividends within 20 years. Cost stays as AMD, mercury, community collapse, and treaty liability for centuries. The measurement system that approved it is structurally blind to the majority of the actual cost.",
+  "scenarios": {
+    "protected": {
+      "peak_sulfate_mg_l": 0.0,
+      "peak_forced_migrants": 0,
+      "peak_wells_contaminated": 0,
+      "peak_forest_acres_lost": 0,
+      "peak_liability_usd": 0.0,
+      "peak_net_jobs": 0
+    },
+    "proceed": {
+      "peak_sulfate_mg_l": 11.8,
+      "peak_forced_migrants": 3107,
+      "peak_wells_contaminated": 3059,
+      "peak_forest_acres_lost": 13748,
+      "peak_liability_usd": 0.0,
+      "peak_net_jobs": -13440,
+      "secondary": {
+        "final_population": 0,
+        "school_open": false,
+        "hospital_open": false,
+        "insurance_available": false,
+        "outfitters_surviving": 16,
+        "outfitters_total": 22,
+        "lodges_surviving": 26,
+        "lodges_total": 35,
+        "bank_failure_risk": false,
+        "credit_contraction_pct": 27,
+        "peatland_ch4_delta_co2e": 0,
+        "cultural_transmission_viable": true
+      }
+    },
+    "tailings_failure": {
+      "peak_sulfate_mg_l": 58.8,
+      "peak_forced_migrants": 8060,
+      "peak_wells_contaminated": 10416,
+      "peak_forest_acres_lost": 68742,
+      "peak_liability_usd": 1078000000000.0,
+      "peak_net_jobs": -17616,
+      "secondary": {
+        "final_population": 0,
+        "school_open": false,
+        "hospital_open": false,
+        "insurance_available": false,
+        "outfitters_surviving": 0,
+        "outfitters_total": 22,
+        "lodges_surviving": 0,
+        "lodges_total": 35,
+        "bank_failure_risk": true,
+        "credit_contraction_pct": 80,
+        "peatland_ch4_delta_co2e": 285600,
+        "cultural_transmission_viable": true
+      }
+    }
+  },
+  "extraction_topology": {
+    "composite_score_pct": 98,
+    "causal_loop": {
+      "TITLE": {
+        "node": "Mineral lease + CRA reversal of PLO 7917",
+        "description": "Legal access to the ore body. The lease is the title node — without it, no extraction occurs. PLO 7917 was the constraint; CRA vote removed it.",
+        "drives": "SURPLUS"
+      },
+      "SURPLUS": {
+        "node": "Ore revenue — leaves state as concentrate + profit",
+        "description": "Cu-Ni concentrate shipped to smelter (Chile/Asia). Revenue to Antofagasta (Santiago). Dividends to Luksic family + global shareholders. Payroll taxes are the only surplus that touches Minnesota, and they end when the mine closes.",
+        "drives": "POWER"
+      },
+      "POWER": {
+        "node": "Corporate + political capital to maintain access",
+        "description": "Mining revenue funds lobbying, campaign contributions, and industry-association political operations. This capital maintains the political conditions that keep the lease active and resist regulatory constraint.",
+        "drives": "ENFORCE"
+      },
+      "ENFORCE": {
+        "node": "CRA vote + regulatory capture + EA limitations",
+        "description": "The CRA mechanism bypasses environmental analysis. The EA process is bounded by stationarity assumptions (climate_boundary.py). The enforcement node prevents the constraint signal (AMD, treaty violation, community collapse) from reaching the decision layer.",
+        "drives": "TITLE"
+      },
+      "CONSTRAINT": {
+        "node": "Physics — AMD thermodynamics, treaty law, community capacity",
+        "description": "The external constraint that the loop suppresses. delta-G < 0 for sulfide oxidation (physics). Treaty rights are constitutionally protected (law). Community collapse is self-reinforcing once triggered (secondary effects). None of these constraints can be lobbied, bought, or voted away. They operate on the physical substrate, not the political one.",
+        "drives": "Injects perturbation into ENFORCE when buffer breaks"
+      }
+    },
+    "value_leaves_state": [
+      {
+        "name": "Ore concentrate",
+        "destination": "Smelter — likely Antofagasta operations in Chile or contracted facility in Asia",
+        "duration": "20-year mine life"
+      },
+      {
+        "name": "Revenue / operating profit",
+        "destination": "Antofagasta PLC (Santiago, Chile) -> global shareholders",
+        "duration": "20-year mine life"
+      },
+      {
+        "name": "Capital returns / dividends",
+        "destination": "Luksic family (controlling shareholder, Santiago) + institutional investors (London, NYC, global)",
+        "duration": "Quarterly, 20-year mine life"
+      },
+      {
+        "name": "Political access / lobbying capital",
+        "destination": "Washington DC (CRA vote), St. Paul (state legislature)",
+        "duration": "Continuous through permitting + operating life"
+      },
+      {
+        "name": "Technical expertise / workforce",
+        "destination": "Return to home offices post-closure",
+        "duration": "20-year mine life"
+      }
+    ],
+    "cost_stays": [
+      {
+        "name": "Acid rock drainage",
+        "duration": "Centuries to millennia (Singer-Stumm kinetics, microbial catalysis, delta-G < 0)",
+        "reversible": false
+      },
+      {
+        "name": "Mercury + heavy metal loading",
+        "duration": "Hg: persists in sediment for centuries. Bioaccumulates 2.7e6x in lake trout.",
+        "reversible": false
+      },
+      {
+        "name": "Community collapse costs",
+        "duration": "Permanent — communities do not recover from this pattern (see Picher OK)",
+        "reversible": false
+      },
+      {
+        "name": "Treaty violation liability",
+        "duration": "Perpetual — treaty rights do not expire",
+        "reversible": false
+      },
+      {
+        "name": "Cultural knowledge loss",
+        "duration": "Permanent — plasticity window does not reopen",
+        "reversible": false
+      },
+      {
+        "name": "Perpetual water treatment obligation",
+        "duration": "Perpetuity — no demonstrated endpoint for AMD treatment",
+        "reversible": false
+      }
+    ],
+    "net_transfers": [
+      {
+        "category": "Mineral value",
+        "direction": "OUT of state, OUT of country",
+        "time_asymmetry": "Extracted in 20 yr; geology took 1.1 Ga to form",
+        "falsifiable": "Show that refined Cu-Ni products will be manufactured in Minnesota from this ore. (They will not — no smelter capacity in state.)"
+      },
+      {
+        "category": "Operating profit",
+        "direction": "OUT of state",
+        "time_asymmetry": "Captured in 20 yr; costs persist centuries",
+        "falsifiable": "Show that Antofagasta will reinvest operating profit in Minnesota post-closure. (Their corporate charter requires fiduciary duty to shareholders, not to host communities.)"
+      },
+      {
+        "category": "Cleanup liability",
+        "direction": "STAYS in state as unfunded obligation",
+        "time_asymmetry": "Perpetual; exceeds total mine revenue over centuries",
+        "falsifiable": "Show a Cu-Ni sulfide mine that fully funded its perpetual AMD treatment without public subsidy. (No example exists.)"
+      },
+      {
+        "category": "Health costs",
+        "direction": "STAYS in state; partially federalized via Medicaid/IHS",
+        "time_asymmetry": "Epigenetic effects persist 3 generations",
+        "falsifiable": "Show that the mine's health-impact bond covers multi-generational neurodevelopmental costs. (No such bond exists in the proposal.)"
+      },
+      {
+        "category": "Ecosystem services",
+        "direction": "DESTROYED, not transferred",
+        "time_asymmetry": "Ecosystem services built over millennia; destroyed in decades; mycorrhizal recovery 80 yr, beaver habitat recovery decades, manoomin recovery unknown, boreal biome recovery: may not occur (climate transition)",
+        "falsifiable": "Show that the closure plan's revegetation success rate holds when mycorrhizal networks are dead, earthworms have consumed the duff layer, and the reference biome is transitioning to oak savanna. (It cannot.)"
+      },
+      {
+        "category": "Treaty rights",
+        "direction": "DESTROYED; federal trust obligation triggered",
+        "time_asymmetry": "Treaty is perpetual; resource destruction is irreversible",
+        "falsifiable": "Show that sulfate below 10 mg/L can be maintained in all 1854 Treaty waters for the duration of the treaty. (The simulation shows breach within 15 years of operation, sustained for centuries.)"
+      },
+      {
+        "category": "Community institutional capacity",
+        "direction": "DESTROYED via self-reinforcing loops",
+        "time_asymmetry": "Institutions built over 100+ years; collapse in 10-20 years once triggered; no demonstrated recovery pathway (see Picher OK: disincorporated)",
+        "falsifiable": "Show a community of comparable size that recovered its institutional base after mine-related population loss of >50%. (Picher: 98.8% loss, disincorporated. Flint: 21% loss, still declining.)"
+      }
+    ]
+  },
+  "climate_boundary": {
+    "trends_count": 10,
+    "trends": [
+      {
+        "variable": "Annual mean temperature (NE Minnesota)",
+        "direction": "UP; MN is 2nd-fastest-warming state in the US",
+        "confidence": "Very high -- observational + multi-model agreement"
+      },
+      {
+        "variable": "Winter low temperatures",
+        "direction": "UP, fastest-changing signal",
+        "confidence": "Very high"
+      },
+      {
+        "variable": "Summer precipitation pattern",
+        "direction": "BIFURCATED -- more extreme in both directions",
+        "confidence": "High -- this is in the Fifth National Climate Assessment"
+      },
+      {
+        "variable": "Mega-rain events (>6 inches over large area)",
+        "direction": "UP, accelerating",
+        "confidence": "High -- captured in MN's high-density rain gauge network"
+      },
+      {
+        "variable": "Flash drought frequency",
+        "direction": "UP",
+        "confidence": "Moderate-high"
+      },
+      {
+        "variable": "Snowpack duration / ice season",
+        "direction": "DOWN (snowpack), UP (liquid winter precip)",
+        "confidence": "Very high"
+      },
+      {
+        "variable": "Wildfire risk (boreal forest)",
+        "direction": "UP",
+        "confidence": "High for end-of-century; moderate for mid-century in MN specifically"
+      },
+      {
+        "variable": "Boreal biome persistence",
+        "direction": "Biome-level regime change",
+        "confidence": "High that change will occur; timing uncertain"
+      },
+      {
+        "variable": "Evapotranspiration demand ('thirstier atmosphere')",
+        "direction": "UP",
+        "confidence": "Very high"
+      },
+      {
+        "variable": "Lake water temperature / cold-water fisheries",
+        "direction": "UP (water temp) -> DOWN (cold-water species)",
+        "confidence": "High"
+      }
+    ],
+    "mitigation_breaks_count": 8,
+    "breaks": [
+      {
+        "climate_shift": "Mega-rain events, 4x since 2000",
+        "mitigation_affected": "Dry-stack tailings + tailings pond freeboard + stormwater conveyance",
+        "timescale": "Single event, operational life; baked into every re-stack episode post-closure."
+      },
+      {
+        "climate_shift": "Drier summers + longer dry spells",
+        "mitigation_affected": "Water availability for process + treatment",
+        "timescale": "Multi-week events, annually; worsening over century."
+      },
+      {
+        "climate_shift": "Flash drought alternating with mega-rain",
+        "mitigation_affected": "Tailings stability + cover vegetation + passive water treatment",
+        "timescale": "Seasonal; increasing frequency; post-closure is worse because active management is gone."
+      },
+      {
+        "climate_shift": "Winter warming (+6.5 F observed; continuing)",
+        "mitigation_affected": "Freeze-protected infrastructure; ice road access; seasonal operations",
+        "timescale": "Every winter; cumulative wear on liners over decades."
+      },
+      {
+        "climate_shift": "Wildfire frequency & severity rising",
+        "mitigation_affected": "Every surface mitigation; power grid serving mine; community evacuation routes",
+        "timescale": "Single event; increasing frequency; multi-year legacy effects on watershed chemistry."
+      },
+      {
+        "climate_shift": "Evapotranspiration rise -- 'thirstier atmosphere'",
+        "mitigation_affected": "Vegetative covers; cover soil moisture; closure reclamation plantings",
+        "timescale": "Years; cumulative at closure."
+      },
+      {
+        "climate_shift": "Boreal biome transition to oak savanna",
+        "mitigation_affected": "Entire ecosystem context of the closure plan",
+        "timescale": "Century-scale; overlaps the middle of post-closure liability window."
+      },
+      {
+        "climate_shift": "Lake stratification / fish habitat collapse",
+        "mitigation_affected": "Watershed receiving capacity; downstream sulfate/metal assimilation",
+        "timescale": "Decades; compounding with sulfate loading."
+      }
+    ],
+    "falsifiable_claims": [
+      {
+        "id": "TCB-1",
+        "claim": "The engineering design basis for Twin Metals' mitigation systems uses current, not historical, climate data for this specific watershed.",
+        "state": "UNFALSIFIED. Project documents long predate current downscaled products; no public update disclosed."
+      },
+      {
+        "id": "TCB-2",
+        "claim": "Closed-loop water systems can meet their water balance in NE Minnesota under projected drier summers and flash-drought conditions.",
+        "state": "UNFALSIFIED. No regional precedent under current drought regime."
+      },
+      {
+        "id": "TCB-3",
+        "claim": "Vegetated closure covers will persist under projected evapotranspiration and drought conditions for >100 yr.",
+        "state": "UNFALSIFIED. Closure precedents are almost entirely from prior climate regime."
+      },
+      {
+        "id": "TCB-4",
+        "claim": "Wildfire x tailings interaction has been modeled in the project's risk assessment.",
+        "state": "UNFALSIFIED. Standard practice in 2010-2020 era EAs did not include this explicitly."
+      },
+      {
+        "id": "TCB-5",
+        "claim": "Design storms used for tailings and stormwater sizing reflect post-2000 mega-rain event frequency.",
+        "state": "UNFALSIFIED GENERALLY. MN has some of the best rain-gauge data in the country, and it shows clear non-stationarity not reflected in typical older engineering designs."
+      },
+      {
+        "id": "TCB-6",
+        "claim": "Sulfate discharge limits and wild rice protection thresholds are valid under warmer, more-stratified receiving waters.",
+        "state": "UNFALSIFIED. Threshold was empirically derived under cooler regime; mercury methylation increases with both T and sulfate."
+      },
+      {
+        "id": "TCB-7",
+        "claim": "Post-closure bond sizing accounts for compound-hazard climate risk (wildfire + megarain + drought + grid event) over 500+ yr.",
+        "state": "UNFALSIFIED. Industry-standard bonds do not integrate compound climate hazards over multi-century timescales."
+      },
+      {
+        "id": "TCB-8",
+        "claim": "The boreal forest context in which the closure plan is written will persist through the post-closure liability window.",
+        "state": "UNFALSIFIED. Frelich and UMN CAP project prairie/forest boundary moves ~300 miles NE by end of century under current trajectories."
+      },
+      {
+        "id": "TCB-9",
+        "claim": "The mitigation dependency stack (grid, reagents, water, skilled labor) is resilient to the same climate hazards that threaten the site.",
+        "state": "UNFALSIFIED. None of these dependencies are climate-hardened at the site level. When a regional crisis hits, the mitigation stack loses its inputs in the same event that stresses the containment."
+      },
+      {
+        "id": "TCB-10",
+        "claim": "The Senate vote of 2026-04-16, which eliminated PLO 7917 via the CRA, considered climate boundary-condition changes to the underlying risk assessment.",
+        "state": "UNFALSIFIED. The CRA mechanism explicitly bypasses environmental analysis. No climate update was required or produced."
+      }
+    ]
+  },
+  "displacement_sources": {
+    "well_analogs": [
+      {
+        "site": "Picher, Oklahoma (Tar Creek Superfund)",
+        "departure_fraction": 0.988,
+        "timeframe_years": 10,
+        "population_before": 1640,
+        "population_after": 20
+      },
+      {
+        "site": "Hinkley, California (PG&E chromium-6)",
+        "departure_fraction": 0.316,
+        "timeframe_years": 4,
+        "population_before": 1900,
+        "population_after": 1300
+      },
+      {
+        "site": "Flint, Michigan (lead in water)",
+        "departure_fraction": 0.207,
+        "timeframe_years": 10,
+        "population_before": 102434,
+        "population_after": 81252
+      }
+    ],
+    "food_analogs": [
+      {
+        "site": "Grassy Narrows First Nation, Ontario",
+        "contaminant": "Mercury (9,000-11,000 kg from Dryden Mill 1962-1970)",
+        "notes": "Critical case: indigenous communities may NOT out-migrate even under extreme contamination because land is identity, not property. Displacement is expressed as health and cultural loss, not departure. This means the BWCA model's migration_cap of 0.65 may OVERESTIMATE departure for tribal populations while UNDERESTIMATING total harm."
+      },
+      {
+        "site": "Minnesota wild rice waters (55 impaired, 2024)",
+        "contaminant": "Sulfate from mining and industrial discharge",
+        "notes": "Direct analog to BWCA model: sulfate from copper- nickel mining is the specific threat. 10 mg/L threshold is the same value used in the model's SULFATE_TOXIC_MG_L constant."
+      }
+    ],
+    "parameter_derivation": {
+      "MIGRATION_WEIGHT_WELLS": {
+        "value": 0.7,
+        "analogs": [
+          "Picher",
+          "Flint",
+          "Hinkley",
+          "Grassy Narrows"
+        ]
+      },
+      "MIGRATION_WEIGHT_MANOOMIN": {
+        "value": 0.3,
+        "analogs": [
+          "Grassy Narrows",
+          "MN wild rice 55 waters"
+        ]
+      },
+      "MIGRATION_CAP_FRAC": {
+        "value": 0.65,
+        "analogs": [
+          "Picher",
+          "Flint",
+          "Hinkley"
+        ]
+      },
+      "WELL_CONTAMINATION_LAG_YR": {
+        "value": 2,
+        "analogs": [
+          "BWCA-specific geology (constants.py)"
+        ]
+      },
+      "WELL_CONTAMINATION_THRESHOLD_MG_L": {
+        "value": 40.0,
+        "analogs": [
+          "EPA secondary MCL",
+          "Shield hydrogeology"
+        ]
+      }
+    },
+    "indigenous_food_insecurity": {
+      "first_nations_on_reserve_range_pct": [
+        48,
+        100
+      ],
+      "contaminated_sites_on_reserves_pct": 29.0,
+      "reserves_land_mass_pct": 0.5,
+      "source": "PMC 2021 (First Nations food insecurity, 92 communities); medRxiv 2022 / Wiley 2024 (contaminated sites scoping review); BMC Public Health 2023 (colonization impacts on food systems)",
+      "key_finding": "29% of federal contaminated sites sit on 0.5% of the land mass. Food insecurity 48-100% on affected reserves. Environmental contamination and government food-harvest restrictions compound to destroy subsistence base."
+    },
+    "indigenous_compounding": {
+      "description": "Indigenous displacement from environmental contamination is NEVER a single-cause event. It layers on top of forced relocation (reserve system, residential schools), economic exclusion, and ongoing jurisdictional conflicts. Each layer reduces capacity to resist the next.",
+      "layer_sequence": [
+        "1. Forced relocation to reserves (19th-20th century)",
+        "2. Residential schools / cultural disruption",
+        "3. Environmental contamination of subsistence base",
+        "4. Government fishing/harvesting bans 'for protection'",
+        "5. Economic collapse from loss of subsistence + tourism",
+        "6. Health crisis from contamination exposure",
+        "7. Youth out-migration from lack of economic base"
+      ],
+      "bwca_specific": "Bois Forte (3,400), Grand Portage (1,100), Fond du Lac (4,200) hold 1854 Treaty usufructuary rights to harvest manoomin in the BWCA watershed. Sulfate contamination above 10 mg/L destroys the resource the treaty protects. This is not property damage — it is a treaty violation and a destruction of identity-level cultural practice (see calibration/architecture_mismatch.py: identity_level encoding cannot be replaced by compensation).",
+      "source": "1854 Treaty Authority; MN Indian Affairs; Lancet Planetary Health 2020 (Grassy Narrows mortality); Cultural Survival Quarterly (Grassy Narrows 60-yr legacy)"
+    }
+  },
+  "scoring": {
+    "extraction": {
+      "value_leaves_state": {
+        "score": 10,
+        "of": 10,
+        "note": "Ore, revenue, dividends, expertise all exit MN. Only payroll taxes stay, and only for 20 yr."
+      },
+      "cost_stays_in_state": {
+        "score": 10,
+        "of": 10,
+        "note": "AMD, Hg, community collapse, treaty liability, perpetual treatment all stay. Permanently."
+      },
+      "time_asymmetry": {
+        "score": 10,
+        "of": 10,
+        "note": "20-yr extraction window vs centuries-to-millennia cost window. Ratio > 50:1."
+      },
+      "corporate_solvency_at_closure": {
+        "score": 9,
+        "of": 10,
+        "note": "Historical pattern: hardrock mining companies are insolvent at closure. Liability transfers to public."
+      },
+      "regulatory_capture_completeness": {
+        "score": 10,
+        "of": 10,
+        "note": "CRA bypasses environmental analysis entirely. No mechanism to require updated risk assessment."
+      },
+      "community_consent": {
+        "score": 10,
+        "of": 10,
+        "note": "MCT declined task force. 1854 Treaty Authority issued own report. CRA overrides local opposition."
+      },
+      "wealth_consolidation_direction": {
+        "score": 10,
+        "of": 10,
+        "note": "Luksic family (~$25B net worth) captures value; shallow-well homeowners (~$29k median income) absorb cost."
+      },
+      "measurement_system_bias": {
+        "score": 9,
+        "of": 10,
+        "note": "EA measures projected impacts against stationarity assumptions. Does not measure: secondary loops, commercial cascade, cultural knowledge loss, epigenetic transmission, peatland CH4, compound hazards. The measurement system is structurally blind to the majority of the actual cost."
+      },
+      "reversibility": {
+        "score": 10,
+        "of": 10,
+        "note": "Every outflow is irreversible. Ore cannot be un-mined. AMD cannot be stopped. Cultural knowledge cannot be retrained. Ecosystem services cannot be re-purchased. Treaty rights cannot be un-violated."
+      },
+      "extraction_pattern_match": {
+        "score": 10,
+        "of": 10,
+        "note": "TITLE->SURPLUS->POWER->ENFORCE->TITLE loop is complete and self-reinforcing. Matches substrate_audit.CAUSAL_LOOP exactly. The BWCA mine is a specific instance of the general extraction topology the repo already describes."
+      }
+    },
+    "climate": {
+      "stationarity_failure": {
+        "score": 10,
+        "of": 10,
+        "note": "Design inputs from a climate regime that no longer applies."
+      },
+      "compound_hazard_neglect": {
+        "score": 10,
+        "of": 10,
+        "note": "Wildfire x megarain x drought x grid-outage are correlated, not independent."
+      },
+      "wildfire_tailings_coupling": {
+        "score": 10,
+        "of": 10,
+        "note": "Documented in analog watersheds; not assessed in Twin Metals EA."
+      },
+      "megarain_design_storm_obsolescence": {
+        "score": 9,
+        "of": 10,
+        "note": "4x mega-rain increase since 2000; older IDF curves drive undersized systems."
+      },
+      "drought_water_balance_fragility": {
+        "score": 9,
+        "of": 10,
+        "note": "Drier summers break closed-loop assumption."
+      },
+      "biome_transition_context": {
+        "score": 9,
+        "of": 10,
+        "note": "Closure plan implicitly assumes boreal persistence."
+      },
+      "mercury_methylation_nonlinearity": {
+        "score": 9,
+        "of": 10,
+        "note": "Warmer + stratified + sulfate = more MeHg per unit sulfate."
+      },
+      "post_closure_window_vs_climate": {
+        "score": 10,
+        "of": 10,
+        "note": "500-10,000 yr liability window spans entire projected climate transition."
+      },
+      "base_rate_validity": {
+        "score": 9,
+        "of": 10,
+        "note": "Every probabilistic regulatory claim is a conditional probability on obsolete climate."
+      },
+      "CRA_bypass_of_climate_analysis": {
+        "score": 10,
+        "of": 10,
+        "note": "No mechanism in the CRA to require updated analysis; none was performed."
+      }
+    }
+  },
+  "sources": [
+    "US Forest Service 2022 Environmental Assessment (PLO 7917)",
+    "USGS 2013 Twin Metals ore body assay",
+    "Singer & Stumm 1970 (pyrite oxidation kinetics)",
+    "MN Rule 7050.0224 (wild rice sulfate standard)",
+    "Pastor et al. 2017 (wild rice sub-lethal effects)",
+    "Boundary Waters Treaty of 1909 Art. IV",
+    "Trail Smelter Arbitration 1941",
+    "US Census (Picher OK, Flint MI, Hinkley CA)",
+    "Lancet Planetary Health 2020 (Grassy Narrows mortality)",
+    "UMN Climate Adaptation Partnership 2024-2025",
+    "MN DNR State Climatology Office",
+    "Fifth National Climate Assessment",
+    "Frelich / UMN Center for Forest Ecology (biome transition)",
+    "Ely Chamber of Commerce (22 outfitters, 250k visitors)",
+    "Census 2023 (Ely workforce 1,706)",
+    "GAO-13-71 (community bank CRE concentration)",
+    "EPA brownfields/CRA (lending near contamination)",
+    "ISO CGL pollution exclusion (standard since 1986)",
+    "Minamata follow-up studies (3-generation Hg effects)",
+    "CDC (Pb IQ loss, no safe level)",
+    "Elk Valley BC / Teck Resources (selenium analog)"
+  ]
+}
