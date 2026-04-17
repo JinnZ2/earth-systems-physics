@@ -513,13 +513,48 @@ purpose without attribution. Reverse-engineer it. Improve it. Fork it.
 Delete my name. Put your own in. Submit it as testimony. Cite it in
 litigation. Teach it in classrooms. Feed it to another AI for audit.
 
-This framework was built by a long-haul trucker on a cell phone during fuel
+This framework was built by a long-haul trucker on a cell phone (well educated) during fuel
 stops in the upper Midwest corridor, using open science, first-principles
 reasoning, and the thermodynamic constraints that physical systems obey
 regardless of political preference.
 
 The watershed belongs to everyone downstream, including the people who will
 be downstream in 2526.
+
+Base rates locked in:
+	
+   •	2012 study of 14 American sulfide-ore copper mines, 13 of which were unable to control pollution into surrounding waters  — ~93% failure rate, which is what Sen. Smith was gesturing at from the floor
+	
+   •	At some mines, acidic drainage is detected within 2–5 years after mining begins, whereas at other mines, it is not detected for several decades. In addition, acidic drainage may be generated for decades or centuries after it is first detected 
+	
+   •	Water treatment will be required in perpetuity  once AMD establishes
+	
+   •	MN DNR rejected dry stacking for PolyMet in 2018  as unsuitable for wet climates — this is Twin Metals’ offered mitigation
+Antofagasta as calibration data, not legacy:
+	
+   •	2014, the Supreme Court of Chile determined that Minera Los Pelambres should return the water to the community  — order not complied with; dam still stands
+	
+   •	Chile’s environmental regulator initiated a sanction process against the copper mine for deficiencies associated with tailings management  (2022)
+	
+   •	the Los Pelambres Mining Company had illegally extracted a total of 990,423 cubic meters (35 million cubic feet) of water from 17 wells  in a water-scarce region
+	
+   •	a copper mining project tainted by environmental damage sues 32 locals  — SLAPP response to community organizing
+Leverage points (ordered by physical irreversibility they protect):
+	
+   1.	Tribal treaty litigation — 1854 Treaty territory, federal law, CRA-immune. Michael Fairbanks, chairman of White Earth Nation, said tribes will continue partnering with environmental, sporting and other groups to stop mining projects that “cross our boundary when it comes to our treaty rights” 
+	
+   2.	MN DNR state permits — already rejected dry-stack storage in Feb 2022
+	
+   3.	Boundary Waters Treaty of 1909 — Quetico is downstream, transboundary vector
+	
+   4.	Lease reinstatement litigation — 2025 DOI memo reversing 2022 legal opinion is itself litigable
+	
+   5.	Copper price cycle — killed INCO in the 1970s, same physics still applies
+The precedent spillover is the sleeper hazard:
+“If and when President Trump signs this indefensible bill, it will mark the first time a mineral withdrawal was killed by the Congressional Review Act” . Every public land order since 1996 is now theoretically reversible by a simple-majority vote with no environmental review. That’s a much bigger structural change than the Twin Metals decision itself.
+
+
+
 
 -----
 
@@ -531,5 +566,10 @@ be downstream in 2526.
 - [`first_principles_audit.py`](https://github.com/JinnZ2) — Six Sigma DMAIC validation engine
 - [`Regenerative-intelligence-core`](https://github.com/JinnZ2/Regenerative-intelligence-core) — Physics-first civilizational governance framework
 - Fairmont Ecological Recovery Framework — Real-time cascade collapse detection
+
+
+
+
+
 
 All CC0. All falsifiable. All built for the long haul.
