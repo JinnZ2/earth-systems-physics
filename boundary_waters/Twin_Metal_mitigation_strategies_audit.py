@@ -631,81 +631,81 @@ class ThermoClaim:
     falsifier: str
     state: str
 
-    THERMO_CLAIMS = [
+THERMO_CLAIMS = [
     ThermoClaim(
-    id="TT-1",
-    claim="Dry-stack tailings in wet boreal climate are a net thermodynamic improvement over wet tailings.",
-    falsifier="Show a wet-climate dry-stack facility with zero spill / leak events over operational life AND documented post-closure acid-generation suppression for >50 yr.",
-    state="UNFALSIFIED (>8,000 spills across 5 reference operations; MN DNR rejected for wet climate).",
-    ),
-    ThermoClaim(
-    id="TT-2",
-    claim="A 'closed-loop' water system in glacially-fractured Duluth Complex bedrock is physically achievable.",
-    falsifier="Demonstrate a comparable-hydrogeology mine with net-zero water exchange with surroundings across a full hydrologic year, including spring freshet.",
-    state="UNFALSIFIED (no precedent in literature).",
+        id="TT-1",
+        claim="Dry-stack tailings in wet boreal climate are a net thermodynamic improvement over wet tailings.",
+        falsifier="Show a wet-climate dry-stack facility with zero spill / leak events over operational life AND documented post-closure acid-generation suppression for >50 yr.",
+        state="UNFALSIFIED (>8,000 spills across 5 reference operations; MN DNR rejected for wet climate).",
     ),
     ThermoClaim(
-    id="TT-3",
-    claim="AI optimization of mine operations reduces ABSOLUTE watershed flux of metals, not just per-ton intensity.",
-    falsifier="Produce peer-reviewed study showing an AI-optimized mine reduced watershed-scale metal flux vs. baseline while maintaining or increasing production.",
-    state="UNFALSIFIED (all published AI metrics are intensity, not flux; Jevons-paradox dynamics suggest coupling runs in the opposite direction).",
+        id="TT-2",
+        claim="A 'closed-loop' water system in glacially-fractured Duluth Complex bedrock is physically achievable.",
+        falsifier="Demonstrate a comparable-hydrogeology mine with net-zero water exchange with surroundings across a full hydrologic year, including spring freshet.",
+        state="UNFALSIFIED (no precedent in literature).",
     ),
     ThermoClaim(
-    id="TT-4",
-    claim="Renewable-powered mining reduces the relevant harm function at Boundary Waters.",
-    falsifier="Show that watershed-scale acid and metal flux depends on the carbon intensity of the energy used to break the rock.",
-    state="TRIVIALLY UNFALSIFIABLE (rock chemistry is indifferent to the source of the bulldozer's power).",
+        id="TT-3",
+        claim="AI optimization of mine operations reduces ABSOLUTE watershed flux of metals, not just per-ton intensity.",
+        falsifier="Produce peer-reviewed study showing an AI-optimized mine reduced watershed-scale metal flux vs. baseline while maintaining or increasing production.",
+        state="UNFALSIFIED (all published AI metrics are intensity, not flux; Jevons-paradox dynamics suggest coupling runs in the opposite direction).",
     ),
     ThermoClaim(
-    id="TT-5",
-    claim="Autonomous haul fleets reduce net environmental impact.",
-    falsifier="Show that increased throughput (which is the explicit purpose of 24/7 autonomous ops) correlates with reduced total tailings generation.",
-    state="UNFALSIFIED; the relationship is physically inverted — more throughput = more tailings.",
+        id="TT-4",
+        claim="Renewable-powered mining reduces the relevant harm function at Boundary Waters.",
+        falsifier="Show that watershed-scale acid and metal flux depends on the carbon intensity of the energy used to break the rock.",
+        state="TRIVIALLY UNFALSIFIABLE (rock chemistry is indifferent to the source of the bulldozer's power).",
     ),
     ThermoClaim(
-    id="TT-6",
-    claim="Current ore grade decline is being offset by efficiency gains.",
-    falsifier="Show industry-wide energy/kg-Cu declining while ore grades decline.",
-    state="UNFALSIFIED. Calvo/Mudd: Chilean Cu industry used 46% more energy to produce 30% more Cu over 10 yr while grades fell ~29%.",
+        id="TT-5",
+        claim="Autonomous haul fleets reduce net environmental impact.",
+        falsifier="Show that increased throughput (which is the explicit purpose of 24/7 autonomous ops) correlates with reduced total tailings generation.",
+        state="UNFALSIFIED; the relationship is physically inverted -- more throughput = more tailings.",
     ),
     ThermoClaim(
-    id="TT-7",
-    claim="Perpetual post-closure treatment costs are bonded adequately.",
-    falsifier="Show a hardrock metal mine with a closure bond sized to fund treatment at market energy prices for >=500 years.",
-    state="UNFALSIFIED (industry-standard bonds are sized for decades).",
+        id="TT-6",
+        claim="Current ore grade decline is being offset by efficiency gains.",
+        falsifier="Show industry-wide energy/kg-Cu declining while ore grades decline.",
+        state="UNFALSIFIED. Calvo/Mudd: Chilean Cu industry used 46% more energy to produce 30% more Cu over 10 yr while grades fell ~29%.",
     ),
     ThermoClaim(
-    id="TT-8",
-    claim="The EROI of Twin Metals output, over full life-cycle boundary, is positive.",
-    falsifier="Present a full life-cycle EROI with perpetual-treatment term included out to the pyrite-oxidation extinction timescale.",
-    state="UNFALSIFIED; with the perpetual-treatment term included, site-level EROI is non-convergent.",
+        id="TT-7",
+        claim="Perpetual post-closure treatment costs are bonded adequately.",
+        falsifier="Show a hardrock metal mine with a closure bond sized to fund treatment at market energy prices for >=500 years.",
+        state="UNFALSIFIED (industry-standard bonds are sized for decades).",
     ),
     ThermoClaim(
-    id="TT-9",
-    claim="Ore from Twin Metals will be refined and used in a way that serves US energy transition / national security.",
-    falsifier="Show signed offtake agreements directing the ore to US-domestic smelters serving US-domestic clean-energy manufacturing.",
-    state="UNFALSIFIED. Public statements indicate export to Chinese smelters is the likely path.",
+        id="TT-8",
+        claim="The EROI of Twin Metals output, over full life-cycle boundary, is positive.",
+        falsifier="Present a full life-cycle EROI with perpetual-treatment term included out to the pyrite-oxidation extinction timescale.",
+        state="UNFALSIFIED; with the perpetual-treatment term included, site-level EROI is non-convergent.",
     ),
     ThermoClaim(
-    id="TT-10",
-    claim="The mitigation stack collectively reduces risk to the watershed to 'acceptable' levels.",
-    falsifier="Show that the joint failure probability across all mitigation layers (dry-stack + closed-loop + monitoring + bonding + corporate compliance) is below the base rate for this mine class (~7% non-failure).",
-    state=(
-    "UNFALSIFIED. US base rate for sulfide-ore Cu mine water-quality success: ~7%. "
-    "Parent-company compliance track record: documented Supreme-Court non-compliance. "
-    "Joint success probability is bounded ABOVE by the minimum of the layer probabilities, "
-    "which is the corporate-compliance layer at this site."
+        id="TT-9",
+        claim="Ore from Twin Metals will be refined and used in a way that serves US energy transition / national security.",
+        falsifier="Show signed offtake agreements directing the ore to US-domestic smelters serving US-domestic clean-energy manufacturing.",
+        state="UNFALSIFIED. Public statements indicate export to Chinese smelters is the likely path.",
     ),
+    ThermoClaim(
+        id="TT-10",
+        claim="The mitigation stack collectively reduces risk to the watershed to 'acceptable' levels.",
+        falsifier="Show that the joint failure probability across all mitigation layers (dry-stack + closed-loop + monitoring + bonding + corporate compliance) is below the base rate for this mine class (~7% non-failure).",
+        state=(
+            "UNFALSIFIED. US base rate for sulfide-ore Cu mine water-quality success: ~7%. "
+            "Parent-company compliance track record: documented Supreme-Court non-compliance. "
+            "Joint success probability is bounded ABOVE by the minimum of the layer probabilities, "
+            "which is the corporate-compliance layer at this site."
+        ),
     ),
-    ]
+]
 
-    # ==============================================================================
+# ==============================================================================
 
-    # SCORING (thermodynamic audit dimensions)
+# SCORING (thermodynamic audit dimensions)
 
-    # ==============================================================================
+# ==============================================================================
 
-    THERMO_SCORING = {
+THERMO_SCORING = {
     "dependency_stack_brittleness":       {"score": 9, "of": 10, "note": "Every mitigation has multiple single-point failure modes over required timescale."},
     "externality_off_balance_sheet":      {"score": 10, "of": 10, "note": "All major externalities are externalized; bonding is orders of magnitude short."},
     "eroi_integrability":                 {"score": 10, "of": 10, "note": "Perpetual-treatment term makes site-level EROI non-convergent."},
@@ -716,35 +716,35 @@ class ThermoClaim:
     "supply_chain_alignment":             {"score": 9, "of": 10, "note": "National-security framing depends on end use the company has not confirmed (and that public statements contradict)."},
     "institutional_memory_decay":         {"score": 8, "of": 10, "note": "Post-closure governance requires institutions more durable than any that exist."},
     "failure_base_rate":                  {"score": 9, "of": 10, "note": "US sulfide-ore Cu mines: ~93% failure rate in watershed protection."},
-    }
+}
 
-    # ==============================================================================
+# ==============================================================================
 
-    # TOP-LEVEL REPORT
+# TOP-LEVEL REPORT
 
-    # ==============================================================================
+# ==============================================================================
 
-    import json
+import json
 
 def emit_thermo_audit():
     return {
-    "audit_id": "BWCA-TwinMetals-ThermoEROI-2026-04-16",
-    "section_A_mitigation_dependencies": [m.__dict__ for m in MITIGATIONS],
-    "section_B_externality_ledger":       [e.__dict__ for e in EXTERNALITIES],
-    "section_C_eroi_stack":               [c.__dict__ for c in EROI_STACK],
-    "section_C_headline":                  EROI_HEADLINE,
-    "section_D_flow_diagram":              FLOW_DIAGRAM,
-    "section_E_failure_thermodynamics":    FAILURE_THERMO,
-    "section_F_falsifiable_thermo_claims":[t.__dict__ for t in THERMO_CLAIMS],
-    "scoring":                             THERMO_SCORING,
-    "one_line_finding": (
-    "The mitigation stack is a set of input-side efficiency improvements "
-    "loosely coupled or inversely coupled to the output-side harm function; "
-    "the EROI does not integrate to a finite positive number once the "
-    "perpetual-treatment tail is included; and the entropy export has no "
-    "place to go except the watershed, the treaty rights, and the "
-    "precedent-vulnerable federal public-lands system."
-    ),
+        "audit_id": "BWCA-TwinMetals-ThermoEROI-2026-04-16",
+        "section_A_mitigation_dependencies": [m.__dict__ for m in MITIGATIONS],
+        "section_B_externality_ledger":       [e.__dict__ for e in EXTERNALITIES],
+        "section_C_eroi_stack":               [c.__dict__ for c in EROI_STACK],
+        "section_C_headline":                  EROI_HEADLINE,
+        "section_D_flow_diagram":              FLOW_DIAGRAM,
+        "section_E_failure_thermodynamics":    FAILURE_THERMO,
+        "section_F_falsifiable_thermo_claims":[t.__dict__ for t in THERMO_CLAIMS],
+        "scoring":                             THERMO_SCORING,
+        "one_line_finding": (
+            "The mitigation stack is a set of input-side efficiency improvements "
+            "loosely coupled or inversely coupled to the output-side harm function; "
+            "the EROI does not integrate to a finite positive number once the "
+            "perpetual-treatment tail is included; and the entropy export has no "
+            "place to go except the watershed, the treaty rights, and the "
+            "precedent-vulnerable federal public-lands system."
+        ),
     }
 
 if __name__ == "__main__":
