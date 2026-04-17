@@ -3273,3 +3273,230 @@ class TestBoundaryWaters:
             if bw_path in sys.path:
                 sys.path.remove(bw_path)
             sys.modules.pop("constants", None)
+
+
+# ─────────────────────────────────────────────
+# MAGNOMECHANICAL SUB-STACK (previously untested)
+# ─────────────────────────────────────────────
+
+class TestBandedCrystalComputer:
+
+    def test_import_and_layer_types(self):
+        from banded_crystal_computer import LAYER_TYPES
+        assert len(LAYER_TYPES) >= 5
+        for name, spec in LAYER_TYPES.items():
+            for field in ("rho", "c_sound"):
+                assert field in spec, name + " missing " + field
+
+    def test_reflection_coefficient_bounds(self):
+        from banded_crystal_computer import reflection_coefficient
+        r = reflection_coefficient(1e6, 2e6)
+        assert -1.0 <= r <= 1.0
+
+    def test_stack_transmission_runs(self):
+        import numpy as np
+        from banded_crystal_computer import (
+            architecture_basic_magnonic_crystal, stack_transmission,
+        )
+        arch = architecture_basic_magnonic_crystal()
+        freqs = np.linspace(1e3, 1e6, 200)
+        t = stack_transmission(arch["layers"], freqs, T_K=300.0)
+        assert len(t) == 200
+        assert not any(np.isnan(t))
+
+
+class TestCavityOptomagnonics:
+
+    def test_import_and_presets(self):
+        from cavity_optomagnonics import CAVITY_PRESETS
+        assert len(CAVITY_PRESETS) >= 2
+
+    def test_kittel_frequency_positive(self):
+        from cavity_optomagnonics import kittel_freq
+        f = kittel_freq(H0=0.3, M_s=1.4e5, geometry="sphere")
+        assert f > 0
+
+    def test_coupling_regime_cooperativity(self):
+        from cavity_optomagnonics import coupling_regime
+        result = coupling_regime(
+            g_rad_s=1e6, kappa_rad_s=1e5, gamma_m_rad_s=1e4
+        )
+        assert "cooperativity" in result
+        assert result["cooperativity"] > 0
+        assert result["regime"] in ("weak", "strong")
+
+    def test_optomagnonic_coupling_state(self):
+        from cavity_optomagnonics import optomagnonic_coupling_state
+        state = optomagnonic_coupling_state()
+        assert isinstance(state, dict)
+        assert len(state) > 0
+
+
+class TestColdClimateCrystal:
+
+    def test_quartz_Q_increases_at_low_temp(self):
+        from cold_climate_crystal import quartz_Q_vs_temp
+        q_300 = quartz_Q_vs_temp(300.0)
+        q_77 = quartz_Q_vs_temp(77.0)
+        assert q_77 > q_300
+
+    def test_morin_transition_boundary(self):
+        from cold_climate_crystal import hematite_morin_state
+        above = hematite_morin_state(280.0)
+        below = hematite_morin_state(250.0)
+        assert above["state"] != below["state"]
+
+    def test_cold_climate_sensitivity_returns_snr(self):
+        from cold_climate_crystal import cold_climate_sensitivity
+        result = cold_climate_sensitivity(
+            T_K=77.0, fe_ppm=100.0, eta_cm=0.5,
+            thickness_m=0.001, diameter_m=0.01,
+            delta_B_T=500e-9, integration_time_s=1.0,
+        )
+        assert "snr_1s" in result
+        assert result["snr_1s"] >= 0
+
+    def test_climate_temps_catalog(self):
+        from cold_climate_crystal import CLIMATE_TEMPS
+        assert len(CLIMATE_TEMPS) >= 10
+
+
+class TestConfinedMagnonPolaron:
+
+    def test_geological_presets(self):
+        from confined_magnon_polaron import GEOLOGICAL_PRESETS
+        assert len(GEOLOGICAL_PRESETS) >= 5
+        for name in ("banded_iron_formation", "quartz_vein_iron",
+                      "magnetite_granite"):
+            assert name in GEOLOGICAL_PRESETS
+
+    def test_crystal_phonon_modes_returns_list(self):
+        from confined_magnon_polaron import crystal_phonon_modes
+        modes = crystal_phonon_modes(
+            thickness_m=0.001, c_sound=5000.0,
+            n_max=5, mode_type="thickness_shear",
+        )
+        assert len(modes) == 5
+        assert all(m["f_Hz"] > 0 for m in modes)
+
+    def test_confined_coupling_output_structure(self):
+        from confined_magnon_polaron import confined_coupling
+        results = confined_coupling()
+        assert len(results) > 0
+        for field in ("confinement_enhancement", "cooperativity",
+                      "gap_Hz", "f_phonon_Hz"):
+            assert field in results[0], "missing " + field
+
+
+class TestCrystalDeviceGradient:
+
+    def test_quartz_crystal_specs(self):
+        from crystal_device_gradient import quartz_crystal_specs
+        specs = quartz_crystal_specs()
+        assert specs["Q_mech"] >= 1e6
+        assert specs["d_26"] > 0
+
+    def test_frequency_shift_from_field(self):
+        from crystal_device_gradient import frequency_shift_from_field
+        result = frequency_shift_from_field(
+            delta_B_T=500e-9, f0_Hz=18.8e6, Q_mech=1e6,
+            eta_cm=0.5, fe_ppm=100.0,
+            crystal_volume_m3=1e-7, T=300.0,
+        )
+        assert "delta_f_Hz" in result
+        assert result["delta_f_Hz"] >= 0
+
+    def test_config_minimum_viable_is_cheap(self):
+        from crystal_device_gradient import config_minimum_viable
+        cfg = config_minimum_viable()
+        assert isinstance(cfg, dict)
+
+
+class TestMagnonPolaronHybridization:
+
+    def test_quartz_constants(self):
+        from magnon_polaron_hybridization import QUARTZ
+        assert QUARTZ["rho"] == 2650
+        assert QUARTZ["c_shear"] > 3000
+
+    def test_find_crossover_returns_frequency(self):
+        from magnon_polaron_hybridization import find_crossover
+        result = find_crossover(
+            H0=50e-6, M_s=1.0, A_ex=0, c_sound=5000.0,
+        )
+        assert "f_cross_Hz" in result
+        assert result["f_cross_Hz"] > 0
+
+    def test_hybridization_gap_positive(self):
+        from magnon_polaron_hybridization import hybridization_gap
+        result = hybridization_gap(
+            H0=50e-6, M_s=1.0, B_me=3.0,
+            c_sound=5000.0, rho=2650.0,
+        )
+        assert result["gap_Hz"] >= 0
+
+
+class TestMultiChannelCoupling:
+
+    def test_spin_orbit_dominates_magnetostriction(self):
+        from multi_channel_coupling import (
+            baseline_magnetostrictive, spin_orbit_coupling,
+        )
+        base = baseline_magnetostrictive(
+            thickness_m=0.001, diameter_m=0.01,
+            c_sound=5000.0, rho=2650.0, fe_ppm=100.0,
+            B_me=3.0, alpha=1e-4, Q_mech=1e6, H0=50e-6,
+        )
+        so = spin_orbit_coupling(base, fe_ppm=100.0)
+        assert so["C_ratio"] > 1.0
+
+    def test_stacked_channels_returns_strategies(self):
+        from multi_channel_coupling import (
+            baseline_magnetostrictive, stacked_channels,
+        )
+        base = baseline_magnetostrictive(
+            thickness_m=0.001, diameter_m=0.01,
+            c_sound=5000.0, rho=2650.0, fe_ppm=100.0,
+            B_me=3.0, alpha=1e-4, Q_mech=1e6, H0=50e-6,
+        )
+        result = stacked_channels(base, fe_ppm=100.0)
+        assert "strategies" in result
+        assert len(result["strategies"]) >= 1
+
+
+# ─────────────────────────────────────────────
+# ENERGY AUDIT (cross-layer thermodynamic check)
+# ─────────────────────────────────────────────
+
+class TestEnergyAudit:
+
+    def test_import_and_term_dicts(self):
+        from energy_audit import INPUT_TERMS, RESPONSE_TERMS, TRANSPORT_TERMS
+        assert len(INPUT_TERMS) >= 3
+        assert len(RESPONSE_TERMS) >= 3
+        assert len(TRANSPORT_TERMS) >= 3
+
+    def test_audit_with_baseline_forcing(self):
+        from energy_audit import audit_energy
+        from cascade_engine import BASELINE, Forcing
+        f = Forcing(
+            layer=3, variable="delta_CO2", magnitude=50,
+            units="ppm", description="test pulse",
+        )
+        result = audit_energy(f, BASELINE, verbose=False)
+        assert "status" in result
+        assert result["status"] in (
+            "NO_ENERGY_FORCING", "FORCING_PENDING",
+            "BALANCED", "PARTIAL_LEAK", "UNBALANCED",
+        )
+        assert "residual_pct" in result
+
+    def test_audit_no_energy_forcing(self):
+        from energy_audit import audit_energy
+        from cascade_engine import BASELINE, Forcing
+        f = Forcing(
+            layer=5, variable="fault_depth_m", magnitude=1.0,
+            units="m", description="non-energy forcing",
+        )
+        result = audit_energy(f, BASELINE, verbose=False)
+        assert result["energy_leak"] is False
