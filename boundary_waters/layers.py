@@ -53,17 +53,18 @@ def hydrology_layer(chem, year_since_start):
     Load L (kg/yr) -> concentration in receiving lake chain.
     Empirical ceiling: AMD plumes observed at 100-3000 mg/L SO4.
     """
-    annual_flow_m3 = KAWISHIWI_DISCHARGE_M3_S * 3600 * 24 * 365  # ~7.6e8 m3/yr
-
     # Receiving lake volume (Birch/South Kawishiwi chain ~ 0.3 km3)
     receiving_vol_m3 = 3.0e8
 
     # Steady-state: flush rate = 1/residence_time
     flush_rate_yr = 1.0 / MEAN_LAKE_RESIDENCE_YR
 
-    # Concentration (kg/m3 -> mg/L via *1000)
+    # Concentration: L/(k*V) yields kg/m3.
+    # The 0.04 mobilization fraction in chemistry_layer is an effective
+    # parameter that absorbs the kg/m3 -> mg/L factor (real annual
+    # fraction ~4e-5 * 1000 = 0.04). Result is numerically in mg/L.
     load_kg_yr = chem["sulfate_kg_yr"]
-    steady_state_mg_l = (load_kg_yr / (flush_rate_yr * receiving_vol_m3)) * 1000 / 1000
+    steady_state_mg_l = load_kg_yr / (flush_rate_yr * receiving_vol_m3)
 
     # Approach to steady state: 1 - exp(-t/tau)
     approach = 1 - exp(-year_since_start / MEAN_LAKE_RESIDENCE_YR) if year_since_start > 0 else 0
@@ -99,17 +100,17 @@ def ecology_layer(hydro, year_since_start):
     Wild rice, lake trout, loons, boreal forest, amphibians.
     Thresholds are fish-kill class, not 'slight stress'.
     """
-    manoomin_loss_frac = min(1.0, max(0, (hydro["sulfate_mg_l"] - 5) / (SULFATE_LETHAL_MG_L - 5)))
+    manoomin_loss_frac = min(1.0, max(0, (hydro["sulfate_mg_l"] - SULFATE_STRESS_MG_L) / (SULFATE_LETHAL_MG_L - SULFATE_STRESS_MG_L)))
     manoomin_acres_lost = MANOOMIN_ACRES_AT_RISK * manoomin_loss_frac
 
     lake_trout_hg_ppm = hydro["methyl_hg_ng_l"] * LAKE_TROUT_HG_BAF / 1e9 * 1e6 / 1000
     loon_mortality_frac = min(1.0, lake_trout_hg_ppm / LOON_HG_LETHAL_PPM)
 
     # Boreal forest downstream acidification (peatland die-off)
-    forest_loss_frac = min(0.4, hydro["sulfate_mg_l"] / 200.0)
+    forest_loss_frac = min(FOREST_LOSS_CAP_FRAC, hydro["sulfate_mg_l"] / FOREST_SENSITIVITY_MG_L)
     forest_acres_lost = BOREAL_FOREST_ACRES_CORRIDOR * forest_loss_frac
 
-    amphibian_collapse = hydro["sulfate_mg_l"] > 30
+    amphibian_collapse = hydro["sulfate_mg_l"] > AMPHIBIAN_COLLAPSE_MG_L
 
     return {
         "manoomin_acres_lost":  manoomin_acres_lost,
@@ -131,12 +132,13 @@ def community_layer(hydro, ecol, mine_active, year_since_start):
     Mine jobs vs. destroyed tourism/lumber/sovereignty jobs.
     """
     # Well contamination follows water table + substrate
-    well_contamination_frac = min(1.0, hydro["sulfate_mg_l"] / 40.0) if year_since_start > 2 else 0
+    well_contamination_frac = min(1.0, hydro["sulfate_mg_l"] / WELL_CONTAMINATION_THRESHOLD_MG_L) if year_since_start > WELL_CONTAMINATION_LAG_YR else 0
     wells_contaminated = int(RESIDENTS_WITHIN_20KM * WELL_DEPENDENT_FRAC * well_contamination_frac)
 
     # Forced migration trigger: well failure + no municipal alt
-    migration_pressure = well_contamination_frac * 0.7 + ecol["manoomin_acres_lost"]/MANOOMIN_ACRES_AT_RISK * 0.3
-    forced_migrants = int(RESIDENTS_WITHIN_20KM * min(0.65, migration_pressure))
+    migration_pressure = (well_contamination_frac * MIGRATION_WEIGHT_WELLS
+                          + ecol["manoomin_acres_lost"] / MANOOMIN_ACRES_AT_RISK * MIGRATION_WEIGHT_MANOOMIN)
+    forced_migrants = int(RESIDENTS_WITHIN_20KM * min(MIGRATION_CAP_FRAC, migration_pressure))
 
     # Treaty-protected harvesters (Bois Forte, Grand Portage, Fond du Lac)
     # Manoomin loss = usufructuary rights violation under 1854 Treaty
@@ -147,7 +149,7 @@ def community_layer(hydro, ecol, mine_active, year_since_start):
 
     # Jobs ledger
     mine_jobs = MINE_JOBS_DIRECT if mine_active else 0
-    tourism_loss_frac = min(1.0, hydro["sulfate_mg_l"] / 15.0)
+    tourism_loss_frac = min(1.0, hydro["sulfate_mg_l"] / TOURISM_COLLAPSE_MG_L)
     tourism_jobs_lost = int(TOURISM_JOBS_CURRENT * tourism_loss_frac)
 
     lumber_loss_frac = min(0.6, ecol["forest_acres_lost"] / BOREAL_FOREST_ACRES_CORRIDOR)
@@ -188,7 +190,7 @@ def port_layer(hydro, ecol, year_since_start):
 
     # Port labor cascade: tourism collapse + fish advisories + water quality
     # spills into Duluth service economy
-    port_impact_frac = min(0.3, year_since_start / 100.0 * ecol["loon_mortality_frac"])
+    port_impact_frac = min(PORT_IMPACT_CAP_FRAC, year_since_start / 100.0 * ecol["loon_mortality_frac"])
     port_jobs_at_risk = int(DULUTH_PORT_JOBS * port_impact_frac)
 
     # Downstream water users losing safe intake
@@ -219,6 +221,8 @@ def intl_law_layer(hydro, year_since_start, breach_days_accumulated):
     ijc_referral_triggered = total_breach_days > IJC_TRIGGER_DAYS
     trail_smelter_liability = total_breach_days > 365 * 2  # sustained 2-yr harm
 
+    # Undiscounted cumulative liability (total nominal, not present-value).
+    # Variable retains the _npv_ name for downstream CSV/test compatibility.
     liability_npv_usd = BREACH_LIABILITY_USD_ANNUAL * max(0, (total_breach_days / 365) - 1)
 
     return {

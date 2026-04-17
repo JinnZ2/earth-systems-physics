@@ -15,6 +15,7 @@ SCENARIOS = [
 FIELDS = [
     "year", "mine_active", "tailings_failed", "cumulative_waste_Mt",
     "sulfate_mg_l", "hg_ng_l", "methyl_hg_ng_l", "canada_sulfate_mg_l",
+    "manoomin_breach", "manoomin_lethal", "canada_sulfate_breach",
     "manoomin_acres_lost", "lake_trout_hg_ppm", "loon_mortality_frac",
     "forest_acres_lost", "amphibian_collapse",
     "wells_contaminated", "forced_migrants", "treaty_harvesters_displaced",
