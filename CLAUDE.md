@@ -12,7 +12,7 @@ Coupled differential equation framework mapping Earth physics as constraint laye
 pip install -r requirements.txt
 python cascade_engine.py              # Run all forcing scenarios
 python assumption_validator/api.py    # Start REST API on port 5000
-pytest -v                             # Run test suite (277 tests)
+pytest -v                             # Run test suite (308 tests)
 ```
 
 ## Architecture
@@ -58,7 +58,7 @@ earth-systems-physics/
 │
 ├── cascade_engine.py                  # Core forcing propagation engine
 ├── energy_audit.py                    # Cross-layer energy conservation audit
-├── test_smoke.py                      # 277 tests — all layers, scenarios, validators, audits
+├── test_smoke.py                      # 308 tests — all layers, scenarios, validators, audits
 │
 ├── ocean_timber_sequestration_audit.py # Full-cycle carbon audit of wood-in-ocean schemes
 ├── dollar_energy_metabolism.py        # Recursive energy cost model for climate finance
@@ -103,6 +103,16 @@ earth-systems-physics/
 ├── experiments/
 │   ├── magnetometer_build.py          # $5 smoky-quartz + HDD-magnet magnetometer build guide
 │   └── Possibilities.md               # Rough notes / speculative build ideas
+│
+├── boundary_waters/                   # BWCA sulfide-mine cascade simulation
+│   ├── constants.py                   # Physical constants: chemistry, hydrology, substrate, ecology, community, port, intl law
+│   ├── layers.py                      # Six layer engines (chemistry, hydrology, ecology, community, port, intl law)
+│   ├── cascade.py                     # Forcing propagation L0→L5 each year; 3 scenarios (protected, proceed, tailings_failure)
+│   ├── export.py                      # CSV export for all scenarios
+│   ├── impacts.md                     # Peak impact readout (proceed + tailings failure)
+│   ├── output_proceed.csv             # 500-year simulation output — mine operates
+│   ├── output_protected.csv           # 500-year simulation output — 20-yr withdrawal holds
+│   └── output_tailings_failure.csv    # 500-year simulation output — Mount Polley-class dam failure
 │
 ├── layer_0_electromagnetics.py        # Base constraint layer (+ magnonic/magnomech)
 ├── layer_0b_magnomechanical.py        # Spin-phonon coupling in crustal minerals
@@ -177,7 +187,7 @@ All physics functions require docstrings with: description, parameters (with typ
 
 ## Testing
 
-Framework: **pytest** — 277 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
+Framework: **pytest** — 308 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
 
 ```bash
 pytest                    # Run all tests
@@ -221,6 +231,30 @@ laws) to non-physical systems:
 These modules are standalone — they don't import from the physics layers —
 but they share conventions (dataclasses, `dict` state exports, pure-Python
 implementations, CC0 license).
+
+## Boundary Waters Canoe Area (BWCA) Sulfide Mine Simulation
+
+`boundary_waters/` is a standalone cascade simulation of a proposed sulfide mine on the Canadian Shield in the Rainy River watershed. It applies the same forcing-propagation architecture as `cascade_engine.py` but to a specific site with sourced physical constants.
+
+Six layer engines propagate forcing over a 500-year horizon:
+
+| Layer | Engine | Domain |
+|-------|--------|--------|
+| L0 | Chemistry | Acid rock drainage, heavy metal release (Singer-Stumm kinetics, microbial catalysis) |
+| L1 | Hydrology | Vollenweider mass balance, sulfate/Hg concentration in Kawishiwi chain → international boundary |
+| L2 | Ecology | Manoomin (wild rice), lake trout Hg bioaccumulation, loon mortality, boreal forest acidification |
+| L3 | Community | Well contamination, forced migration, treaty-harvester displacement, net jobs (mine vs tourism + lumber) |
+| L4 | Port | Lake Superior Hg loading, reservoir capacity loss, Duluth-Superior port impact |
+| L5 | International law | Boundary Waters Treaty 1909 Art. IV, Trail Smelter precedent, IJC referral trigger |
+
+Three scenarios: `protected` (20-yr mineral withdrawal holds), `proceed` (mine permitted), `tailings_failure` (Mount Polley-class dam breach at ~1.2%/yr historical rate).
+
+```bash
+cd boundary_waters && python cascade.py    # Run all 3 scenarios
+cd boundary_waters && python export.py     # Write CSV outputs
+```
+
+Key results (seed=42): proceed scenario peaks at 11.8 mg/L sulfate (above 10 mg/L manoomin threshold), 3,107 forced migrants, net −13,440 jobs. Tailings failure: 58.8 mg/L sulfate (past 50 mg/L lethal threshold, sustained 300+ years), $1.08T treaty liability NPV, net −17,616 jobs. Protected scenario: zero impact across all metrics.
 
 ## Paste-from-Markdown Recovery
 
