@@ -43,12 +43,28 @@ INTL_BOUNDARY_FLUX_FRAC       = 0.62    # frac reaching Canada
 
 # Wild rice sulfate threshold (MN Rule 7050.0224, manoomin science)
 
-SULFATE_TOXIC_MG_L            = 10.0
-SULFATE_LETHAL_MG_L           = 50.0
+SULFATE_STRESS_MG_L           = 5.0     # onset of sub-lethal effects (Pastor et al. 2017)
+SULFATE_TOXIC_MG_L            = 10.0    # MN Rule 7050.0224 wild-rice standard
+SULFATE_LETHAL_MG_L           = 50.0    # lethal to Zizania palustris (Myrbo et al. 2017)
 
 # ─────────────────────────────────────────────────────────────
+# LAYER 2 — ECOLOGY (behavioral / sociological assumptions)
+# ─────────────────────────────────────────────────────────────
+# These are structural assumptions, not measured constants.
+# They drive the community-layer headline numbers (forced
+# migrants, wells contaminated). Sensitivity analysis should
+# vary them.
 
-# LAYER 2 — SUBSTRATE (Canadian Shield — worst-case geology)
+WELL_CONTAMINATION_THRESHOLD_MG_L = 40.0   # sulfate at which all shallow wells fail
+WELL_CONTAMINATION_LAG_YR         = 2      # transport time surface -> shallow aquifer
+MIGRATION_WEIGHT_WELLS            = 0.7    # weight: well failure drives migration
+MIGRATION_WEIGHT_MANOOMIN         = 0.3    # weight: manoomin loss drives migration
+MIGRATION_CAP_FRAC                = 0.65   # max fraction of population that migrates
+FOREST_LOSS_CAP_FRAC              = 0.4    # max fraction of corridor affected
+FOREST_SENSITIVITY_MG_L           = 200.0  # sulfate at which forest loss hits cap
+PORT_IMPACT_CAP_FRAC              = 0.3    # max fraction of port jobs at risk
+AMPHIBIAN_COLLAPSE_MG_L           = 30.0   # sulfate threshold for amphibian collapse
+TOURISM_COLLAPSE_MG_L             = 15.0   # sulfate at which tourism fully collapses
 
 # ─────────────────────────────────────────────────────────────
 

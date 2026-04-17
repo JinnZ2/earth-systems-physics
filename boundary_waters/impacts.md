@@ -19,7 +19,7 @@ Peak impact (tailings dam failure — historical base rate ~1.2%/yr):
 	
 	•	Forest lost: 68,742 acres
 	
-	•	Treaty liability NPV: $1.08 trillion under Trail Smelter precedent
+	•	Treaty liability: $1.08 trillion cumulative undiscounted under Trail Smelter precedent (note: code labels this "NPV" but formula is undiscounted linear accumulation at $2.8B/yr × breach-years; true NPV at 3% discount would be lower)
 	
 	•	Net jobs: −17,616
 What the chart shows: the tailings-failure curve never drops back below the treaty threshold within the 500-year simulation. That’s the thermodynamic signature of AMD — ΔG is negative, microbial catalysis amplifies 10⁶×, and Shield granite provides zero buffering capacity. Once the reaction starts, it runs until the sulfide is gone, which takes centuries.
