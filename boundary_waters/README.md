@@ -5,6 +5,7 @@ proposed sulfide-ore copper-nickel mining in the Rainy River watershed above
 the Boundary Waters Canoe Area Wilderness.**
 
 500-year horizon. Three scenarios. 18 coupled subsystems.
+Six audits. Five self-reinforcing collapse loops.
 Stdlib-only Python. CC0. Falsifiable. Zero external dependencies.
 
 -----
@@ -106,9 +107,59 @@ what this model simulates.
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
+```
+                           |
+                           v
++-------------------------------------------------------------------------+
+|               SECONDARY EFFECTS (secondary_effects.py)                  |
+|                                                                         |
+|  Self-reinforcing loops:                                                |
+|    School death spiral   Healthcare collapse   Tax base death spiral    |
+|    Insurance withdrawal  Emergency services collapse                    |
+|                                                                         |
+|  Missing contaminants:        Ecological services:                      |
+|    Selenium (egg pathway)       Beaver dam water treatment              |
+|    Manganese (neurotoxin)       Mycorrhizal network integrity           |
+|                                 Invasive species corridors              |
+|                                                                         |
+|  Inter-generational:          Commercial cascade:                       |
+|    Epigenetic (3 gen Hg)        22 outfitters, 35 lodges, 60 retail     |
+|    Cultural knowledge break     Bank collateral impairment              |
+|    (identity-level, p=0.0)      Insurance market withdrawal             |
+|                                                                         |
+|  Peatland methane:            Extraction topology:                      |
+|    SRB suppression phase        TITLE->SURPLUS->POWER->ENFORCE->TITLE   |
+|    Post-sulfate CH4 rebound     Value exits state; cost stays forever   |
+|    Links to parent repo L3      Net transfers: 7 categories, all       |
+|                                   irreversible                          |
++-------------------------------------------------------------------------+
+```
+
+```
++-------------------------------------------------------------------------+
+|                    AUDITS (4 independent pipelines)                      |
+|                                                                         |
+|  Twin_Metals_audit.py              Corporate record + claim verification|
+|  Twin_Metal_mitigation_             Thermodynamic + EROI + externality  |
+|    strategies_audit.py              audit of each mitigation            |
+|  hidden_dependancies.py            Supply chain + ratepayer cost-shift  |
+|  climate_boundary.py               Stationarity collapse across all    |
+|                                     engineering assumptions             |
+|                                                                         |
+|  Each audit produces scored, falsifiable claims. No single axis         |
+|  requires the others to fail. The proposition needs all four to hold.   |
+|  None does.                                                             |
++-------------------------------------------------------------------------+
+```
+
 Each layer is a pure function: `state_out = layer(state_in)`. No hidden
 state. No mutable globals. Deterministic given a seed. Stochastic paths
 (tailings dam failure probability) are explicit and seedable.
+
+The secondary effects module adds **feedback loops** that the linear
+cascade misses. These loops make the real trajectory worse than the
+single-pass prediction because community collapse accelerates the
+conditions that caused it.
 
 -----
 
@@ -150,10 +201,45 @@ for demonstration.
 |Cumulative state 500-yr      |$0       |$56.7 B      |$118.9 B               |
 |Fiscal collapse year         |—        |5            |5                      |
 
-**The one-sentence summary:** The mine captures $3–5 B in ore revenue over
-20 years; Minnesota absorbs $57–119 B in externalities over 500 years
+**The one-sentence summary:** The mine captures $3-5 B in ore revenue over
+20 years; Minnesota absorbs $57-119 B in externalities over 500 years
 across homeowners, workers, municipalities, ratepayers, treaty-band
 harvesters, port operators, and the state general fund.
+
+### Secondary effects (self-reinforcing loops, seed=42)
+
+|Signal                            |Proceed  |Tailings failure|
+|----------------------------------|--------:|---------------:|
+|Community pop at year 30          |     754 |            179 |
+|School district                   |  CLOSED |         CLOSED |
+|Hospital                          |  CLOSED |         CLOSED |
+|Property insurance                |WITHDREW |       WITHDREW |
+|Volunteer firefighters at yr 30   |      30 |              7 |
+|Outfitters surviving              |   16/22 |           0/22 |
+|Lodges surviving                  |   26/35 |           0/35 |
+|Bank collateral impaired          |     Yes |            Yes |
+|Bank failure risk                 |      No |            Yes |
+|Credit contraction                |     27% |           80%  |
+|Peatland CH4 rebound (t CO2e/yr)  |       0 |       285,600  |
+|Cultural transmission viable      |     Yes |            Yes |
+
+### Extraction topology (extraction_topology.py)
+
+|What                  |Direction           |Duration        |Reversible|
+|----------------------|--------------------|----------------|----------|
+|Ore concentrate       |OUT (Chile/Asia)    |20 yr           |No        |
+|Revenue / dividends   |OUT (Santiago/London)|20 yr          |No        |
+|Lobbying capital      |OUT (DC/St. Paul)   |Continuous      |No        |
+|AMD                   |STAYS               |Centuries       |No        |
+|Hg loading            |STAYS               |Centuries       |No        |
+|Community collapse    |STAYS               |Permanent       |No        |
+|Treaty liability      |STAYS               |Perpetual       |No        |
+|Cultural knowledge    |DESTROYED           |Permanent       |No        |
+|Perpetual treatment   |STAYS (unfunded)    |Perpetuity      |No        |
+
+Composite extraction score: **98%**. The CAUSAL_LOOP from
+`substrate_audit.py` maps exactly: TITLE (lease) -> SURPLUS (ore revenue,
+exits state) -> POWER (lobbying) -> ENFORCE (CRA vote) -> TITLE.
 
 -----
 
@@ -183,11 +269,43 @@ harvesters, port operators, and the state general fund.
   applies climate feedback to chemistry.
 - `extended_export.py` — CSV output.
 
+### Secondary effects and extraction analysis
+
+- `secondary_effects.py` — Five self-reinforcing community collapse loops
+  (school, healthcare, insurance, emergency services, tax base), missing
+  contaminants (Se, Mn), ecological service loss (beaver, mycorrhizal,
+  invasives), inter-generational effects (epigenetic, cultural transmission
+  break), peatland CH4 feedback, and commercial cascade (22 outfitters,
+  35 lodges, banking, insurance).
+- `displacement_sources.py` — Sourced displacement analogs from Picher OK
+  (98.8% departure), Hinkley CA (32%), Flint MI (21%), Grassy Narrows ON
+  (90% mercury poisoning, community stayed). Documents the five displacement
+  pathways and derives the model's behavioral parameters from census data.
+- `extraction_topology.py` — Maps the mine onto `substrate_audit.CAUSAL_LOOP`.
+  Value flow ledger (5 outflows, 6 costs that stay), net transfer accounting
+  (7 categories, each with falsifiable claim), composite score 98%.
+
+### Audits (four independent pipelines)
+
+- `Twin_Metals_audit.py` — Corporate record, claim verification, public
+  statements vs actual operational history of Antofagasta.
+- `Twin_Metal_mitigation_strategies_audit.py` — Thermodynamic dependency
+  stack, EROI, and externality burden for each proposed mitigation.
+- `hidden_dependancies.py` — Supply chain dependencies, ratepayer cost-shift,
+  grid stress, reagent chain fragility.
+- `climate_boundary.py` — Climate boundary-condition audit: 10 ground-truth
+  trends, 8 mitigation breaks, wildfire x tailings coupling, 10 falsifiable
+  claims, stationarity collapse table.
+
+### Monte Carlo
+
+- `monty_carlo.py` — Stochastic analysis over tailings failure timing.
+
 ### Output data
 
-- `output_*.csv` — Physical cascade, 500 rows × 28 fields per scenario.
-- `econ_*.csv` — Economic cascade, 500 rows × 42 fields per scenario.
-- `extended_*.csv` — Extended cascade, 500 rows × 58 fields per scenario.
+- `output_*.csv` — Physical cascade, 500 rows x 31 fields per scenario.
+- `econ_*.csv` — Economic cascade, 500 rows x 42 fields per scenario.
+- `extended_*.csv` — Extended cascade, 500 rows x 58 fields per scenario.
 
 -----
 
@@ -415,28 +533,45 @@ ensemble; run multiple seeds.
 
 ## Known limitations and next modules
 
-### Physical cascade
+### Addressed in this version
 
-- Climate→chemistry feedback is post-hoc rather than closed-loop iteration
+- **Secondary community collapse loops**: school, healthcare, insurance,
+  emergency services, tax base death spirals now modeled with feedback
+  (`secondary_effects.py`)
+- **Missing contaminants**: selenium (egg bioaccumulation pathway) and
+  manganese (child neurotoxicity) now tracked
+- **Ecological service loss**: beaver dam treatment, mycorrhizal network
+  integrity, invasive species corridors now modeled
+- **Inter-generational effects**: epigenetic Hg transmission (3 gen,
+  Minamata data), cultural knowledge transmission break (identity-level,
+  replacement probability 0.0)
+- **Peatland methane feedback**: SRB suppression -> post-sulfate CH4
+  rebound linking to parent repo's atmosphere layer
+- **Commercial cascade**: 22 outfitters, 35 lodges, 60 retail, banking
+  collateral impairment, insurance market withdrawal
+- **Displacement sourcing**: five pathways documented from Picher, Hinkley,
+  Flint, Grassy Narrows census data (`displacement_sources.py`)
+- **Extraction topology**: CAUSAL_LOOP mapping, value flow ledger, net
+  transfer accounting (`extraction_topology.py`)
+- **Climate boundary audit**: 10 trends, 8 mitigation breaks, wildfire x
+  tailings, stationarity collapse (`climate_boundary.py`)
+
+### Still outstanding
+
+- Climate->chemistry feedback is post-hoc rather than closed-loop iteration
 - No explicit groundwater transport model (uses residence-time proxy)
 - Heavy metal speciation simplified (assumes equilibrium)
-
-### Economic cascade
-
 - Discount rate not applied to future costs (figures are undiscounted)
 - Inflation not modeled (2026 USD held constant across 500 yr)
 - Ojibwe fish consumption uses population average; household-level
   distribution would show worse tails
-
-### Extended cascade
-
-- Monte Carlo over tailings + wildfire timing not yet implemented
-- Closed-loop climate→chemistry feedback pending
 - Iron Range permit-cascade effect (if BWCA contamination triggers regional
   opposition to *any* mining, 62% of Duluth tonnage at risk not 5%)
 - Canadian retaliation beyond port refusal (water-quality litigation,
   ballast-water treatment premiums, customs inspection multipliers)
-- Downwind crop yield loss calculated but not costed in $
+- Moose population decline (winter tick + climate + habitat fragmentation)
+- Pollinator cascade (heavy metals in wildflowers -> bee decline -> berry
+  production -> food web)
 
 ### Integration points
 
@@ -444,11 +579,12 @@ ensemble; run multiple seeds.
   tailings-dam stability modeling
 - Link to `assumption_validator` to convert hardcoded thresholds into
   GREEN/YELLOW/RED falsifiable boundaries
-- Link to `substrate_audit.py` TC-1/TC-6 for monetary metrology validation
-  (what is “mine revenue” denominated against? real physical quantity or
-  monetary-unit drift?)
-- Link to `first_principles_audit.py` DMAIC pipeline for Six Sigma
-  validation of each coefficient
+- Link to `substrate_audit.py` — extraction topology already mapped;
+  CAUSAL_LOOP confirmed as exact instance
+- Link to `calibration/architecture_mismatch.py` — cultural knowledge loss
+  already wired via identity-level encoding classifier
+- Peatland CH4 -> `layer_3_atmosphere.py` coupling (pathway identified,
+  not yet wired into parent cascade_engine)
 
 -----
 
