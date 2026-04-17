@@ -3113,3 +3113,163 @@ class TestArchitectureMismatch:
         for r in records:
             assert isinstance(r["value"], float)
             assert 0.0 <= r["value"] <= 1.0
+
+
+# ─────────────────────────────────────────────
+# BOUNDARY WATERS (BWCA sulfide mine cascade)
+# ─────────────────────────────────────────────
+
+class TestBoundaryWaters:
+    """Smoke tests for the boundary_waters sulfide-mine simulation.
+
+    The folder is structured as a standalone script package (bare
+    imports inside the folder), so the tests adjust sys.path before
+    importing and clean up afterward. The peak-impact assertions
+    reproduce the numbers recorded in boundary_waters/impacts.md
+    at the default seed.
+    """
+
+    BW_DIR = "boundary_waters"
+
+    def _import_cascade(self):
+        import os
+        import sys
+        bw_path = os.path.abspath(self.BW_DIR)
+        if bw_path not in sys.path:
+            sys.path.insert(0, bw_path)
+        # Force reimport so the test does not see a stale module
+        # cached from a previous run or test.
+        for mod in ("cascade", "layers", "constants"):
+            sys.modules.pop(mod, None)
+        import cascade
+        return cascade, bw_path
+
+    def _cleanup_path(self, bw_path):
+        import sys
+        if bw_path in sys.path:
+            sys.path.remove(bw_path)
+        for mod in ("cascade", "layers", "constants"):
+            sys.modules.pop(mod, None)
+
+    def test_all_three_scenarios_produce_500_year_history(self):
+        cascade, bw_path = self._import_cascade()
+        try:
+            for scenario in ("protected", "proceed", "tailings_failure"):
+                hist = cascade.run_cascade(scenario=scenario)
+                assert len(hist) == 500, (
+                    scenario + " produced " + str(len(hist))
+                    + " years, expected 500"
+                )
+                first = hist[0]
+                for field in (
+                    "year", "mine_active", "tailings_failed",
+                    "cumulative_waste_Mt", "sulfate_mg_l",
+                    "forced_migrants", "wells_contaminated",
+                    "forest_acres_lost", "net_jobs",
+                    "liability_npv_usd",
+                ):
+                    assert field in first, (
+                        scenario + " year 0 missing " + field
+                    )
+        finally:
+            self._cleanup_path(bw_path)
+
+    def test_protected_scenario_has_zero_impact(self):
+        """If the 20-year withdrawal holds, the mine never operates
+        and every impact metric stays at zero for the full horizon."""
+        cascade, bw_path = self._import_cascade()
+        try:
+            hist = cascade.run_cascade(scenario="protected")
+            assert max(r["sulfate_mg_l"] for r in hist) == 0.0
+            assert max(r["forced_migrants"] for r in hist) == 0
+            assert max(r["wells_contaminated"] for r in hist) == 0
+            assert max(r["forest_acres_lost"] for r in hist) == 0
+            assert max(r["liability_npv_usd"] for r in hist) == 0
+            assert not any(r["mine_active"] for r in hist)
+        finally:
+            self._cleanup_path(bw_path)
+
+    def test_proceed_scenario_matches_impacts_md(self):
+        """Peak impact numbers in impacts.md for the proceed
+        scenario, seed=42."""
+        cascade, bw_path = self._import_cascade()
+        try:
+            hist = cascade.run_cascade(seed=42, scenario="proceed")
+            peak_so4 = max(r["sulfate_mg_l"] for r in hist)
+            peak_migrants = max(r["forced_migrants"] for r in hist)
+            peak_wells = max(r["wells_contaminated"] for r in hist)
+            peak_forest = max(r["forest_acres_lost"] for r in hist)
+            assert abs(peak_so4 - 11.8) < 0.2, peak_so4
+            assert peak_migrants == 3107, peak_migrants
+            assert peak_wells == 3059, peak_wells
+            assert 13700 < peak_forest < 13800, peak_forest
+        finally:
+            self._cleanup_path(bw_path)
+
+    def test_tailings_failure_crosses_lethal_and_triggers_liability(self):
+        """Peak impact numbers in impacts.md for the
+        tailings_failure scenario, seed=42: sulfate past the lethal
+        manoomin threshold, treaty liability in the trillion-dollar
+        range."""
+        cascade, bw_path = self._import_cascade()
+        try:
+            hist = cascade.run_cascade(
+                seed=42, scenario="tailings_failure"
+            )
+            peak_so4 = max(r["sulfate_mg_l"] for r in hist)
+            peak_migrants = max(r["forced_migrants"] for r in hist)
+            peak_wells = max(r["wells_contaminated"] for r in hist)
+            peak_forest = max(r["forest_acres_lost"] for r in hist)
+            peak_liability = max(r["liability_npv_usd"] for r in hist)
+            # Lethal threshold for manoomin is 50 mg/L; peak must
+            # exceed that in the tailings-failure scenario.
+            assert peak_so4 > 50.0, peak_so4
+            assert abs(peak_so4 - 58.8) < 0.5, peak_so4
+            assert peak_migrants == 8060, peak_migrants
+            assert peak_wells == 10416, peak_wells
+            assert 68000 < peak_forest < 69500, peak_forest
+            # Treaty liability NPV ≈ $1.08 trillion (within 5%).
+            assert peak_liability > 1.0e12, peak_liability
+            assert abs(peak_liability - 1.08e12) / 1.08e12 < 0.05
+            # Trail Smelter liability must trigger under sustained
+            # breach.
+            assert any(
+                r["trail_smelter_liability"] for r in hist
+            )
+        finally:
+            self._cleanup_path(bw_path)
+
+    def test_cascade_is_deterministic_at_fixed_seed(self):
+        """Two runs of the proceed scenario at the same seed must
+        produce identical peak sulfate values (determinism guard for
+        the stochastic tailings-failure path)."""
+        cascade, bw_path = self._import_cascade()
+        try:
+            a = cascade.run_cascade(seed=7, scenario="proceed")
+            b = cascade.run_cascade(seed=7, scenario="proceed")
+            peak_a = max(r["sulfate_mg_l"] for r in a)
+            peak_b = max(r["sulfate_mg_l"] for r in b)
+            assert peak_a == peak_b
+        finally:
+            self._cleanup_path(bw_path)
+
+    def test_constants_round_trip(self):
+        """The layer engines read constants by name; verify a
+        representative sample is present and typed."""
+        import os
+        import sys
+        bw_path = os.path.abspath(self.BW_DIR)
+        if bw_path not in sys.path:
+            sys.path.insert(0, bw_path)
+        sys.modules.pop("constants", None)
+        try:
+            import constants
+            assert constants.SULFATE_TOXIC_MG_L == 10.0
+            assert constants.SULFATE_LETHAL_MG_L == 50.0
+            assert constants.SIM_YEARS == 500
+            assert constants.TAILINGS_FAILURE_P > 0
+            assert constants.INTL_BOUNDARY_FLUX_FRAC < 1.0
+        finally:
+            if bw_path in sys.path:
+                sys.path.remove(bw_path)
+            sys.modules.pop("constants", None)
