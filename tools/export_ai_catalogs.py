@@ -406,6 +406,38 @@ CATALOGS = [
             "can join them."
         ),
     },
+    # ── calibration / architecture_mismatch ───────────────────
+    {
+        "name": "architecture_failure_modes",
+        "module": "calibration.architecture_mismatch",
+        "symbol": "FAILURE_MODES",
+        "description": (
+            "Seven named failure modes that occur when a "
+            "language-primary system interacts with a "
+            "substrate-primary user: nostalgia_frame_substitution, "
+            "written_version_offered_back, brevity_misread_as_absence, "
+            "certification_equated_with_capacity, "
+            "pathologizing_substrate_architecture, "
+            "addressing_wrong_architectural_layer, "
+            "treating_absence_of_documentation_as_absence_of_knowledge. "
+            "Each record has description, detection_signal, and "
+            "correction."
+        ),
+    },
+    {
+        "name": "encoding_layer_decay_rates",
+        "module": "calibration.architecture_mismatch",
+        "symbol": "DECAY_RATES",
+        "description": (
+            "Annual decay rate (fraction of capacity lost per year "
+            "of disuse) for each encoding layer: identity_level "
+            "(effectively stable), deeply_encoded (decades to "
+            "meaningful decay), procedurally_stored (years), "
+            "technique_level (months). Used by EncodingProfile "
+            "and the classifier to predict how a capacity will "
+            "behave under disuse and stress."
+        ),
+    },
 ]
 
 
