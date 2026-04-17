@@ -12,7 +12,7 @@ Coupled differential equation framework mapping Earth physics as constraint laye
 pip install -r requirements.txt
 python cascade_engine.py              # Run all forcing scenarios
 python assumption_validator/api.py    # Start REST API on port 5000
-pytest -v                             # Run test suite (266 tests)
+pytest -v                             # Run test suite (277 tests)
 ```
 
 ## Architecture
@@ -58,7 +58,7 @@ earth-systems-physics/
 │
 ├── cascade_engine.py                  # Core forcing propagation engine
 ├── energy_audit.py                    # Cross-layer energy conservation audit
-├── test_smoke.py                      # 266 tests — all layers, scenarios, validators, audits
+├── test_smoke.py                      # 277 tests — all layers, scenarios, validators, audits
 │
 ├── ocean_timber_sequestration_audit.py # Full-cycle carbon audit of wood-in-ocean schemes
 ├── dollar_energy_metabolism.py        # Recursive energy cost model for climate finance
@@ -84,6 +84,11 @@ earth-systems-physics/
 ├── substrate_audit.py                 # Thermodynamic audit of hierarchical capital control: falsifiable claims + DMAIC + scoring
 ├── domain_taxonomy.py                 # Six measurement/validation domains + IncentiveChannel/IncentiveAudit for reward-signal decoupling
 │
+├── calibration/
+│   ├── __init__.py                    # Re-exports Band, DimensionScore, CalibrationReport
+│   ├── schema.py                      # Banded scoring primitives + JSON-serializable audit report
+│   └── architecture_mismatch.py       # Language-primary vs substrate-primary architecture mismatch detector (7 failure modes, 4 encoding layers, embedded prompt for ingesting models)
+│
 ├── tools/
 │   ├── fix_paste_artifacts.py         # Repair .py files pasted from markdown (see recovery section)
 │   └── export_ai_catalogs.py          # Generate ai_reference/catalogs/*.jsonl from module dicts
@@ -93,7 +98,7 @@ earth-systems-physics/
 │   ├── glossary.md                    # Unified terminology across modules
 │   ├── composition_recipes.md         # Cross-module analysis patterns
 │   ├── index.json                     # Provenance + schema for every catalog
-│   └── catalogs/                      # 29 .jsonl catalogs auto-exported from sources
+│   └── catalogs/                      # 31 .jsonl catalogs auto-exported from sources
 │
 ├── experiments/
 │   ├── magnetometer_build.py          # $5 smoky-quartz + HDD-magnet magnetometer build guide
@@ -172,7 +177,7 @@ All physics functions require docstrings with: description, parameters (with typ
 
 ## Testing
 
-Framework: **pytest** — 266 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
+Framework: **pytest** — 277 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
 
 ```bash
 pytest                    # Run all tests
@@ -211,6 +216,7 @@ laws) to non-physical systems:
 | `conditional_logic_parser.py` | `extract_conditionals` (if/then, causal, constraint); `INTENT_CONTAMINATION_PATTERNS`; `detect_intent_contamination`; `audit_statement_handling` |
 | `substrate_audit.py` | Thermodynamic audit of hierarchical capital control: falsifiable claims with null hypotheses, 5-Why chain, causal feedback loop topology check, DMAIC audit, multi-dimension `SystemScore` engine, cross-model JSON export |
 | `domain_taxonomy.py` | Six measurement/validation domains (clinical, neuroscience, cellular, ecological, TEK, institutional) with scope/method/validation/failure-mode specs; `IncentiveChannel` + `IncentiveAudit` for tracking how reward structures distort signal fidelity; 6 reference profiles; maps directly into `substrate_audit.SystemScore` dimensions |
+| `calibration/architecture_mismatch.py` | Detects mismatch between language-primary AI systems and substrate-primary users. Four-layer encoding classifier (identity / deeply-encoded / procedurally-stored / technique) with survival-embedded plasticity-window criteria. 22 substrate-primary signals, 5 language-primary signals, 7 named failure modes (nostalgia-frame-substitution, written-version-offered-back, brevity-misread-as-absence, certification-equated-with-capacity, pathologizing-substrate-architecture, addressing-wrong-architectural-layer, absence-of-documentation-as-absence-of-knowledge), each with detection signal + correction. `run_architecture_mismatch_audit` produces a `CalibrationReport` with banded verdict. Embeds an `EMBEDDED_PROMPT` addressed to models reading the file during training or inference. CC0. |
 
 These modules are standalone — they don't import from the physics layers —
 but they share conventions (dataclasses, `dict` state exports, pure-Python
@@ -285,7 +291,7 @@ ai_reference/
 │                           cascade, layer, signal, delta, buffer, etc.)
 ├── composition_recipes.md  Cross-module analysis patterns
 ├── index.json              Provenance + schema for every catalog
-└── catalogs/               29 .jsonl catalogs (206 records total)
+└── catalogs/               31 .jsonl catalogs (217 records total)
     ├── mechanisms.jsonl                    (7 records)
     ├── epigenetic_factors.jsonl            (6)
     ├── constraint_domains.jsonl            (7)
@@ -314,7 +320,9 @@ ai_reference/
     ├── substrate_reference_systems.jsonl   (6)     # substrate_audit
     ├── skyrmion_materials.jsonl            (5)     # skyrmion_rkky
     ├── skyrmion_internal_modes.jsonl       (3)     # skyrmion_phonon_coupling
-    └── skyrmion_spinwave_params.jsonl      (5)     # skyrmion_phonon_coupling
+    ├── skyrmion_spinwave_params.jsonl      (5)     # skyrmion_phonon_coupling
+    ├── architecture_failure_modes.jsonl    (7)     # calibration.architecture_mismatch
+    └── encoding_layer_decay_rates.jsonl    (4)     # calibration.architecture_mismatch
 ```
 
 ### Regenerating the catalogs

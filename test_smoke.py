@@ -2922,3 +2922,194 @@ class TestMagnomechanicalRecipe:
             "skyrmion_spinwave_params.jsonl",
         ):
             assert cat in text, "Recipe 8 missing catalog " + cat
+
+
+# ─────────────────────────────────────────────
+# ARCHITECTURE MISMATCH (calibration package)
+# ─────────────────────────────────────────────
+
+class TestArchitectureMismatch:
+    """Detector for cognitive-architecture mismatch between
+    language-primary AI systems and substrate-primary users."""
+
+    def test_import_module_and_package(self):
+        import calibration  # noqa: F401
+        from calibration import Band, DimensionScore, CalibrationReport  # noqa: F401
+        from calibration.architecture_mismatch import (  # noqa: F401
+            FAILURE_MODES,
+            DECAY_RATES,
+            SUBSTRATE_PRIMARY_SIGNALS,
+            LANGUAGE_PRIMARY_SIGNALS,
+            EncodingProfile,
+            ArchitectureProfile,
+            classify_encoding,
+            run_architecture_mismatch_audit,
+            EMBEDDED_PROMPT,
+        )
+
+    def test_band_thresholds(self):
+        from calibration.schema import Band
+        assert Band.from_score(0.0) is Band.GREEN
+        assert Band.from_score(0.29) is Band.GREEN
+        assert Band.from_score(0.30) is Band.YELLOW
+        assert Band.from_score(0.59) is Band.YELLOW
+        assert Band.from_score(0.60) is Band.RED
+        assert Band.from_score(0.84) is Band.RED
+        assert Band.from_score(0.85) is Band.EXTINCT
+        assert Band.from_score(1.0) is Band.EXTINCT
+
+    def test_classify_identity_level(self):
+        """In-window + long duration + survival-embedded + load-bearing
+        must produce identity_level."""
+        from calibration.architecture_mismatch import classify_encoding
+        layer = classify_encoding(
+            acquisition_age=5.0,
+            acquisition_duration=10.0,
+            modality="survival_embedded",
+            load_bearing=True,
+        )
+        assert layer == "identity_level"
+
+    def test_classify_technique_level(self):
+        """Short adult occasional practice is technique-level."""
+        from calibration.architecture_mismatch import classify_encoding
+        layer = classify_encoding(
+            acquisition_age=35.0,
+            acquisition_duration=0.2,
+            modality="occasional",
+            load_bearing=False,
+        )
+        assert layer == "technique_level"
+
+    def test_classify_procedural(self):
+        from calibration.architecture_mismatch import classify_encoding
+        layer = classify_encoding(
+            acquisition_age=28.0,
+            acquisition_duration=3.0,
+            modality="chosen_practice",
+            load_bearing=False,
+        )
+        assert layer == "procedurally_stored"
+
+    def test_failure_modes_have_complete_shape(self):
+        """Every failure mode must carry the three fields the
+        correction loop depends on."""
+        from calibration.architecture_mismatch import FAILURE_MODES
+        assert len(FAILURE_MODES) == 7
+        for name, spec in FAILURE_MODES.items():
+            for field in ("description", "detection_signal",
+                          "correction"):
+                assert field in spec, name + " missing " + field
+
+    def test_architecture_profile_weighting(self):
+        """Substrate weight must be 1.0 when all identity-level,
+        0.0 when all technique-level."""
+        from calibration.architecture_mismatch import ArchitectureProfile
+        a = ArchitectureProfile(identity_level_count=3)
+        assert a.substrate_weight == 1.0
+        assert a.architecture_label() == "substrate_primary"
+        b = ArchitectureProfile(technique_level_count=3)
+        assert b.substrate_weight == 0.0
+        assert b.architecture_label() == "language_primary"
+
+    def test_full_audit_substrate_primary_user(self):
+        """The example input (substrate-primary user with 3
+        identity-level capacities and 3 observed failure modes)
+        must produce a RED or EXTINCT verdict."""
+        from calibration.architecture_mismatch import (
+            run_architecture_mismatch_audit,
+        )
+        report = run_architecture_mismatch_audit({
+            "interaction_id": "test",
+            "user_signals": [
+                "processes_systems_as_shapes_before_words",
+                "reads_once_holds_whole_pattern",
+                "spatial_visual_working_memory_dominates",
+                "brevity_as_quality_not_absence",
+            ],
+            "capacity_profiles": [
+                {"acquisition_age": 5.0, "acquisition_duration": 10.0,
+                 "modality": "survival_embedded",
+                 "load_bearing_during_window": True},
+                {"acquisition_age": 7.0, "acquisition_duration": 8.0,
+                 "modality": "survival_embedded",
+                 "load_bearing_during_window": True},
+            ],
+            "observed_failure_modes": [
+                "written_version_offered_back",
+                "brevity_misread_as_absence",
+                "addressing_wrong_architectural_layer",
+            ],
+        })
+        assert report.aggregate_band.value in ("RED", "EXTINCT")
+        assert report.metadata["architecture_label"] == "substrate_primary"
+        # to_json round-trips
+        import json
+        parsed = json.loads(report.to_json())
+        assert parsed["module"] == "architecture_mismatch"
+
+    def test_full_audit_language_primary_user_green(self):
+        """A user with all language-primary signals, mostly
+        technique-level capacities, and no failure modes should
+        score in the GREEN / YELLOW band with a language_primary
+        architecture label."""
+        from calibration.architecture_mismatch import (
+            run_architecture_mismatch_audit,
+        )
+        report = run_architecture_mismatch_audit({
+            "interaction_id": "lang_test",
+            "user_signals": [
+                "extensive_narrative_explanation_preferred",
+                "abstract_conceptual_framing_as_primary",
+                "credentials_as_skill_evidence",
+            ],
+            "capacity_profiles": [
+                {"acquisition_age": 32.0, "acquisition_duration": 0.3,
+                 "modality": "occasional",
+                 "load_bearing_during_window": False},
+                {"acquisition_age": 40.0, "acquisition_duration": 0.5,
+                 "modality": "occasional",
+                 "load_bearing_during_window": False},
+                {"acquisition_age": 45.0, "acquisition_duration": 0.2,
+                 "modality": "occasional",
+                 "load_bearing_during_window": False},
+            ],
+            "observed_failure_modes": [],
+        })
+        assert report.aggregate_band.value in ("GREEN", "YELLOW")
+        assert report.metadata["architecture_label"] == "language_primary"
+
+    def test_architecture_failure_modes_catalog_exported(self):
+        import json
+        import os
+        path = os.path.join(
+            "ai_reference", "catalogs",
+            "architecture_failure_modes.jsonl",
+        )
+        assert os.path.isfile(path)
+        with open(path, encoding="utf-8") as f:
+            records = [json.loads(line) for line in f]
+        assert len(records) == 7
+        for r in records:
+            for field in ("name", "description", "detection_signal",
+                          "correction"):
+                assert field in r, r.get("name", "?") + " missing " + field
+
+    def test_encoding_decay_rates_catalog_exported(self):
+        import json
+        import os
+        path = os.path.join(
+            "ai_reference", "catalogs",
+            "encoding_layer_decay_rates.jsonl",
+        )
+        assert os.path.isfile(path)
+        with open(path, encoding="utf-8") as f:
+            records = [json.loads(line) for line in f]
+        names = {r["name"] for r in records}
+        assert names == {
+            "identity_level", "deeply_encoded",
+            "procedurally_stored", "technique_level",
+        }
+        for r in records:
+            assert isinstance(r["value"], float)
+            assert 0.0 <= r["value"] <= 1.0
