@@ -1,9 +1,9 @@
-“””
+"""
 Extended constants — lumber, fish consumption, climate, air quality,
 wildfire, port. Sources: USFS FIA, EPA CAMD, NOAA climate projections,
 CDC ATSDR, GLIFWC fish consumption surveys, MPCA Hg TMDL, Duluth Seaway
 Port Authority annual reports, IMO MARPOL Annex VI.
-“””
+"""
 
 # ═════════════════════════════════════════════════════════════
 
