@@ -1,8 +1,8 @@
-“””
+"""
 BWCA sulfide mine cascade simulation — physical constants.
 All values sourced from peer-reviewed lit, EPA records, or USFS 2022 EA.
 CC0. Stdlib only.
-“””
+"""
 
 # ─────────────────────────────────────────────────────────────
 
@@ -118,9 +118,9 @@ DOWNSTREAM_USERS_RELIANT      = 680_000  # Rainy R. + LOTW basin
 
 # Boundary Waters Treaty 1909, Art. IV:
 
-# “waters…shall not be polluted on either side to the injury
+# "waters…shall not be polluted on either side to the injury
 
-# of health or property on the other”
+# of health or property on the other"
 
 # Trail Smelter arbitration (1941) precedent: transboundary harm
 
