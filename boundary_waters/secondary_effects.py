@@ -92,6 +92,31 @@ SULFATE_SUPPRESSION_FRAC = 0.30  # SRB outcompete methanogens initially
 POST_SULFATE_REBOUND_MULTIPLIER = 1.8  # disturbed community overshoots baseline
 SULFATE_THRESHOLD_FOR_SRB_MG_L = 5.0  # sulfate at which SRB become dominant
 
+# Small business / commercial
+ELY_OUTFITTERS = 22                    # BWCA canoe outfitters in Ely alone
+ELY_ANNUAL_VISITORS = 250_000          # Ely Chamber of Commerce estimate
+OUTFITTER_AVG_EMPLOYEES = 8            # seasonal avg (3-15 range)
+LODGE_RESORT_COUNT = 35                # lodges/resorts in Ely corridor (estimate)
+LODGE_AVG_EMPLOYEES = 6
+RESTAURANT_RETAIL_COUNT = 60           # restaurants + retail in Ely
+RESTAURANT_AVG_EMPLOYEES = 4
+GUIDE_SERVICE_COUNT = 40               # fishing/hunting/canoe guides
+TOURISM_REVENUE_REPUTATION_SENSITIVITY = 0.6  # fraction of revenue loss attributable to reputation vs actual contamination
+SMALL_BIZ_CLOSURE_THRESHOLD_REVENUE_DROP = 0.40  # 40% revenue drop -> closure for marginal businesses
+SMALL_BIZ_FAILURE_RATE_BASELINE = 0.05  # annual baseline failure rate
+
+# Banking / lending
+COMMUNITY_BANK_CRE_CONCENTRATION = 0.65  # fraction of loan book backed by local real estate
+COLLATERAL_IMPAIRMENT_THRESHOLD = 0.20   # 20% property value loss -> collateral calls
+CREDIT_CONTRACTION_MULTIPLIER = 2.5      # $ of credit lost per $ of collateral impairment
+SMALL_BIZ_CREDIT_DEPENDENT_FRAC = 0.70   # fraction of local businesses needing annual credit renewal
+
+# Insurance — commercial
+POLLUTION_EXCLUSION_RADIUS_KM = 30.0     # distance from site at which pollution exclusions apply
+COMMERCIAL_GL_SURCHARGE_FRAC = 0.25      # 25% premium increase within exclusion radius
+WORKERS_COMP_MINING_MULTIPLIER = 3.5     # mining WC rates vs regional baseline
+ENVIRONMENTAL_LIABILITY_UNINSURABLE = True  # standard CGL excludes gradual pollution
+
 
 # ══════════════════════════════════════════════════════════════
 # SECTION 1: SELF-REINFORCING COMMUNITY COLLAPSE LOOPS
@@ -246,6 +271,146 @@ def run_community_loops(
         property_value_multiplier=tax["property_value_multiplier"],
         loop_departure_frac=combined_departure,
     )
+
+
+# ══════════════════════════════════════════════════════════════
+# SECTION 1b: SMALL BUSINESS, BANKING, AND INSURANCE CASCADE
+# ══════════════════════════════════════════════════════════════
+
+def small_business_cascade(
+    sulfate_mg_l: float,
+    tourism_jobs_lost: int,
+    population: float,
+    initial_pop: float,
+    property_value_multiplier: float,
+) -> dict:
+    """Small business failure cascade in tourism-dependent community.
+
+    Ely MN: 22 BWCA outfitters, 35 lodges, 60 restaurants/retail,
+    40 guide services. 250,000 annual visitors. Accommodation & Food
+    is 3rd largest employer (173 workers, Census 2023).
+
+    Cascade: contamination reputation -> visitor drop -> outfitter
+    revenue loss -> guide/lodge/restaurant revenue loss -> closures
+    -> job loss compounds primary tourism loss -> more population
+    departure -> more closures.
+    """
+    # Visitor drop is reputation-driven (faster than actual contamination)
+    reputation_damage = min(1.0, sulfate_mg_l / 15.0 * TOURISM_REVENUE_REPUTATION_SENSITIVITY)
+    # Population loss also reduces local customer base
+    pop_frac = population / initial_pop if initial_pop > 0 else 1.0
+    local_customer_loss = 1.0 - pop_frac
+
+    # Revenue impact on each business type
+    visitor_revenue_drop = reputation_damage
+    local_revenue_drop = local_customer_loss * 0.3  # 30% of revenue is local
+    total_revenue_drop = min(1.0, visitor_revenue_drop + local_revenue_drop)
+
+    # Business failures
+    excess_failure_rate = max(0, total_revenue_drop - SMALL_BIZ_CLOSURE_THRESHOLD_REVENUE_DROP) * 0.5
+    annual_failure_rate = SMALL_BIZ_FAILURE_RATE_BASELINE + excess_failure_rate
+
+    total_businesses = ELY_OUTFITTERS + LODGE_RESORT_COUNT + RESTAURANT_RETAIL_COUNT + GUIDE_SERVICE_COUNT
+    surviving_businesses = int(total_businesses * (1.0 - min(0.95, annual_failure_rate * 5)))  # cumulative over ~5 yr
+
+    outfitters_surviving = max(0, int(ELY_OUTFITTERS * (1.0 - annual_failure_rate * 5)))
+    lodges_surviving = max(0, int(LODGE_RESORT_COUNT * (1.0 - annual_failure_rate * 5)))
+
+    # Jobs lost from business closures (ADDITIONAL to primary tourism jobs)
+    biz_jobs_lost = (
+        (ELY_OUTFITTERS - outfitters_surviving) * OUTFITTER_AVG_EMPLOYEES
+        + (LODGE_RESORT_COUNT - lodges_surviving) * LODGE_AVG_EMPLOYEES
+    )
+
+    return {
+        "reputation_damage_frac": reputation_damage,
+        "total_revenue_drop_frac": total_revenue_drop,
+        "annual_failure_rate": annual_failure_rate,
+        "total_businesses_surviving": surviving_businesses,
+        "outfitters_surviving": outfitters_surviving,
+        "lodges_surviving": lodges_surviving,
+        "additional_jobs_lost_from_closures": biz_jobs_lost,
+    }
+
+
+def commercial_lending_cascade(
+    property_value_multiplier: float,
+    businesses_surviving_frac: float,
+) -> dict:
+    """Community bank lending collapse from collateral impairment.
+
+    Small community banks (Ely has 2-3 branches) hold ~65% of their
+    loan book in local commercial real estate. When property values
+    drop > 20%, collateral calls begin. Credit contraction is 2.5x
+    the collateral loss (multiplier effect). 70% of local businesses
+    need annual credit renewal.
+
+    Source: GAO-13-71 (community bank failures), EPA brownfields/CRA.
+    """
+    property_drop = 1.0 - property_value_multiplier
+    collateral_impaired = property_drop > COLLATERAL_IMPAIRMENT_THRESHOLD
+
+    if collateral_impaired:
+        impairment_frac = (property_drop - COLLATERAL_IMPAIRMENT_THRESHOLD)
+        credit_contraction_frac = min(0.80, impairment_frac * CREDIT_CONTRACTION_MULTIPLIER)
+    else:
+        credit_contraction_frac = 0.0
+
+    businesses_unable_to_refinance = (
+        credit_contraction_frac * SMALL_BIZ_CREDIT_DEPENDENT_FRAC
+    )
+    bank_stress = credit_contraction_frac * COMMUNITY_BANK_CRE_CONCENTRATION
+
+    return {
+        "collateral_impaired": collateral_impaired,
+        "credit_contraction_frac": credit_contraction_frac,
+        "businesses_unable_to_refinance_frac": businesses_unable_to_refinance,
+        "bank_stress_frac": bank_stress,
+        "bank_failure_risk": bank_stress > 0.30,
+    }
+
+
+def commercial_insurance_cascade(
+    mine_active: bool,
+    sulfate_mg_l: float,
+    property_value_multiplier: float,
+) -> dict:
+    """Insurance market effects on businesses and residents.
+
+    Three mechanisms:
+    1. Standard CGL policies EXCLUDE gradual pollution — businesses
+       near mine have no environmental liability coverage.
+    2. Commercial premiums rise 25%+ within contamination radius,
+       pricing out marginal businesses.
+    3. Mining workers comp rates are 3.5x baseline, and elevated
+       occupational health claims spill into the local risk pool.
+
+    Source: EPA brownfields/CRA fact sheet; ISO CGL pollution
+    exclusion (standard since 1986).
+    """
+    # Pollution exclusion applies to all businesses within radius
+    pollution_exclusion_active = sulfate_mg_l > 1.0 or mine_active
+    gl_surcharge = COMMERCIAL_GL_SURCHARGE_FRAC if pollution_exclusion_active else 0.0
+
+    # Property insurance follows property values
+    property_drop = 1.0 - property_value_multiplier
+    property_insurance_available = property_drop < 0.30
+    # Above 30% drop, insurers exit the market for that geography
+
+    # Mining workers comp
+    wc_multiplier = WORKERS_COMP_MINING_MULTIPLIER if mine_active else 1.0
+
+    # Combined burden on local businesses
+    insurance_cost_multiplier = (1.0 + gl_surcharge) * (1.0 if property_insurance_available else 1.5)
+
+    return {
+        "pollution_exclusion_active": pollution_exclusion_active,
+        "gl_premium_surcharge_frac": gl_surcharge,
+        "property_insurance_available": property_insurance_available,
+        "wc_rate_multiplier": wc_multiplier,
+        "insurance_cost_multiplier": insurance_cost_multiplier,
+        "environmental_liability_covered": False,  # never, under standard CGL
+    }
 
 
 # ══════════════════════════════════════════════════════════════
@@ -601,11 +766,32 @@ def run_secondary_cascade(
         adjusted_prev,
     )
 
+    # Section 1b: commercial cascade
+    biz = small_business_cascade(
+        primary.get("sulfate_mg_l", 0.0),
+        primary.get("tourism_jobs_lost", 0),
+        community.population, initial_pop,
+        community.property_value_multiplier,
+    )
+    bank = commercial_lending_cascade(
+        community.property_value_multiplier,
+        biz["total_businesses_surviving"] / 157.0,  # 157 = total biz count
+    )
+    ins = commercial_insurance_cascade(
+        mine_active,
+        primary.get("sulfate_mg_l", 0.0),
+        community.property_value_multiplier,
+    )
+
     return {
         "secondary_year": year,
         # Contaminants
         **{f"se_{k}": v for k, v in se.items()},
         **{f"mn_{k}": v for k, v in mn.items()},
+        # Commercial cascade
+        **{f"biz_{k}": v for k, v in biz.items()},
+        **{f"bank_{k}": v for k, v in bank.items()},
+        **{f"ins_{k}": v for k, v in ins.items()},
         # Ecological services
         **{f"beaver_{k}": v for k, v in beaver.items()},
         **{f"myco_{k}": v for k, v in myco.items()},
@@ -675,6 +861,15 @@ def _run_scenario(scenario_name, label):
     print(f"  Epigenetic generations affected: {sec['epigenetic_generations_affected']}")
     print(f"  Peatland CH4 delta: {sec['peat_delta_ch4_tonnes_yr']:.0f} tonnes/yr "
           f"({sec['peat_co2e_tonnes_yr']:.0f} CO2e)")
+    print(f"\n  Commercial cascade (final year):")
+    print(f"    Outfitters surviving: {sec['biz_outfitters_surviving']}/{ELY_OUTFITTERS}")
+    print(f"    Lodges surviving: {sec['biz_lodges_surviving']}/{LODGE_RESORT_COUNT}")
+    print(f"    Business revenue drop: {sec['biz_total_revenue_drop_frac']:.0%}")
+    print(f"    Bank collateral impaired: {sec['bank_collateral_impaired']}")
+    print(f"    Credit contraction: {sec['bank_credit_contraction_frac']:.0%}")
+    print(f"    Bank failure risk: {sec['bank_bank_failure_risk']}")
+    print(f"    Property insurance available: {sec['ins_property_insurance_available']}")
+    print(f"    Environmental liability covered: {sec['ins_environmental_liability_covered']}")
 
 
 def print_summary():
