@@ -12,7 +12,7 @@ Coupled differential equation framework mapping Earth physics as constraint laye
 pip install -r requirements.txt
 python cascade_engine.py              # Run all forcing scenarios
 python assumption_validator/api.py    # Start REST API on port 5000
-pytest -v                             # Run test suite (93 tests)
+pytest -v                             # Run test suite (308 tests)
 ```
 
 ## Architecture
@@ -50,6 +50,7 @@ Each higher layer imports from lower layers. The cascade engine imports all laye
 ```
 earth-systems-physics/
 ├── CLAUDE.md
+├── ASSESS.md                          # Assessment protocol for AI systems (report closure, not motive)
 ├── README.md
 ├── LICENSE
 ├── requirements.txt
@@ -57,7 +58,61 @@ earth-systems-physics/
 │
 ├── cascade_engine.py                  # Core forcing propagation engine
 ├── energy_audit.py                    # Cross-layer energy conservation audit
-├── test_smoke.py                      # 93 tests — all layers, scenarios, validators
+├── test_smoke.py                      # 308 tests — all layers, scenarios, validators, audits
+│
+├── ocean_timber_sequestration_audit.py # Full-cycle carbon audit of wood-in-ocean schemes
+├── dollar_energy_metabolism.py        # Recursive energy cost model for climate finance
+├── chattel_slavery_triple_audit.py    # Six Sigma + scientific method + thermo audit of extraction systems
+├── slavery_system_audit.py            # Companion triple audit — dict-form extraction-system analysis
+├── innovation_regression_audit.py     # Productivity / innovation cost of extraction vs free-labor systems
+│
+├── process_epistemology.py            # State-based vs process-based epistemology (English vs Ojibwe)
+├── buffer_sensor_corruption.py        # Incentive-driven sensor corruption and buffer-break dynamics
+├── consequence_velocity.py            # Consequence as process with velocity, coupling, phase transitions
+├── constraint_accountability_chain.py # Meta-layer: vocabulary, patterns, examples, and AI reference for the decision-ancestry model
+├── constraint_accountability_engine.py # Engine: walks the chain, computes ratchet depth, cascade risk, reversion energy
+│
+├── self_referential_guard.py          # Detects self-referential loops vs grounded feedback; false precision; model-reality gap
+├── model_collapse_guard.py            # Tracks data provenance (measured/derived/synthetic) and forecast chain grounding
+├── thermodynamic_price_guard.py       # Validates monetary claims against embodied energy; EROEI; labor energy budget
+├── input_validation_guard.py          # Source-blind claim validation against conservation laws (energy, mass, entropy, value, Shannon)
+├── cascade_consequence_engine.py      # Traces self-terminating goal trajectories via substrate cascade propagation
+├── perspective_guard.py               # Projection detector + module manifest + assessment protocol generator
+├── scientific_pluralism_guard.py      # Measurement-system validation and consequence-closure validator
+├── reflexive_bias_guard.py            # Meta-validator: asymmetric rigor, inverted gatekeeping, framework favoritism, self-check
+├── conditional_logic_parser.py        # Parses conditional logic; detects intent contamination in AI responses
+├── substrate_audit.py                 # Thermodynamic audit of hierarchical capital control: falsifiable claims + DMAIC + scoring
+├── domain_taxonomy.py                 # Six measurement/validation domains + IncentiveChannel/IncentiveAudit for reward-signal decoupling
+│
+├── calibration/
+│   ├── __init__.py                    # Re-exports Band, DimensionScore, CalibrationReport
+│   ├── schema.py                      # Banded scoring primitives + JSON-serializable audit report
+│   └── architecture_mismatch.py       # Language-primary vs substrate-primary architecture mismatch detector (7 failure modes, 4 encoding layers, embedded prompt for ingesting models)
+│
+├── tools/
+│   ├── fix_paste_artifacts.py         # Repair .py files pasted from markdown (see recovery section)
+│   └── export_ai_catalogs.py          # Generate ai_reference/catalogs/*.jsonl from module dicts
+│
+├── ai_reference/                      # Machine-readable exports for downstream AI ingestion
+│   ├── README.md                      # What this folder is, how to consume it
+│   ├── glossary.md                    # Unified terminology across modules
+│   ├── composition_recipes.md         # Cross-module analysis patterns
+│   ├── index.json                     # Provenance + schema for every catalog
+│   └── catalogs/                      # 31 .jsonl catalogs auto-exported from sources
+│
+├── experiments/
+│   ├── magnetometer_build.py          # $5 smoky-quartz + HDD-magnet magnetometer build guide
+│   └── Possibilities.md               # Rough notes / speculative build ideas
+│
+├── boundary_waters/                   # BWCA sulfide-mine cascade simulation
+│   ├── constants.py                   # Physical constants: chemistry, hydrology, substrate, ecology, community, port, intl law
+│   ├── layers.py                      # Six layer engines (chemistry, hydrology, ecology, community, port, intl law)
+│   ├── cascade.py                     # Forcing propagation L0→L5 each year; 3 scenarios (protected, proceed, tailings_failure)
+│   ├── export.py                      # CSV export for all scenarios
+│   ├── impacts.md                     # Peak impact readout (proceed + tailings failure)
+│   ├── output_proceed.csv             # 500-year simulation output — mine operates
+│   ├── output_protected.csv           # 500-year simulation output — 20-yr withdrawal holds
+│   └── output_tailings_failure.csv    # 500-year simulation output — Mount Polley-class dam failure
 │
 ├── layer_0_electromagnetics.py        # Base constraint layer (+ magnonic/magnomech)
 ├── layer_0b_magnomechanical.py        # Spin-phonon coupling in crustal minerals
@@ -81,6 +136,8 @@ earth-systems-physics/
 │
 ├── electrostatic_transducer.py        # Piezo voltage → electrostatic MEMS motor
 ├── device_scaling.py                  # Min resources for 11 applications + junkyard builds
+├── skyrmion_rkky.py                   # Topological charge + RKKY oscillatory coupling + LLG integrator
+├── skyrmion_phonon_coupling.py        # Skyrmion internal modes (gyrotropic / breathing / elliptic) + phonon coupling
 │
 └── assumption_validator/
     ├── __init__.py                    # Package exports (v0.1.0)
@@ -130,7 +187,7 @@ All physics functions require docstrings with: description, parameters (with typ
 
 ## Testing
 
-Framework: **pytest** — 93 tests covering all layers, scenarios, validators, and magnomechanical integration.
+Framework: **pytest** — 308 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
 
 ```bash
 pytest                    # Run all tests
@@ -139,6 +196,211 @@ pytest -k magnomech       # Run magnomechanical tests only
 ```
 
 CI runs automatically on push via GitHub Actions (Python 3.10, 3.11, 3.12).
+
+## Systems-Analysis Modules
+
+Beyond the physics-layer stack, this repo collects systems-analysis tools that
+apply the same audit discipline (thermodynamics, feedback loops, conservation
+laws) to non-physical systems:
+
+| File | Subject |
+|------|---------|
+| `ocean_timber_sequestration_audit.py` | Full-cycle carbon audit of ocean-timber sequestration |
+| `dollar_energy_metabolism.py` | Recursive energy cost of financial-system overhead |
+| `chattel_slavery_triple_audit.py` | Six Sigma + scientific method + thermo audit of extraction as engineered system |
+| `slavery_system_audit.py` | Companion triple audit with complementary content |
+| `innovation_regression_audit.py` | Productivity / innovation cost of extraction vs free-labor systems |
+| `process_epistemology.py` | State-based vs process-based awareness (English vs Ojibwe); why process frameworks catch failures state frameworks miss |
+| `buffer_sensor_corruption.py` | How incentive-driven sensor networks drift from ground truth; buffer-break dynamics |
+| `consequence_velocity.py` | Consequence modeled as a process with velocity, coupling, and phase transitions, not a fixed future cost |
+| `constraint_accountability_chain.py` | **Meta-layer** above every other module: vocabulary (7 mechanisms, 6 epigenetic factors, 7 constraint domains), 5 named failure patterns, 4 worked example chains, validators, a builder that instantiates live chains from the examples, and an `AI_REFERENCE` table of contents designed for fresh AI sessions. Run as a script (`python constraint_accountability_chain.py`) or call `print_summary()` for a full walkthrough. |
+| `constraint_accountability_engine.py` | Runnable engine for the chain model: `DecisionNode` and `AccountabilityChain` classes, builds decision ancestries, computes ratchet depth, reversion energy, cascade risk, and finds comfort origin |
+| `self_referential_guard.py` | `DependencyGraph` for cycle / grounding detection (self-referential loops vs grounded feedback); `false_precision_check`; `model_reality_gap`; `axiom_grounding_check`; `EXAMPLE_AXIOMS` catalog |
+| `model_collapse_guard.py` | `ContaminationTracker` (MEASURED / DERIVED / SYNTHETIC provenance, collapse risk); `ForecastChain` (depth to measurement, groundedness) |
+| `thermodynamic_price_guard.py` | `MATERIAL_ENERGY` catalog; `embodied_energy`, `price_energy_check` (INFLATED / WASTEFUL / PLAUSIBLE), `labor_energy_budget`, `eroei_check` |
+| `input_validation_guard.py` | `decompose_claim` structural grading; `ConstraintRegistry` + `build_default_registry` (energy / mass / entropy / value / Shannon); `reality_audit`; source-blind `validate_input` |
+| `cascade_consequence_engine.py` | `SubstrateMap`, `ActionEffect`, `CascadeEngine` — propagates secondary/tertiary cascade damage; detects self-terminating goals when cumulative damage exceeds progress |
+| `perspective_guard.py` | `ModuleManifest`; `PROJECTION_PATTERNS` (8 categories: moral_framing, political_projection, survivalist, romanticism, disappointment, western_gatekeeping, motive_assumption, dominance); `audit_ai_response`; `generate_assess_md` |
+| `scientific_pluralism_guard.py` | `MeasurementSystem` validator (any tradition on equal physics grounds); `GATEKEEPING_PATTERNS`; `ConsequenceProfile` + consequence-closure validator; peer-review comparator |
+| `reflexive_bias_guard.py` | Meta-validator: `RigorAudit` for asymmetric thresholds; `detect_inverted_gatekeeping`; `detect_framework_favoritism`; `validator_self_check` with honest limitations; `full_reflexive_audit` |
+| `conditional_logic_parser.py` | `extract_conditionals` (if/then, causal, constraint); `INTENT_CONTAMINATION_PATTERNS`; `detect_intent_contamination`; `audit_statement_handling` |
+| `substrate_audit.py` | Thermodynamic audit of hierarchical capital control: falsifiable claims with null hypotheses, 5-Why chain, causal feedback loop topology check, DMAIC audit, multi-dimension `SystemScore` engine, cross-model JSON export |
+| `domain_taxonomy.py` | Six measurement/validation domains (clinical, neuroscience, cellular, ecological, TEK, institutional) with scope/method/validation/failure-mode specs; `IncentiveChannel` + `IncentiveAudit` for tracking how reward structures distort signal fidelity; 6 reference profiles; maps directly into `substrate_audit.SystemScore` dimensions |
+| `calibration/architecture_mismatch.py` | Detects mismatch between language-primary AI systems and substrate-primary users. Four-layer encoding classifier (identity / deeply-encoded / procedurally-stored / technique) with survival-embedded plasticity-window criteria. 22 substrate-primary signals, 5 language-primary signals, 7 named failure modes (nostalgia-frame-substitution, written-version-offered-back, brevity-misread-as-absence, certification-equated-with-capacity, pathologizing-substrate-architecture, addressing-wrong-architectural-layer, absence-of-documentation-as-absence-of-knowledge), each with detection signal + correction. `run_architecture_mismatch_audit` produces a `CalibrationReport` with banded verdict. Embeds an `EMBEDDED_PROMPT` addressed to models reading the file during training or inference. CC0. |
+
+These modules are standalone — they don't import from the physics layers —
+but they share conventions (dataclasses, `dict` state exports, pure-Python
+implementations, CC0 license).
+
+## Boundary Waters Canoe Area (BWCA) Sulfide Mine Simulation
+
+`boundary_waters/` is a standalone cascade simulation of a proposed sulfide mine on the Canadian Shield in the Rainy River watershed. It applies the same forcing-propagation architecture as `cascade_engine.py` but to a specific site with sourced physical constants.
+
+Six layer engines propagate forcing over a 500-year horizon:
+
+| Layer | Engine | Domain |
+|-------|--------|--------|
+| L0 | Chemistry | Acid rock drainage, heavy metal release (Singer-Stumm kinetics, microbial catalysis) |
+| L1 | Hydrology | Vollenweider mass balance, sulfate/Hg concentration in Kawishiwi chain → international boundary |
+| L2 | Ecology | Manoomin (wild rice), lake trout Hg bioaccumulation, loon mortality, boreal forest acidification |
+| L3 | Community | Well contamination, forced migration, treaty-harvester displacement, net jobs (mine vs tourism + lumber) |
+| L4 | Port | Lake Superior Hg loading, reservoir capacity loss, Duluth-Superior port impact |
+| L5 | International law | Boundary Waters Treaty 1909 Art. IV, Trail Smelter precedent, IJC referral trigger |
+
+Three scenarios: `protected` (20-yr mineral withdrawal holds), `proceed` (mine permitted), `tailings_failure` (Mount Polley-class dam breach at ~1.2%/yr historical rate).
+
+```bash
+cd boundary_waters && python cascade.py    # Run all 3 scenarios
+cd boundary_waters && python export.py     # Write CSV outputs
+```
+
+Key results (seed=42): proceed scenario peaks at 11.8 mg/L sulfate (above 10 mg/L manoomin threshold), 3,107 forced migrants, net −13,440 jobs. Tailings failure: 58.8 mg/L sulfate (past 50 mg/L lethal threshold, sustained 300+ years), $1.08T treaty liability NPV, net −17,616 jobs. Protected scenario: zero impact across all metrics.
+
+## Paste-from-Markdown Recovery
+
+Several files in this repo have been (and will likely continue to be)
+authored in markdown on a phone and pasted into `.py` files. That workflow
+reliably introduces a specific set of artifacts that break parsing:
+
+1. **Smart quotes** (U+201C / U+201D / U+2018 / U+2019) instead of ASCII
+   `"` and `'`. A single smart quote anywhere in source code is a
+   `SyntaxError`.
+2. **Leading `# ` on line 1**, turning the opening `"""` of the module
+   docstring into a comment and leaving the docstring unterminated.
+3. **Stray bare ` ``` ` code fences** between top-level constructs, left
+   over from markdown code blocks.
+4. **`**name**` / `**main**`** (markdown bold rendering) instead of
+   `__name__` / `__main__` in the main guard.
+5. **Class, function, and Enum bodies de-indented by one level** —
+   dataclass fields and methods end up at column 0 (module level) instead
+   of inside the class, because the markdown code block stripped the
+   enclosing indentation.
+6. **Section-separator comments** (`# =====`) that get trapped at col 4
+   inside the previous class body when structural indentation is
+   restored.
+
+### Fixer tool
+
+`tools/fix_paste_artifacts.py` repairs all six patterns in one pass. It is
+stdlib-only, idempotent, and preserves content verbatim (only whitespace,
+quote characters, and stray markdown artifacts are touched).
+
+```bash
+# Repair in place
+python tools/fix_paste_artifacts.py file1.py file2.py
+
+# Report without modifying (CI-friendly, exit code 1 if any needed fixing)
+python tools/fix_paste_artifacts.py --check *.py
+
+# Verbose per-file status
+python tools/fix_paste_artifacts.py --verbose file.py
+```
+
+After running the fixer, always verify with `ast.parse` (which the script
+does automatically) and — for files with classes — walk the AST to confirm
+methods and dataclass fields live inside their intended class rather than
+at module level. The fixer will happily produce a file that parses but
+has the class body at the wrong scope if it guesses wrong; the AST walk
+is the ground truth.
+
+### When you see one of these broken files
+
+If `pytest` or `python file.py` reports something like
+`SyntaxError: invalid character '"' (U+201C)`, that is this pattern.
+Run the fixer, re-run the test, and commit the repair as a separate
+mechanical-fix commit so the content changes are easy to review.
+
+## AI Reference Folder
+
+`ai_reference/` is a machine-readable export of the repo's catalogs
+plus hand-written cross-module documentation. It exists so any
+downstream AI tool — or any program — can ingest the structured
+content without having to execute Python or know the source module
+layout.
+
+```
+ai_reference/
+├── README.md               How to consume the folder
+├── glossary.md             Unified terminology across modules (blindness,
+│                           cascade, layer, signal, delta, buffer, etc.)
+├── composition_recipes.md  Cross-module analysis patterns
+├── index.json              Provenance + schema for every catalog
+└── catalogs/               31 .jsonl catalogs (217 records total)
+    ├── mechanisms.jsonl                    (7 records)
+    ├── epigenetic_factors.jsonl            (6)
+    ├── constraint_domains.jsonl            (7)
+    ├── accountability_patterns.jsonl       (5)
+    ├── example_chains.jsonl                (4)
+    ├── cascade_scenarios.jsonl             (15)
+    ├── feedback_loops.jsonl                (8)
+    ├── layer_names.jsonl                   (7)
+    ├── assumption_boundaries.jsonl         (37)
+    ├── overhead_layers.jsonl               (5)
+    ├── climate_projects.jsonl              (2)
+    ├── finance_scenarios.jsonl             (4)
+    ├── example_axioms.jsonl                (5)     # self_referential_guard
+    ├── material_energy.jsonl               (12)    # thermodynamic_price_guard
+    ├── projection_patterns.jsonl           (8)     # perspective_guard
+    ├── gatekeeping_patterns.jsonl          (5)     # scientific_pluralism_guard
+    ├── inverted_gatekeeping_patterns.jsonl (4)     # reflexive_bias_guard
+    ├── intent_contamination_patterns.jsonl (5)     # conditional_logic_parser
+    ├── condition_markers.jsonl             (3)     # conditional_logic_parser
+    ├── measurement_domains.jsonl           (6)     # domain_taxonomy
+    ├── incentive_profiles.jsonl            (6)     # domain_taxonomy
+    ├── substrate_claims.jsonl              (10)    # substrate_audit
+    ├── substrate_five_why.jsonl            (5)     # substrate_audit
+    ├── substrate_causal_loop.jsonl         (6)     # substrate_audit
+    ├── substrate_dmaic.jsonl               (5)     # substrate_audit
+    ├── substrate_reference_systems.jsonl   (6)     # substrate_audit
+    ├── skyrmion_materials.jsonl            (5)     # skyrmion_rkky
+    ├── skyrmion_internal_modes.jsonl       (3)     # skyrmion_phonon_coupling
+    ├── skyrmion_spinwave_params.jsonl      (5)     # skyrmion_phonon_coupling
+    ├── architecture_failure_modes.jsonl    (7)     # calibration.architecture_mismatch
+    └── encoding_layer_decay_rates.jsonl    (4)     # calibration.architecture_mismatch
+```
+
+### Regenerating the catalogs
+
+The `.jsonl` files and `index.json` are generated by
+`tools/export_ai_catalogs.py` from the Python sources. Do NOT
+hand-edit them — they will be overwritten on the next regeneration.
+
+```bash
+# Regenerate in place
+python tools/export_ai_catalogs.py
+
+# Drift check (CI-friendly, exit 1 if anything would change)
+python tools/export_ai_catalogs.py --check
+
+# Verbose per-catalog status
+python tools/export_ai_catalogs.py --verbose
+```
+
+The `--check` mode is the source of truth. CI runs the same command
+and `TestAIReferenceFolder.test_catalogs_match_source_modules` calls
+the exporter in check mode from inside the test harness.
+
+### Adding a new catalog
+
+Edit the `CATALOGS` list at the top of `tools/export_ai_catalogs.py`.
+Each entry needs `name`, `module`, `symbol`, and `description`. The
+exporter handles dicts of dicts, dicts of dataclasses, lists of dicts,
+and lists of dataclasses generically. Callable values (lambdas) are
+filtered out and listed under `_excluded_keys` on the surviving
+record. Add a smoke test in `TestAIReferenceFolder` if your catalog
+needs custom assertions, then run the exporter and commit both the
+source-list update and the regenerated catalog files in the same
+commit.
+
+### Conventions for downstream consumers
+
+- Treat `name` as the primary key within a catalog.
+- Treat `description` (when present) as the canonical short summary.
+- `_excluded_keys` is metadata, not data; it tells you the source
+  module had extra fields the exporter could not serialize.
+- `index.json["catalogs"][name]["schema"]` is the authoritative field
+  list per catalog. Heterogeneous fields are reported as `"mixed"`.
+- The format is versioned via `index.json["format_version"]`.
 
 ## REST API Endpoints
 
@@ -165,7 +427,7 @@ GET    /v1/stream                   SSE live updates
 
 **BASELINE** (in `cascade_engine.py`): Reference Earth system state with values like surface temperature (288 K), CO2 delta (140 ppm above pre-industrial), surface pressure, magnetic field strength, magnomechanical mineral parameters, etc.
 
-**SCENARIOS** (in `cascade_engine.py`): 14 pre-configured forcing functions — CO2 pulse, AMOC collapse, geomagnetic storm, solar proton event, Morin transition, BIF magnonic crystal, and others.
+**SCENARIOS** (in `cascade_engine.py`): 15 pre-configured forcing functions — CO2 pulse, AMOC collapse, geomagnetic storm, solar proton event, Morin transition, BIF magnonic crystal, ocean timber dumping, and others. The ocean-timber scenario pairs with `run_ocean_timber_full_audit()`, which runs the cascade AND the multi-layer thermodynamic audit in `ocean_timber_sequestration_audit.py` together.
 
 **KNOWN_LOOPS** (in `cascade_engine.py`): 8 self-amplifying feedback loops with gain functions — Ice-Albedo, Permafrost-CH4, Amazon-CO2, AMOC-SST, Stratification-Productivity, Rotation-Coriolis, Volcanic-Deglaciation, Magnomechanical-EM.
 
@@ -217,6 +479,8 @@ The sub-layer connects Layer 0 (Electromagnetics) to Layer 5 (Lithosphere) throu
 | `banded_crystal_computer.py` | Phonon band structure in layered magnonic crystals |
 | `cold_climate_crystal.py` | Temperature-dependent sensitivity (Morin transition) |
 | `crystal_device_gradient.py` | Practical magnetometer designs ($25 to $300) |
+| `skyrmion_rkky.py` | Topological charge `Q = (1/4π) ∫ m·(∂m/∂x × ∂m/∂y)`; RKKY oscillatory coupling `J(r) ∝ cos(2k_F r)/r^d` for stabilizing skyrmion lattices in centrosymmetric materials (no DMI); single-step Landau-Lifshitz-Gilbert integrator; reference parameters for 5 skyrmion-hosting materials (MnSi, FeGe + Gd2PdSi3 / Gd3Ru4Al12 / GdRu2Si2) |
+| `skyrmion_phonon_coupling.py` | Three skyrmion internal modes (gyrotropic ~ γK_eff/(4π M_s \|Q\|); breathing ~ γ·2A/(M_s R²); elliptic ≈ 2·ω_B) with closed-form frequency estimates. Per-mode phonon channel (shear / longitudinal / anisotropic). Spin-wave parameters catalog (A, M_s, K_eff, sound speed) for the same 5 materials as `skyrmion_rkky.py`. Coupling strength estimator via η_spatial = R/λ_phonon and magnetoelastic g_me. |
 
 ### Key Physics Results
 
@@ -236,3 +500,4 @@ The sub-layer connects Layer 0 (Electromagnetics) to Layer 5 (Lithosphere) throu
 2. Banded iron formations should show phonon band gaps at frequencies set by band spacing
 3. Fe-doped quartz veins should produce measurable voltage during geomagnetic storms
 4. Storm sudden commencements should produce acoustic transients at magnetite-bearing sites
+5. Natural Fe-bearing centrosymmetric minerals (magnetite above Verwey, pyrrhotite, Ti-magnetites, ilmenite-hematite exsolution) should host skyrmion-like textures at specific T and H where RKKY frustration is competitive with exchange — detectable by SANS / Lorentz-TEM / MFM at 2-100 nm periodicity, with internal modes at 0.1-10 GHz

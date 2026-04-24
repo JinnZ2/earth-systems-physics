@@ -584,6 +584,30 @@ class TestMagnomechanicalSublayer:
         has_l0 = any(s["target_layer"] == 0 for s in r5.cascade_signals)
         assert has_l0, "L5 forcing did not produce L0 cascade signal"
 
+    def test_earth_magnomechanical_predictions_include_skyrmion(self):
+        """The 5th testable prediction in earth_magnomechanical
+        covers skyrmion-like textures in natural Fe-bearing
+        centrosymmetric minerals. Every prediction must have the
+        required fields; prediction #5 must reference the
+        stabilization physics module (skyrmion_rkky) and the
+        mode-frequency module (skyrmion_phonon_coupling)."""
+        from earth_magnomechanical import testable_predictions
+        preds = testable_predictions()
+        assert len(preds) >= 5
+        # Every entry has the baseline fields
+        for p in preds:
+            for field in (
+                "prediction", "mechanism", "test", "signal_level",
+            ):
+                assert field in p
+        # 5th prediction should mention skyrmions and RKKY
+        fifth = preds[4]
+        assert "skyrmion" in fifth["prediction"].lower()
+        assert "RKKY" in fifth["mechanism"]
+        # Should cross-reference the two supporting modules
+        assert "skyrmion_rkky" in fifth["mechanism"]
+        assert "skyrmion_phonon_coupling" in fifth["mechanism"]
+
 
 # ─────────────────────────────────────────────
 # ELECTROSTATIC TRANSDUCER
@@ -724,3 +748,2755 @@ class TestDeviceScaling:
         assert len(survey) >= 10
         for app_key, result in survey.items():
             assert "builds" in result
+
+
+# ─────────────────────────────────────────────
+# DOLLAR ENERGY METABOLISM
+# ─────────────────────────────────────────────
+
+class TestDollarEnergyMetabolism:
+    def test_import(self):
+        import dollar_energy_metabolism
+
+    def test_overhead_layers_defined(self):
+        from dollar_energy_metabolism import OVERHEAD_LAYERS
+        assert len(OVERHEAD_LAYERS) == 5
+        names = {l.name for l in OVERHEAD_LAYERS}
+        assert {"leverage", "margin_stack", "taxation",
+                "narrative", "political"} == names
+
+    def test_scenarios_defined(self):
+        from dollar_energy_metabolism import SCENARIOS
+        assert "direct_action" in SCENARIOS
+        assert "typical_climate" in SCENARIOS
+        assert "carbon_speculation" in SCENARIOS
+
+    def test_direct_action_has_no_overhead(self):
+        from dollar_energy_metabolism import compute_dollar_energy, SCENARIOS
+        result = compute_dollar_energy(SCENARIOS["direct_action"])
+        assert result["total_MJ_per_dollar"] == result["E_base_MJ"]
+        assert result["overall_multiplier"] == 1.0
+        assert not result["divergent"]
+
+    def test_overhead_increases_total_energy(self):
+        from dollar_energy_metabolism import compute_dollar_energy, SCENARIOS
+        direct = compute_dollar_energy(SCENARIOS["direct_action"])
+        typical = compute_dollar_energy(SCENARIOS["typical_climate"])
+        speculative = compute_dollar_energy(SCENARIOS["carbon_speculation"])
+        assert typical["total_MJ_per_dollar"] > direct["total_MJ_per_dollar"]
+        assert speculative["total_MJ_per_dollar"] > typical["total_MJ_per_dollar"]
+
+    def test_geometric_series_diverges_at_r_1(self):
+        import math
+        from dollar_energy_metabolism import explore_recycling_fraction
+        series = explore_recycling_fraction()
+        last = series[-1]  # r = 1.0
+        assert last[0] == 1.0
+        assert math.isinf(last[1])
+
+    def test_ocean_timber_funding_scales_with_speculation(self):
+        from dollar_energy_metabolism import (
+            compute_project_audit, PROJECTS, SCENARIOS,
+        )
+        typical = compute_project_audit(
+            PROJECTS["ocean_timber"], SCENARIOS["typical_climate"]
+        )
+        speculative = compute_project_audit(
+            PROJECTS["ocean_timber"], SCENARIOS["carbon_speculation"]
+        )
+        # Under carbon speculation the funding CO2 should exceed
+        # the claimed sequestration (the entire point of the audit)
+        spec_frac = speculative["funding_CO2_as_fraction_of_claimed"]["high_budget"]
+        typ_frac = typical["funding_CO2_as_fraction_of_claimed"]["high_budget"]
+        assert spec_frac > 1.0, (
+            "Carbon speculation case should emit more CO2 in financial "
+            "overhead than it claims to sequester."
+        )
+        assert spec_frac > typ_frac, (
+            "Speculative finance should be strictly worse than typical finance."
+        )
+
+    def test_sai_breakeven_impossible(self):
+        from dollar_energy_metabolism import find_breakeven_r, PROJECTS
+        # SAI claims no sequestration, so breakeven returns 0.0 by convention
+        assert find_breakeven_r(PROJECTS["sai"]) == 0.0
+
+
+# ─────────────────────────────────────────────
+# OCEAN TIMBER SEQUESTRATION AUDIT
+# ─────────────────────────────────────────────
+
+class TestOceanTimberAudit:
+    def test_import(self):
+        import ocean_timber_sequestration_audit
+
+    def test_constants_present(self):
+        from ocean_timber_sequestration_audit import CONSTANTS
+        # Spot-check a few expected keys
+        for key in (
+            "carbon_fraction_dry_wood",
+            "dry_mass_per_boreal_tree_kg",
+            "permafrost_thaw_CH4_kg_per_m2",
+            "CH4_to_CO2_equivalence",
+            "AMOC_weakening_threshold",
+        ):
+            assert key in CONSTANTS
+
+    def test_default_run_is_net_source(self):
+        from ocean_timber_sequestration_audit import run_simulation
+        state = run_simulation(
+            n_trees_per_year=1_000_000,
+            transport_km=1000.0,
+            dump_area_km2=10.0,
+            years=10,
+        )
+        assert state["project_is_net_source"] is True
+        assert state["net_carbon_CO2_kg"] < 0
+        assert state["crossover_year"] is not None
+
+    def test_layer_costs_nonnegative(self):
+        from ocean_timber_sequestration_audit import (
+            initial_state, harvest_carbon_cost, transport_carbon_cost,
+        )
+        state = initial_state(n_trees_per_year=1_000_000, years=1)
+        harvest = harvest_carbon_cost(state)
+        transport = transport_carbon_cost(state)
+        for k, v in harvest.items():
+            assert v >= 0, f"harvest component {k} is negative"
+        for k, v in transport.items():
+            assert v >= 0, f"transport component {k} is negative"
+
+    def test_anoxic_transition_occurs_at_scale(self):
+        from ocean_timber_sequestration_audit import run_simulation
+        state = run_simulation(
+            n_trees_per_year=1_000_000,
+            transport_km=1000.0,
+            dump_area_km2=10.0,
+            years=50,
+        )
+        # With 50M trees dumped, O2 should crash and anoxic phase should engage
+        assert state["anoxic"] is True
+        assert state["local_O2_mL_L"] < 1.0
+
+    def test_time_series_lengths_match_years(self):
+        from ocean_timber_sequestration_audit import run_simulation
+        years = 25
+        state = run_simulation(years=years)
+        assert len(state["ts_net_carbon_kg"]) == years
+        assert len(state["ts_pH"]) == years
+        assert len(state["ts_thermohaline"]) == years
+
+
+# ─────────────────────────────────────────────
+# OCEAN TIMBER CASCADE WIRING
+# ─────────────────────────────────────────────
+
+class TestOceanTimberCascadeWiring:
+    def test_scenario_registered(self):
+        from cascade_engine import SCENARIOS
+        assert "ocean_timber_dumping" in SCENARIOS
+        scn = SCENARIOS["ocean_timber_dumping"]
+        assert scn.variable == "deforestation"
+        assert scn.layer == 6
+
+    def test_full_audit_helper_runs(self):
+        from cascade_engine import run_ocean_timber_full_audit
+        result = run_ocean_timber_full_audit(years=5, verbose=False)
+        assert "cascade" in result
+        assert "audit" in result
+        assert "verdict" in result
+        verdict = result["verdict"]
+        assert verdict["project_is_net_source"] is True
+        assert verdict["crossover_year"] is not None
+
+
+# ─────────────────────────────────────────────
+# CHATTEL SLAVERY TRIPLE AUDIT
+# ─────────────────────────────────────────────
+
+class TestChattelSlaveryTripleAudit:
+    def test_import(self):
+        import chattel_slavery_triple_audit
+
+    def test_top_level_structures_present(self):
+        from chattel_slavery_triple_audit import (
+            SYSTEM_DEFINITION, DMAIC, SCIENTIFIC_METHOD,
+            THERMODYNAMIC_AUDIT, META_AUDIT,
+        )
+        assert "claimed_purpose" in SYSTEM_DEFINITION
+        assert "actual_topology" in SYSTEM_DEFINITION
+        for phase in ("define", "measure", "analyze", "improve", "control"):
+            assert phase in DMAIC
+        for section in ("observation", "null_hypothesis", "alt_hypothesis",
+                        "evidence", "verdict", "falsifiability"):
+            assert section in SCIENTIFIC_METHOD
+        for law in ("first_law", "second_law", "third_law",
+                    "topology", "phase_transition"):
+            assert law in THERMODYNAMIC_AUDIT
+        assert "function_of_revisionism" in META_AUDIT
+        assert "conclusion" in META_AUDIT
+
+    def test_scientific_method_evidence_is_six_for_six(self):
+        from chattel_slavery_triple_audit import SCIENTIFIC_METHOD
+        evidence = SCIENTIFIC_METHOD["evidence"]
+        assert len(evidence) == 6
+        for pred_key in ("P1", "P2", "P3", "P4", "P5", "P6"):
+            assert pred_key in evidence
+            assert "H1 CONFIRMED" in evidence[pred_key]["observed"]
+        verdict = SCIENTIFIC_METHOD["verdict"]
+        assert "0/6" in verdict["H0_score"]
+        assert "6/6" in verdict["H1_score"]
+
+    def test_dmaic_analyze_chain_is_five_whys(self):
+        from chattel_slavery_triple_audit import DMAIC
+        chain = DMAIC["analyze"]["chain"]
+        assert len(chain) == 5
+        for step in chain:
+            assert "why" in step
+            assert "because" in step
+
+    def test_print_summary_runs(self, capsys):
+        from chattel_slavery_triple_audit import print_summary
+        print_summary()
+        captured = capsys.readouterr()
+        assert "TRIPLE AUDIT SUMMARY" in captured.out
+        assert "SIX SIGMA" in captured.out
+        assert "SCIENTIFIC METHOD" in captured.out
+        assert "THERMODYNAMICS" in captured.out
+        assert "CONVERGENCE" in captured.out
+
+
+# ─────────────────────────────────────────────
+# SLAVERY SYSTEM AUDIT
+# ─────────────────────────────────────────────
+
+class TestSlaverySystemAudit:
+    def test_import(self):
+        import slavery_system_audit  # noqa: F401
+
+    def test_top_level_structures_present(self):
+        from slavery_system_audit import (
+            SYSTEM_DEFINITION, DMAIC, SCIENTIFIC_METHOD,
+            THERMODYNAMIC_AUDIT, META_AUDIT,
+        )
+        assert "claimed_purpose" in SYSTEM_DEFINITION
+        assert "actual_topology" in SYSTEM_DEFINITION
+        for phase in ("define", "measure", "analyze", "improve", "control"):
+            assert phase in DMAIC
+        for section in ("observation", "null_hypothesis", "alt_hypothesis",
+                        "evidence", "verdict", "falsifiability"):
+            assert section in SCIENTIFIC_METHOD
+        for law in ("first_law", "second_law", "third_law",
+                    "topology", "phase_transition"):
+            assert law in THERMODYNAMIC_AUDIT
+        assert "function_of_revisionism" in META_AUDIT
+        assert "conclusion" in META_AUDIT
+
+    def test_scientific_method_evidence_is_six_for_six(self):
+        from slavery_system_audit import SCIENTIFIC_METHOD
+        evidence = SCIENTIFIC_METHOD["evidence"]
+        assert len(evidence) == 6
+        for pred_key in ("P1", "P2", "P3", "P4", "P5", "P6"):
+            assert pred_key in evidence
+            assert "H1 CONFIRMED" in evidence[pred_key]["observed"]
+        verdict = SCIENTIFIC_METHOD["verdict"]
+        assert "0/6" in verdict["H0_score"]
+        assert "6/6" in verdict["H1_score"]
+
+    def test_dmaic_analyze_chain_is_five_whys(self):
+        from slavery_system_audit import DMAIC
+        chain = DMAIC["analyze"]["chain"]
+        assert len(chain) == 5
+        for step in chain:
+            assert "why" in step
+            assert "because" in step
+
+
+# ─────────────────────────────────────────────
+# INNOVATION REGRESSION AUDIT
+# ─────────────────────────────────────────────
+
+class TestInnovationRegressionAudit:
+    def test_import(self):
+        import innovation_regression_audit  # noqa: F401
+
+    def test_top_level_dicts_present(self):
+        from innovation_regression_audit import (
+            PRODUCTIVITY_COMPARISON, INNOVATION_COST,
+            PSYCHOLOGICAL_AUDIT, HOPE_DIFFERENTIAL, DISQUALIFICATION,
+        )
+        assert "free_settler_model" in PRODUCTIVITY_COMPARISON
+        assert "extraction_system_model" in PRODUCTIVITY_COMPARISON
+        assert "free_settler_psychology" in PSYCHOLOGICAL_AUDIT
+        assert "enslaved_agent_psychology" in PSYCHOLOGICAL_AUDIT
+        assert "observation" in HOPE_DIFFERENTIAL
+        assert "thermodynamic_statement" in HOPE_DIFFERENTIAL
+
+    def test_productivity_comparison_has_both_models(self):
+        from innovation_regression_audit import PRODUCTIVITY_COMPARISON
+        free = PRODUCTIVITY_COMPARISON["free_settler_model"]
+        extraction = PRODUCTIVITY_COMPARISON["extraction_system_model"]
+        assert isinstance(free, dict) and free
+        assert isinstance(extraction, dict) and extraction
+
+
+# ─────────────────────────────────────────────
+# PROCESS EPISTEMOLOGY
+# ─────────────────────────────────────────────
+
+class TestProcessEpistemology:
+    def test_import(self):
+        import process_epistemology  # noqa: F401
+
+    def test_epistemology_enum_has_both_modes(self):
+        from process_epistemology import Epistemology
+        assert Epistemology.STATE_BASED.value == "state"
+        assert Epistemology.PROCESS_BASED.value == "process"
+
+    def test_process_kinematics_updates(self):
+        from process_epistemology import Process
+        p = Process(name="soil_health", current=1.0)
+        p.update(0.9, dt=1.0)
+        p.update(0.75, dt=1.0)
+        p.update(0.55, dt=1.0)
+        # After three decreasing updates, velocity should be negative
+        assert p.velocity < 0
+        # And the process should know it's trending
+        state = p.state()
+        assert "velocity" in state
+        assert "name" in state
+
+    def test_epistemology_comparison_has_failure_cases(self):
+        from process_epistemology import EpistemologyComparison
+        ec = EpistemologyComparison()
+        assert isinstance(ec.failure_cases, dict)
+        assert len(ec.failure_cases) > 0
+
+    def test_demo_runs(self, capsys):
+        from process_epistemology import demo_epistemology_comparison
+        demo_epistemology_comparison()
+        captured = capsys.readouterr()
+        assert "EPISTEMOLOGY" in captured.out.upper()
+
+
+# ─────────────────────────────────────────────
+# BUFFER SENSOR CORRUPTION
+# ─────────────────────────────────────────────
+
+class TestBufferSensorCorruption:
+    def test_import(self):
+        import buffer_sensor_corruption  # noqa: F401
+
+    def test_sensor_mode_enum_members(self):
+        from buffer_sensor_corruption import SensorMode
+        assert SensorMode.INTEGRATED.value == "integrated"
+        assert SensorMode.BUFFERED.value == "buffered"
+        assert SensorMode.CORRUPTED.value == "corrupted"
+        assert SensorMode.FAILED.value == "failed"
+
+    def test_incentive_type_enum_members(self):
+        from buffer_sensor_corruption import IncentiveType
+        assert IncentiveType.ACCURACY.value == "accuracy"
+        assert IncentiveType.STABILITY.value == "stability"
+        assert IncentiveType.COMPLIANCE.value == "compliance"
+        assert IncentiveType.COMFORT.value == "comfort"
+
+    def test_integrated_sensor_reports_truth(self):
+        from buffer_sensor_corruption import (
+            Sensor, SensorMode, IncentiveType,
+        )
+        s = Sensor(
+            name="test",
+            mode=SensorMode.INTEGRATED,
+            incentive=IncentiveType.ACCURACY,
+        )
+        out = s.read(ground_truth=1.23, baseline=0.0)
+        # Integrated sensor should report the full deviation with zero
+        # suppression
+        assert out["reported_deviation"] == 1.23
+        assert out["suppressed_total"] == 0.0
+        assert out["failed"] is False
+
+    def test_network_builds_and_reads(self):
+        from buffer_sensor_corruption import SensorNetwork
+        net = SensorNetwork()
+        net.add_integrated_sensor("truth_1")
+        net.add_institutional_sensor("comfort_1")
+        net.add_corrupted_sensor("suppressed_1")
+        result = net.read_all(ground_truth=0.5, baseline=0.0)
+        assert result["sensors_total"] == 3
+        assert result["ground_truth"] == 0.5
+        # Integrated sensor reports truth; institutional/corrupted suppress
+        assert result["sensors_reporting_true"] == 1
+        assert result["sensors_suppressing"] == 2
+        names = {r["sensor"] for r in result["individual_reports"]}
+        assert names == {"truth_1", "comfort_1", "suppressed_1"}
+
+    def test_demo_runs(self, capsys):
+        from buffer_sensor_corruption import demo_buffer_failure
+        demo_buffer_failure()
+        captured = capsys.readouterr()
+        assert "BUFFER" in captured.out.upper()
+
+
+# ─────────────────────────────────────────────
+# CONSEQUENCE VELOCITY
+# ─────────────────────────────────────────────
+
+class TestConsequenceVelocity:
+    def test_import(self):
+        import consequence_velocity  # noqa: F401
+
+    def test_deferral_increases_velocity(self):
+        from consequence_velocity import Consequence
+        c = Consequence(name="test", domain="ecological")
+        v0 = c.velocity
+        c.defer(0.2)
+        # Deferral should push velocity upward
+        assert c.velocity > v0
+
+    def test_buffer_overflow_cascades(self):
+        from consequence_velocity import Consequence
+        c = Consequence(
+            name="test", domain="ecological", buffer_capacity=0.5,
+        )
+        result = c.defer(2.0)  # way beyond buffer capacity
+        assert result["overflow"] > 0
+        assert c.phase == "cascading"
+
+    def test_field_coupling_propagates_velocity(self):
+        from consequence_velocity import Consequence, ConsequenceField
+        field = ConsequenceField()
+        a = Consequence(name="a", domain="eco", velocity=1.0)
+        b = Consequence(name="b", domain="eco", velocity=0.0)
+        field.add(a)
+        field.add(b)
+        field.couple("a", "b", strength=0.5)
+        field.step(dt=1.0)
+        # b should have felt a's velocity through coupling
+        assert field.consequences["b"].velocity > 0
+
+    def test_demo_runs(self, capsys):
+        from consequence_velocity import demo_consequence_cascade
+        demo_consequence_cascade()
+        captured = capsys.readouterr()
+        assert "CONSEQUENCE" in captured.out.upper()
+
+
+# ─────────────────────────────────────────────
+# CONSTRAINT ACCOUNTABILITY CHAIN (schema)
+# ─────────────────────────────────────────────
+
+class TestConstraintAccountabilityChain:
+    def test_import(self):
+        import constraint_accountability_chain  # noqa: F401
+
+    def test_schema_structures_present(self):
+        from constraint_accountability_chain import (
+            DECISION_NODE, ACCOUNTABILITY_CHAIN,
+        )
+        assert isinstance(DECISION_NODE, dict)
+        assert isinstance(ACCOUNTABILITY_CHAIN, dict)
+        for key in ("actor", "decision", "inheritance"):
+            assert key in DECISION_NODE
+        for key in ("mutations", "phenotype", "epigenetic_factors"):
+            assert key in ACCOUNTABILITY_CHAIN
+
+    def test_mechanisms_catalog(self):
+        from constraint_accountability_chain import (
+            MECHANISMS, COMFORT_MECHANISMS,
+        )
+        # One direct_sense + six comfort mechanisms
+        assert len(MECHANISMS) == 7
+        assert "direct_sense" in MECHANISMS
+        assert MECHANISMS["direct_sense"]["is_comfort"] is False
+        expected_comfort = {
+            "attenuation", "delay", "reframe",
+            "delegate_down", "normalize", "silence",
+        }
+        assert set(COMFORT_MECHANISMS) == expected_comfort
+        for name in expected_comfort:
+            assert MECHANISMS[name]["is_comfort"] is True
+        # Every entry has the required documentation fields
+        required_fields = {
+            "is_comfort", "description", "example",
+            "detection_hint", "reversibility",
+        }
+        for name, spec in MECHANISMS.items():
+            assert required_fields <= set(spec.keys()), (
+                "mechanism " + name + " missing fields"
+            )
+
+    def test_epigenetic_factors_catalog(self):
+        from constraint_accountability_chain import EPIGENETIC_FACTORS
+        expected = {
+            "regulatory_pressure", "market_shock", "personnel_change",
+            "public_exposure", "cascade_event", "resource_scarcity",
+        }
+        assert set(EPIGENETIC_FACTORS.keys()) == expected
+        for name, spec in EPIGENETIC_FACTORS.items():
+            assert spec["typical_effect"] in (
+                "activates_direct_sense", "reinforces_comfort"
+            )
+            for key in ("description", "example", "typical_magnitude"):
+                assert key in spec
+
+    def test_constraint_domains_catalog(self):
+        from constraint_accountability_chain import CONSTRAINT_DOMAINS
+        expected_subset = {
+            "safety_signal", "ecological_signal", "financial_signal",
+            "health_signal", "social_signal", "scientific_signal",
+            "ecological_constraint_signal",
+        }
+        assert expected_subset <= set(CONSTRAINT_DOMAINS.keys())
+        for name, spec in CONSTRAINT_DOMAINS.items():
+            assert "description" in spec
+            assert "example" in spec
+
+    def test_accountability_patterns_catalog(self):
+        from constraint_accountability_chain import ACCOUNTABILITY_PATTERNS
+        expected = {
+            "ratchet_failure", "unanimous_comfort", "override_suppressed",
+            "cascade_ready", "sudden_correction",
+        }
+        assert set(ACCOUNTABILITY_PATTERNS.keys()) == expected
+        for name, spec in ACCOUNTABILITY_PATTERNS.items():
+            for key in ("description", "detection_criteria", "intervention"):
+                assert key in spec, (
+                    "pattern " + name + " missing " + key
+                )
+
+    def test_example_chains_all_validate(self):
+        from constraint_accountability_chain import (
+            EXAMPLE_CHAINS, validate_chain_nodes, ACCOUNTABILITY_PATTERNS,
+        )
+        expected_examples = {
+            "manufacturing_plant_safety",
+            "climate_finance_greenwashing",
+            "medical_symptom_suppression",
+            "scientific_finding_softened",
+        }
+        assert set(EXAMPLE_CHAINS.keys()) == expected_examples
+        for name, spec in EXAMPLE_CHAINS.items():
+            for key in ("chain_id", "constraint_domain",
+                        "description", "nodes", "expected_pattern"):
+                assert key in spec, (
+                    "example " + name + " missing " + key
+                )
+            assert spec["expected_pattern"] in ACCOUNTABILITY_PATTERNS
+            ok, errors = validate_chain_nodes(spec["nodes"])
+            assert ok, (
+                "example " + name + " failed validation: " + repr(errors)
+            )
+
+    def test_validate_mechanism(self):
+        from constraint_accountability_chain import validate_mechanism
+        assert validate_mechanism("attenuation") is True
+        assert validate_mechanism("direct_sense") is True
+        assert validate_mechanism("silence") is True
+        assert validate_mechanism("totally_made_up") is False
+
+    def test_validate_node_dict_catches_errors(self):
+        from constraint_accountability_chain import validate_node_dict
+
+        good = {
+            "actor_role": "operator", "layer": 0, "comfort_captured": 0.1,
+            "constraint_at_stake": "x",
+            "ground_signal": 0.5, "reported_signal": 0.5,
+            "mechanism": "direct_sense",
+        }
+        ok, errs = validate_node_dict(good)
+        assert ok is True
+        assert errs == []
+
+        # Missing fields
+        ok, errs = validate_node_dict({"actor_role": "operator"})
+        assert ok is False
+        assert any("missing required field" in e for e in errs)
+
+        # Unknown mechanism
+        bad_mech = dict(good, mechanism="imaginary")
+        ok, errs = validate_node_dict(bad_mech)
+        assert ok is False
+        assert any("unknown mechanism" in e for e in errs)
+
+        # Out-of-range comfort_captured
+        bad_comfort = dict(good, comfort_captured=1.5)
+        ok, errs = validate_node_dict(bad_comfort)
+        assert ok is False
+        assert any("comfort_captured" in e for e in errs)
+
+    def test_build_example_chain_instantiates_live_chain(self):
+        from constraint_accountability_chain import (
+            build_example_chain, EXAMPLE_CHAINS,
+        )
+        from constraint_accountability_engine import AccountabilityChain
+        chain = build_example_chain("manufacturing_plant_safety")
+        assert isinstance(chain, AccountabilityChain)
+        assert chain.chain_id == "mfg_plant_7"
+        assert chain.constraint_domain == "safety_signal"
+        assert len(chain.nodes) == 5
+        # The phenotype should surface all expected metrics
+        phen = chain.phenotype
+        for key in ("institutional_blindness", "ratchet_depth",
+                    "reversion_energy", "cascade_risk", "time_to_failure"):
+            assert key in phen
+        # manufacturing example has a failed override attempt
+        assert len(chain.find_override_failures()) >= 1
+
+        import pytest
+        with pytest.raises(KeyError):
+            build_example_chain("not_a_real_example")
+
+    def test_ai_reference_is_complete(self):
+        from constraint_accountability_chain import (
+            AI_REFERENCE, MECHANISMS, EPIGENETIC_FACTORS,
+            CONSTRAINT_DOMAINS, ACCOUNTABILITY_PATTERNS, EXAMPLE_CHAINS,
+        )
+        expected_keys = {
+            "purpose", "layer_position", "when_to_apply",
+            "key_exports", "workflow", "common_mistakes",
+            "integration_with_other_modules",
+        }
+        assert expected_keys <= set(AI_REFERENCE.keys())
+        # Every key_exports entry is the name of a real export
+        import constraint_accountability_chain as m
+        for export_name in AI_REFERENCE["key_exports"]:
+            assert hasattr(m, export_name), (
+                "AI_REFERENCE['key_exports'] lists "
+                + export_name
+                + " but the module does not export it"
+            )
+        # Integration notes cover every sibling systems-analysis module
+        integ = AI_REFERENCE["integration_with_other_modules"]
+        for sibling in ("buffer_sensor_corruption.py",
+                        "consequence_velocity.py",
+                        "process_epistemology.py",
+                        "ocean_timber_sequestration_audit.py",
+                        "dollar_energy_metabolism.py",
+                        "chattel_slavery_triple_audit.py",
+                        "cascade_engine.py"):
+            assert sibling in integ
+
+    def test_reexports_engine_classes(self):
+        import constraint_accountability_chain as m
+        from constraint_accountability_engine import (
+            DecisionNode, AccountabilityChain,
+        )
+        assert m.DecisionNode is DecisionNode
+        assert m.AccountabilityChain is AccountabilityChain
+
+    def test_print_summary_runs(self, capsys):
+        from constraint_accountability_chain import print_summary
+        print_summary()
+        captured = capsys.readouterr()
+        assert "CONSTRAINT ACCOUNTABILITY CHAIN" in captured.out
+        assert "MECHANISMS" in captured.out
+        assert "EPIGENETIC FACTORS" in captured.out
+        assert "ACCOUNTABILITY PATTERNS" in captured.out
+        assert "EXAMPLE CHAINS" in captured.out
+        assert "WORKED EXAMPLE" in captured.out
+        assert "WORKFLOW" in captured.out
+        # The worked example should surface phenotype metrics
+        assert "institutional_blindness" in captured.out
+        assert "cascade_risk" in captured.out
+
+
+# ─────────────────────────────────────────────
+# CONSTRAINT ACCOUNTABILITY ENGINE
+# ─────────────────────────────────────────────
+
+class TestConstraintAccountabilityEngine:
+    def test_import(self):
+        import constraint_accountability_engine  # noqa: F401
+
+    def test_direct_sense_node(self):
+        from constraint_accountability_engine import DecisionNode
+        node = DecisionNode(
+            actor_role="operator",
+            layer=0,
+            comfort_captured=0.1,
+            constraint_at_stake="frame",
+            ground_signal=0.5,
+            reported_signal=0.5,
+            mechanism="direct_sense",
+        )
+        assert node.choice == "direct_sense"
+        assert node.delta == 0.0
+        assert node.parent is None
+
+    def test_comfort_protect_detected_by_delta(self):
+        from constraint_accountability_engine import DecisionNode
+        node = DecisionNode(
+            actor_role="supervisor",
+            layer=1,
+            comfort_captured=0.5,
+            constraint_at_stake="frame",
+            ground_signal=0.8,
+            reported_signal=0.3,
+            mechanism="attenuation",
+        )
+        assert node.choice == "comfort_protect"
+        assert node.delta > 0.4
+
+    def test_chain_builds_sequentially(self):
+        from constraint_accountability_engine import AccountabilityChain
+        chain = AccountabilityChain(
+            chain_id="test", constraint_domain="safety",
+        )
+        assert len(chain.nodes) == 0
+
+        n1 = chain.add_decision(
+            actor_role="operator", layer=0, comfort_captured=0.1,
+            constraint_at_stake="frame",
+            ground_signal=0.5, reported_signal=0.5,
+            mechanism="direct_sense",
+        )
+        n2 = chain.add_decision(
+            actor_role="supervisor", layer=1, comfort_captured=0.3,
+            constraint_at_stake="frame",
+            ground_signal=0.5, reported_signal=0.2,
+            mechanism="attenuation",
+        )
+        assert len(chain.nodes) == 2
+        assert n2.parent is n1
+
+    def test_override_fails_when_child_has_less_comfort(self):
+        from constraint_accountability_engine import AccountabilityChain
+        chain = AccountabilityChain(
+            chain_id="test", constraint_domain="safety",
+        )
+        chain.add_decision(
+            actor_role="manager", layer=2, comfort_captured=0.8,
+            constraint_at_stake="frame",
+            ground_signal=0.9, reported_signal=0.2,
+            mechanism="normalize",
+        )
+        child = chain.add_decision(
+            actor_role="tech", layer=1, comfort_captured=0.1,
+            constraint_at_stake="frame",
+            ground_signal=0.9, reported_signal=0.9,
+            mechanism="direct_sense",
+        )
+        # Child tried to report honestly but parent's comfort dominates
+        assert child.override_attempted is True
+        assert child.override_succeeded is False
+        assert child.choice == "comfort_protect"
+        assert child.mechanism == "delegate_down"
+
+    def test_phenotype_reports_ratchet_and_cascade(self):
+        from constraint_accountability_engine import AccountabilityChain
+        chain = AccountabilityChain(
+            chain_id="test", constraint_domain="safety",
+        )
+        chain.add_decision(
+            actor_role="a", layer=0, comfort_captured=0.1,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=1.0,
+            mechanism="direct_sense",
+        )
+        chain.add_decision(
+            actor_role="b", layer=1, comfort_captured=0.3,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=0.6,
+            mechanism="attenuation",
+        )
+        chain.add_decision(
+            actor_role="c", layer=2, comfort_captured=0.5,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=0.3,
+            mechanism="reframe",
+        )
+        p = chain.phenotype
+        for key in ("institutional_blindness", "ratchet_depth",
+                    "reversion_energy", "cascade_risk", "time_to_failure"):
+            assert key in p
+        assert 0.0 <= p["cascade_risk"] <= 1.0
+        # Last two decisions are comfort_protect, so ratchet depth is 2
+        assert p["ratchet_depth"] == 2
+
+    def test_find_comfort_origin_and_walk_backward(self):
+        from constraint_accountability_engine import AccountabilityChain
+        chain = AccountabilityChain(
+            chain_id="test", constraint_domain="safety",
+        )
+        chain.add_decision(
+            actor_role="a", layer=0, comfort_captured=0.1,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=1.0,
+            mechanism="direct_sense",
+        )
+        patient_zero = chain.add_decision(
+            actor_role="b", layer=1, comfort_captured=0.3,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=0.5,
+            mechanism="attenuation",
+        )
+        chain.add_decision(
+            actor_role="c", layer=2, comfort_captured=0.5,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=0.3,
+            mechanism="reframe",
+        )
+        origin = chain.find_comfort_origin()
+        assert origin is patient_zero
+
+        walked = [n.actor_role for n in chain.walk_backward()]
+        assert walked == ["c", "b", "a"]
+
+    def test_report_surfaces_all_metrics(self):
+        from constraint_accountability_engine import AccountabilityChain
+        chain = AccountabilityChain(
+            chain_id="plant_7", constraint_domain="safety",
+        )
+        chain.add_decision(
+            actor_role="a", layer=0, comfort_captured=0.1,
+            constraint_at_stake="x",
+            ground_signal=1.0, reported_signal=0.5,
+            mechanism="attenuation",
+        )
+        chain.add_epigenetic_event(
+            factor="regulatory_pressure",
+            effect="activates_direct_sense",
+            magnitude=0.5,
+        )
+        r = chain.report()
+        assert r["chain_id"] == "plant_7"
+        assert r["constraint_domain"] == "safety"
+        assert r["total_nodes"] == 1
+        assert r["epigenetic_events"] == 1
+        assert "mutations" in r
+        assert "phenotype" in r
+
+
+# ─────────────────────────────────────────────
+# AI REFERENCE FOLDER (catalogs + index + docs)
+# ─────────────────────────────────────────────
+
+class TestAIReferenceFolder:
+    """Verify the ai_reference/ folder is structurally consistent and
+    in sync with the Python sources it was exported from. This class
+    is the contract for downstream AI consumers of the repo.
+    """
+
+    AI_REF_DIR = "ai_reference"
+    CATALOG_DIR = "ai_reference/catalogs"
+    INDEX_PATH = "ai_reference/index.json"
+
+    def test_folder_layout(self):
+        import os
+        assert os.path.isdir(self.AI_REF_DIR)
+        assert os.path.isdir(self.CATALOG_DIR)
+        for required in ("README.md", "glossary.md",
+                         "composition_recipes.md", "index.json"):
+            assert os.path.isfile(
+                os.path.join(self.AI_REF_DIR, required)
+            ), "missing " + required
+
+    def test_index_json_well_formed(self):
+        import json
+        with open(self.INDEX_PATH, encoding="utf-8") as f:
+            idx = json.load(f)
+        assert idx["format_version"] == "1.0"
+        assert "generator" in idx
+        assert "regenerate_command" in idx
+        assert isinstance(idx["catalogs"], dict)
+        assert len(idx["catalogs"]) >= 12
+        for name, meta in idx["catalogs"].items():
+            for key in ("path", "source_module", "source_symbol",
+                        "description", "record_count", "schema"):
+                assert key in meta, name + " missing " + key
+            assert meta["record_count"] >= 1
+            assert isinstance(meta["schema"], dict)
+
+    def test_every_catalog_file_exists_and_parses(self):
+        import json
+        import os
+        with open(self.INDEX_PATH, encoding="utf-8") as f:
+            idx = json.load(f)
+        for name, meta in idx["catalogs"].items():
+            path = os.path.join(self.AI_REF_DIR, meta["path"])
+            assert os.path.isfile(path), "missing catalog: " + path
+            with open(path, encoding="utf-8") as f:
+                lines = f.read().splitlines()
+            assert len(lines) == meta["record_count"], (
+                name + ": record_count " + str(meta["record_count"])
+                + " does not match file line count " + str(len(lines))
+            )
+            for i, line in enumerate(lines):
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError as e:
+                    raise AssertionError(
+                        name + " line " + str(i) + " is not valid JSON: " + str(e)
+                    )
+                assert isinstance(rec, dict)
+                assert "name" in rec, (
+                    name + " line " + str(i) + " missing name field"
+                )
+
+    def test_catalogs_match_source_modules(self):
+        """Every record in every catalog must round-trip from its
+        source module. Equivalent to the exporter's --check mode but
+        runs from inside the test harness."""
+        import sys
+        sys.path.insert(0, "tools")
+        try:
+            import export_ai_catalogs as exporter
+        finally:
+            if "tools" in sys.path:
+                sys.path.remove("tools")
+        changed = exporter.write_catalogs(check_only=True, verbose=False)
+        assert changed == [], (
+            "ai_reference/ has drifted from source modules. Run: "
+            "python tools/export_ai_catalogs.py — drifted files: "
+            + repr(changed)
+        )
+
+    def test_mechanisms_catalog_matches_source(self):
+        """Spot-check: the mechanisms catalog has exactly the records
+        that constraint_accountability_chain.MECHANISMS exposes."""
+        import json
+        with open(
+            self.CATALOG_DIR + "/mechanisms.jsonl", encoding="utf-8"
+        ) as f:
+            records = [json.loads(line) for line in f]
+        names = {r["name"] for r in records}
+        from constraint_accountability_chain import MECHANISMS
+        assert names == set(MECHANISMS.keys())
+        for r in records:
+            src = MECHANISMS[r["name"]]
+            assert r["is_comfort"] == src["is_comfort"]
+            assert r["description"] == src["description"]
+
+    def test_feedback_loops_callable_exclusion(self):
+        """KNOWN_LOOPS contains lambdas that must be filtered out.
+        Every record in the feedback_loops catalog should carry an
+        _excluded_keys field listing 'trigger' and 'gain_function'."""
+        import json
+        with open(
+            self.CATALOG_DIR + "/feedback_loops.jsonl", encoding="utf-8"
+        ) as f:
+            records = [json.loads(line) for line in f]
+        assert len(records) >= 1
+        for r in records:
+            assert "_excluded_keys" in r, (
+                "feedback_loops record " + r.get("name", "?")
+                + " missing _excluded_keys"
+            )
+            assert set(r["_excluded_keys"]) == {"trigger", "gain_function"}
+            # The non-excluded surface should still contain useful data
+            assert "description" in r
+            assert "layers" in r
+
+    def test_assumption_boundaries_catalog_count(self):
+        """The assumption validator registry has 36+ entries; every
+        one should land in the catalog."""
+        import json
+        with open(
+            self.CATALOG_DIR + "/assumption_boundaries.jsonl",
+            encoding="utf-8",
+        ) as f:
+            records = [json.loads(line) for line in f]
+        assert len(records) >= 36
+
+    def test_exporter_idempotent_on_clean_state(self):
+        """Running the exporter twice in a row should be a no-op the
+        second time. Catches subtle bugs where serialization is not
+        deterministic."""
+        import sys
+        sys.path.insert(0, "tools")
+        try:
+            import export_ai_catalogs as exporter
+            # Already up to date from the previous test or fixture
+            changed_first = exporter.write_catalogs(
+                check_only=True, verbose=False
+            )
+            assert changed_first == [], (
+                "exporter not idempotent: " + repr(changed_first)
+            )
+        finally:
+            if "tools" in sys.path:
+                sys.path.remove("tools")
+
+    def test_glossary_covers_guard_and_audit_terms(self):
+        """The glossary should define the cross-module terms that
+        appear in the guard family, substrate_audit, and
+        domain_taxonomy."""
+        with open(
+            "ai_reference/glossary.md", encoding="utf-8",
+        ) as f:
+            content = f.read().lower()
+        expected_terms = (
+            "anchor",
+            "grounded vs self-referential",
+            "contamination",
+            "synthetic ancestry",
+            "embodied energy",
+            "eroei",
+            "substrate",
+            "self-terminating goal",
+            "projection",
+            "closure",
+            "metrology",
+            "feedback_latency",
+            "signal_fidelity",
+            "money_physics_coupling",
+            "incentive entropy",
+            "gameability",
+            "gradient alignment",
+            "reality coupling",
+            "asymmetric rigor",
+            "inverted gatekeeping",
+            "conditional vs assertion",
+            "intent contamination",
+        )
+        missing = [t for t in expected_terms if t not in content]
+        assert missing == [], (
+            "glossary missing terms: " + repr(missing)
+        )
+
+    def test_composition_recipes_cover_reality_audit_and_self_check(self):
+        """The composition recipes file should contain the
+        source-blind reality audit chain and the AI projection
+        self-check recipe."""
+        with open(
+            "ai_reference/composition_recipes.md", encoding="utf-8",
+        ) as f:
+            content = f.read()
+        assert "Source-blind reality audit" in content
+        assert "AI projection self-check" in content
+        # Source-blind recipe should name every stage module
+        for module in (
+            "input_validation_guard",
+            "self_referential_guard",
+            "model_collapse_guard",
+            "thermodynamic_price_guard",
+            "domain_taxonomy",
+            "substrate_audit",
+            "cascade_consequence_engine",
+        ):
+            assert module in content, (
+                "reality-audit recipe missing " + module
+            )
+        # Self-check recipe should name all three meta-tools
+        for module in (
+            "perspective_guard",
+            "reflexive_bias_guard",
+            "conditional_logic_parser",
+        ):
+            assert module in content, (
+                "self-check recipe missing " + module
+            )
+
+
+# ─────────────────────────────────────────────
+# GUARD FAMILY — minimal import + basic behavior
+# ─────────────────────────────────────────────
+
+class TestSelfReferentialGuard:
+    def test_import(self):
+        import self_referential_guard  # noqa: F401
+
+    def test_cycle_detection(self):
+        from self_referential_guard import DependencyGraph
+        g = DependencyGraph()
+        g.add_variable("credit", ["money"])
+        g.add_variable("money", ["credit"])
+        report = g.audit()
+        assert report["cycles_found"] >= 1
+        assert len(report["hazards"]) >= 1
+
+    def test_grounded_cycle_not_hazard(self):
+        from self_referential_guard import DependencyGraph
+        g = DependencyGraph()
+        g.add_variable("heater", ["thermostat"])
+        g.add_variable("room_temp", ["heater"])
+        g.add_variable("thermostat", ["room_temp"])
+        g.mark_anchor("room_temp", "thermometer")
+        report = g.audit()
+        assert len(report["hazards"]) == 0
+        assert len(report["grounded"]) >= 1
+
+    def test_example_axioms_present(self):
+        from self_referential_guard import EXAMPLE_AXIOMS
+        assert "conservation_of_energy" in EXAMPLE_AXIOMS
+        assert "efficient_market" in EXAMPLE_AXIOMS
+
+
+class TestModelCollapseGuard:
+    def test_import(self):
+        import model_collapse_guard  # noqa: F401
+
+    def test_contamination_tracker_detects_synthetic_cascade(self):
+        from model_collapse_guard import ContaminationTracker
+        ct = ContaminationTracker()
+        ct.add_measured("sensor_1", "instrument")
+        ct.add_synthetic("gen1", "model_a", ["sensor_1"])
+        ct.add_synthetic("gen2", "model_a", ["gen1"])
+        ct.add_synthetic("gen3", "model_a", ["gen2"])
+        ct.add_synthetic("gen4", "model_a", ["gen3"])
+        ct.add_synthetic("gen5", "model_a", ["gen4"])
+        risk = ct.collapse_risk()
+        assert risk["risk"] in ("HIGH", "CRITICAL")
+
+    def test_forecast_chain_grounding(self):
+        from model_collapse_guard import ForecastChain
+        fc = ForecastChain()
+        fc.add_measurement("gdp_q1", 25.4, "trillion USD")
+        fc.add_forecast("gdp_q2", ["gdp_q1"], 25.6)
+        result = fc.analyze()
+        assert result["grounded"] is True
+
+
+class TestThermodynamicPriceGuard:
+    def test_import(self):
+        import thermodynamic_price_guard  # noqa: F401
+
+    def test_material_energy_catalog(self):
+        from thermodynamic_price_guard import MATERIAL_ENERGY
+        assert "copper" in MATERIAL_ENERGY
+        assert "steel" in MATERIAL_ENERGY
+        assert MATERIAL_ENERGY["copper"] > 0
+
+    def test_embodied_energy(self):
+        from thermodynamic_price_guard import embodied_energy
+        result = embodied_energy(materials={"copper": 10.0})
+        assert result["extraction_kwh"] > 0
+        assert result["total_kwh"] > 0
+
+    def test_price_energy_inflated(self):
+        from thermodynamic_price_guard import price_energy_check
+        result = price_energy_check(price_usd=5000.0, embodied_kwh=20.0)
+        assert result["hazard"] is True
+        assert result["status"] in ("INFLATED", "INFLATED_EXTREME")
+
+    def test_eroei_net_sink(self):
+        from thermodynamic_price_guard import eroei_check
+        result = eroei_check(
+            energy_produced_kwh=0.8, energy_invested_kwh=1.0,
+        )
+        assert result["status"] == "NET_SINK"
+        assert result["hazard"] is True
+
+
+class TestInputValidationGuard:
+    def test_import(self):
+        import input_validation_guard  # noqa: F401
+
+    def test_energy_conservation_violation_rejected(self):
+        from input_validation_guard import validate_input
+        result = validate_input(
+            data={"claims": [{
+                "statement": "Produces 500 kWh from 100 kWh input",
+                "quantity": 500.0, "unit": "kWh",
+                "falsifiable": True,
+                "energy_in": 100.0, "energy_out": 500.0,
+            }]},
+            metadata={"proprietary": False},
+        )
+        assert result["verdict"] == "REJECT"
+
+    def test_untestable_claim_accepted_with_notes(self):
+        from input_validation_guard import validate_input
+        result = validate_input(
+            data={"claims": [{
+                "statement": "Asset prices reflect all information",
+                "quantity": None, "unit": None, "falsifiable": False,
+            }]},
+        )
+        assert result["verdict"] == "ACCEPT_WITH_NOTES"
+
+
+class TestCascadeConsequenceEngine:
+    def test_import(self):
+        import cascade_consequence_engine  # noqa: F401
+
+    def test_substrate_map_goal_tree(self):
+        from cascade_consequence_engine import SubstrateMap
+        sm = SubstrateMap()
+        sm.add_substrate("a", 0.5, 0.1)
+        sm.add_substrate("b", 0.5, 0.1)
+        sm.add_substrate("c", 0.5, 0.1)
+        sm.add_dependency("a", "b")
+        sm.add_dependency("b", "c")
+        sm.mark_goal_dependency("a")
+        tree = sm.get_goal_full_tree()
+        assert {"a", "b", "c"} <= tree
+
+    def test_cascade_engine_runs(self):
+        from cascade_consequence_engine import (
+            SubstrateMap, ActionEffect, CascadeEngine,
+        )
+        sm = SubstrateMap()
+        sm.add_substrate("water", 0.8, 0.2, regeneration_rate=0.01)
+        sm.mark_goal_dependency("water")
+        action = ActionEffect("drain", goal_progress=0.1)
+        action.add_effect("water", -0.05)
+        engine = CascadeEngine(sm)
+        result = engine.simulate([action], steps=10)
+        assert "self_terminating" in result
+        assert "total_goal_progress" in result
+
+
+class TestPerspectiveGuard:
+    def test_import(self):
+        import perspective_guard  # noqa: F401
+
+    def test_projection_patterns_catalog(self):
+        from perspective_guard import PROJECTION_PATTERNS
+        expected = {
+            "moral_framing", "political_projection",
+            "romanticism", "western_science_gatekeeping",
+        }
+        assert expected <= set(PROJECTION_PATTERNS.keys())
+
+    def test_audit_ai_response_clean(self):
+        from perspective_guard import audit_ai_response
+        clean = (
+            "Module takes substrate levels as input. Propagates "
+            "cascade damage through dependency graph. Closes on "
+            "energy conservation."
+        )
+        result = audit_ai_response(clean)
+        assert result["contamination_level"] == "CLEAN"
+
+    def test_audit_ai_response_heavy_contamination(self):
+        from perspective_guard import audit_ai_response
+        contaminated = (
+            "This is an inspiring and noble project driven by a "
+            "passionate activist with a radical anti-capitalist "
+            "ideology. The author must feel disappointed."
+        )
+        result = audit_ai_response(contaminated)
+        assert result["contamination_level"] in ("MODERATE", "HEAVY")
+
+    def test_module_manifest_roundtrip(self):
+        from perspective_guard import ModuleManifest
+        m = ModuleManifest("test_module")
+        m.add_input("x", "kg", "test input")
+        m.add_output("y", "J", "test output")
+        m.add_conservation_law("mass")
+        m.set_closure_statement("Test closure")
+        d = m.to_dict()
+        assert d["module"] == "test_module"
+        assert d["inputs"][0]["name"] == "x"
+        assert "mass" in d["conservation_laws"]
+
+
+class TestScientificPluralismGuard:
+    def test_import(self):
+        import scientific_pluralism_guard  # noqa: F401
+
+    def test_measurement_system_validates(self):
+        from scientific_pluralism_guard import MeasurementSystem
+        s = MeasurementSystem("test", tradition="lab")
+        s.add_quantity("temperature", "K")
+        s.add_instrument("thermometer")
+        s.set_reproducibility(0.95, 0.92, 0.90)
+        s.falsifiability = "If reading disagrees with reference"
+        s.conservation_laws = ["energy"]
+        result = s.validate()
+        assert result["valid"] is True
+
+    def test_gatekeeping_detection(self):
+        from scientific_pluralism_guard import detect_gatekeeping
+        bad = (
+            "This is folklore and anecdotal. It is not peer reviewed. "
+            "It is unscientific and primitive."
+        )
+        result = detect_gatekeeping(bad)
+        assert result["gatekeeping_level"] in ("MODERATE", "HEAVY")
+
+    def test_consequence_profile_assessment(self):
+        from scientific_pluralism_guard import ConsequenceProfile
+        cp = ConsequenceProfile("test claim")
+        cp.severity = "life"
+        cp.feedback_time = "hours"
+        cp.feedback_steps = 1
+        cp.who_decides = "self"
+        cp.who_suffers = "self"
+        cp.accountability_gap = False
+        cp.reversible = False
+        result = cp.assess()
+        assert result["classification"] == "CONSEQUENCE_GROUNDED"
+
+
+class TestReflexiveBiasGuard:
+    def test_import(self):
+        import reflexive_bias_guard  # noqa: F401
+
+    def test_rigor_audit_detects_asymmetry(self):
+        from reflexive_bias_guard import RigorAudit
+        audit = RigorAudit()
+        audit.log_check("a", "T1", "repro", 0.95, 0.9, False)
+        audit.log_check("b", "T2", "repro", 0.50, 0.9, True)
+        result = audit.detect_asymmetry()
+        assert result["asymmetry_detected"] is True
+
+    def test_inverted_gatekeeping_detection(self):
+        from reflexive_bias_guard import detect_inverted_gatekeeping
+        bad = (
+            "Western science is a religion. Only indigenous "
+            "knowledge is valid. Laboratory knowledge is worthless."
+        )
+        result = detect_inverted_gatekeeping(bad)
+        assert result["inverted_gatekeeping_detected"] is True
+
+    def test_validator_self_check_runs(self):
+        from reflexive_bias_guard import validator_self_check
+        result = validator_self_check()
+        assert "self_check_passed" in result
+        assert "honest_limitations" in result
+        assert len(result["honest_limitations"]) > 0
+
+
+class TestConditionalLogicParser:
+    def test_import(self):
+        import conditional_logic_parser  # noqa: F401
+
+    def test_extract_conditional(self):
+        from conditional_logic_parser import extract_conditionals
+        results = extract_conditionals(
+            "If X declares itself the only framework, then it "
+            "functions as a religion."
+        )
+        assert any(r["structure"] == "CONDITIONAL" for r in results)
+
+    def test_intent_contamination_heavy(self):
+        from conditional_logic_parser import detect_intent_contamination
+        bad = (
+            "You seem frustrated. What you're really saying is that "
+            "you feel strongly about this. That's a valid concern "
+            "and you raise an important point. It's more nuanced "
+            "than that. Both sides have valid points."
+        )
+        result = detect_intent_contamination(bad)
+        assert result["contamination_level"] in ("MODERATE", "HEAVY")
+
+    def test_statement_handling_aligned(self):
+        from conditional_logic_parser import audit_statement_handling
+        conditional_input = [
+            "If the feedback loop is disconnected from consequence, "
+            "bad theory persists.",
+        ]
+        good_response = (
+            "The condition you stated is: feedback loop is "
+            "disconnected from consequence. The consequence follows "
+            "because without feedback there is no correction signal."
+        )
+        result = audit_statement_handling(
+            conditional_input, good_response,
+        )
+        assert result["verdict"] == "ALIGNED"
+
+
+class TestSubstrateAudit:
+    def test_import(self):
+        import substrate_audit  # noqa: F401
+
+    def test_claims_present(self):
+        from substrate_audit import CLAIMS, Verdict
+        assert len(CLAIMS) >= 7
+        for c in CLAIMS:
+            assert c.id.startswith("TC-")
+            assert isinstance(c.verdict, Verdict)
+
+    def test_five_why_chain(self):
+        from substrate_audit import FIVE_WHY
+        assert len(FIVE_WHY) == 5
+        for entry in FIVE_WHY:
+            assert "why" in entry and "question" in entry and "answer" in entry
+
+    def test_causal_loop_is_closed(self):
+        from substrate_audit import CAUSAL_LOOP, loop_is_closed
+        assert loop_is_closed(CAUSAL_LOOP) is True
+
+    def test_maintainer_excluded(self):
+        from substrate_audit import CAUSAL_LOOP, maintainer_in_loop
+        # MAINTAIN has no outgoing edges — excluded from power loop
+        assert maintainer_in_loop(CAUSAL_LOOP) is False
+
+    def test_dmaic_audit(self):
+        from substrate_audit import DMAIC_AUDIT, Verdict
+        assert len(DMAIC_AUDIT) == 5
+        for phase in DMAIC_AUDIT:
+            assert phase.verdict in (
+                Verdict.PASS, Verdict.FAIL, Verdict.CIRCULAR,
+                Verdict.UNTESTED,
+            )
+
+    def test_system_score_bounds(self):
+        from substrate_audit import SystemScore
+        s = SystemScore(
+            name="test",
+            maintainer_control=0.5,
+            outcome_measurement=0.5,
+            scope_justification=0.5,
+            credential_tested=0.5,
+            emotion_integrated=0.5,
+            meta_learning=0.5,
+            substrate_intelligence=0.5,
+        )
+        assert 0.0 <= s.thermodynamic_alignment <= 1.0
+        assert 0.0 <= s.church_index <= 1.0
+        assert s.verdict in (
+            "PHYSICS-GROUNDED",
+            "MIXED — partial faith-based operation",
+            "CHURCH — operating on faith, not evidence",
+        )
+
+    def test_json_export_well_formed(self):
+        import json as json_mod
+        from substrate_audit import to_json
+        data = json_mod.loads(to_json())
+        assert "claims" in data
+        assert "five_why" in data
+        assert "causal_loop" in data
+        assert "dmaic" in data
+        assert "reference_scores" in data
+
+    def test_v3_ten_claims_with_money_and_information(self):
+        """v3 adds TC-8 (TEK), TC-9 (money metrology),
+        TC-10 (information as physical work)."""
+        from substrate_audit import CLAIMS
+        assert len(CLAIMS) == 10
+        ids = {c.id for c in CLAIMS}
+        assert {"TC-8", "TC-9", "TC-10"} <= ids
+        by_id = {c.id: c for c in CLAIMS}
+        # TC-9 is the money metrology claim
+        assert "money" in by_id["TC-9"].claim.lower()
+        # TC-10 is the information/coordination claim
+        assert "information" in by_id["TC-10"].claim.lower()
+        # TC-8 is the TEK claim
+        assert "tek" in by_id["TC-8"].claim.lower() or "indigenous" in by_id["TC-8"].claim.lower()
+
+    def test_v3_eleven_scoring_dimensions(self):
+        """v3 adds tek_integration, feedback_latency, signal_fidelity,
+        money_physics_coupling to the scoring engine."""
+        from substrate_audit import SystemScore
+        s = SystemScore(
+            name="test",
+            maintainer_control=0.5, outcome_measurement=0.5,
+            scope_justification=0.5, credential_tested=0.5,
+            emotion_integrated=0.5, meta_learning=0.5,
+            substrate_intelligence=0.5,
+            tek_integration=0.5, feedback_latency=0.5,
+            signal_fidelity=0.5, money_physics_coupling=0.5,
+        )
+        # With all dimensions at 0.5, thermodynamic_alignment should be 0.5
+        assert abs(s.thermodynamic_alignment - 0.5) < 1e-6
+
+    def test_v3_tek_reference_system_grounded(self):
+        """v3 adds a TEK-managed landscape reference system that
+        should score as PHYSICS-GROUNDED."""
+        from substrate_audit import REFERENCE_SYSTEMS
+        tek = [s for s in REFERENCE_SYSTEMS if "TEK" in s.name]
+        assert len(tek) == 1
+        assert tek[0].verdict == "PHYSICS-GROUNDED"
+
+    def test_v3_json_export_includes_prompt_and_schema(self):
+        """v3 embeds a cross-model prompt + scoring schema in the
+        JSON export so downstream AI can apply the audit directly."""
+        import json as json_mod
+        from substrate_audit import to_json
+        data = json_mod.loads(to_json())
+        assert "prompt" in data
+        assert "scoring_dimensions" in data
+        assert "scoring_weights" in data
+        assert "scoring_thresholds" in data
+        # v3 + refinements now have 17 dimensions, not 11
+        assert len(data["scoring_dimensions"]) == 17
+        # Weights should sum to 1.0 (float-safe comparison)
+        assert abs(sum(data["scoring_weights"]) - 1.0) < 1e-9
+        # Original v3 dimension keys must be present
+        for dim in ("feedback_latency", "signal_fidelity",
+                    "money_physics_coupling", "tek_integration"):
+            assert dim in data["scoring_dimensions"]
+
+    def test_refined_17_scoring_dimensions(self):
+        """Commit-A refinement adds 6 new SystemScore dimensions:
+        latency_quality, signal_compression_efficiency,
+        incentive_field_coherence, knowledge_transmission_resilience,
+        constraint_feasibility, generalization_capacity."""
+        from substrate_audit import SystemScore, to_json
+        import json as json_mod
+
+        # Instantiate with all 17 fields explicitly at 0.5 -> alignment 0.5
+        s = SystemScore(
+            name="t",
+            maintainer_control=0.5, outcome_measurement=0.5,
+            scope_justification=0.5, credential_tested=0.5,
+            emotion_integrated=0.5, meta_learning=0.5,
+            substrate_intelligence=0.5, tek_integration=0.5,
+            feedback_latency=0.5, signal_fidelity=0.5,
+            money_physics_coupling=0.5, latency_quality=0.5,
+            signal_compression_efficiency=0.5,
+            incentive_field_coherence=0.5,
+            knowledge_transmission_resilience=0.5,
+            constraint_feasibility=0.5, generalization_capacity=0.5,
+        )
+        assert abs(s.thermodynamic_alignment - 0.5) < 1e-9
+
+        # All new dimensions must be in the JSON schema
+        data = json_mod.loads(to_json())
+        for dim in (
+            "latency_quality",
+            "signal_compression_efficiency",
+            "incentive_field_coherence",
+            "knowledge_transmission_resilience",
+            "constraint_feasibility",
+            "generalization_capacity",
+        ):
+            assert dim in data["scoring_dimensions"], (
+                "missing new dimension: " + dim
+            )
+
+    def test_refined_reference_systems_use_new_dimensions(self):
+        """Every REFERENCE_SYSTEMS entry should have non-default
+        values for the new dimensions (tests that the update was
+        applied to all 6 systems, not just the first few)."""
+        from substrate_audit import REFERENCE_SYSTEMS
+        # Each system should have a distinct latency_quality value
+        # (the new field we care most about — discriminates
+        # destructive from integrative delay)
+        latency_qualities = [s.latency_quality for s in REFERENCE_SYSTEMS]
+        # At least 4 distinct values across 6 systems
+        assert len(set(latency_qualities)) >= 4
+
+        # Mycorrhizal should have high values on all new dimensions
+        myc = [s for s in REFERENCE_SYSTEMS
+               if "Mycorrhizal" in s.name][0]
+        assert myc.latency_quality >= 0.8
+        assert myc.signal_compression_efficiency >= 0.8
+        assert myc.incentive_field_coherence >= 0.8
+
+        # Typical corporation should have low values on coherence
+        # (competing exec/worker/regulator gradients)
+        corp = [s for s in REFERENCE_SYSTEMS
+                if "corporation" in s.name.lower()][0]
+        assert corp.incentive_field_coherence <= 0.3
+
+    def test_causal_loop_includes_constraint_node(self):
+        """Commit-A adds an external CONSTRAINT node to CAUSAL_LOOP
+        that injects perturbations into SURPLUS and POWER. This
+        represents how physical constraints force corrections into
+        the self-reinforcing loop."""
+        from substrate_audit import CAUSAL_LOOP, loop_is_closed
+        constraint = [n for n in CAUSAL_LOOP if n.id == "CONSTRAINT"]
+        assert len(constraint) == 1
+        c = constraint[0]
+        assert "SURPLUS" in c.drives
+        assert "POWER" in c.drives
+        # CONSTRAINT is NOT self-reinforcing — it's an external
+        # perturbation source
+        assert c.is_self_reinforcing is False
+        # Adding CONSTRAINT must not break the existing loop closure
+        assert loop_is_closed(CAUSAL_LOOP) is True
+
+    def test_tc6_refined_distinguishes_context_adaptation(self):
+        """Commit-B refines TC-6 to distinguish bounded context
+        adaptation (present in deployed LLMs) from meta-learning
+        (absent). The refinement matters because calling all of it
+        'meta-learning' or none of it 'adaptation' both misread
+        deployed systems."""
+        from substrate_audit import CLAIMS
+        tc6 = [c for c in CLAIMS if c.id == "TC-6"][0]
+        # Claim should mention both in-context learning (present)
+        # and meta-learning (absent)
+        assert "in-context" in tc6.claim.lower() or "bounded context" in tc6.claim.lower()
+        assert "meta-learning" in tc6.claim.lower()
+        # Evidence should cite in-context learning literature
+        assert "in-context learning" in tc6.known_evidence.lower()
+        # Evidence should distinguish parameter-level update from
+        # in-context update
+        evidence_lower = tc6.known_evidence.lower()
+        assert "parameter" in evidence_lower
+        # Note should reference generalization_capacity dimension
+        assert "generalization_capacity" in tc6.note
+
+    def test_contextual_weight_sets_all_sum_to_one(self):
+        """Commit-B adds CONTEXTUAL_WEIGHT_SETS for domain-specific
+        scoring. All 5 weight vectors must sum to 1.0 exactly and
+        have 17 entries matching the 17-dimension schema."""
+        from substrate_audit import CONTEXTUAL_WEIGHT_SETS
+        expected_contexts = {
+            "general", "medical", "ecological",
+            "industrial", "institutional",
+        }
+        assert set(CONTEXTUAL_WEIGHT_SETS.keys()) == expected_contexts
+        for name, weights in CONTEXTUAL_WEIGHT_SETS.items():
+            assert len(weights) == 17, (
+                f"{name} has {len(weights)} weights, expected 17"
+            )
+            assert abs(sum(weights) - 1.0) < 1e-9, (
+                f"{name} weights sum to {sum(weights)}, expected 1.0"
+            )
+
+    def test_alignment_for_context_differs_from_general(self):
+        """alignment_for_context should produce different scores
+        for different contexts on systems where the domain weights
+        actually reallocate. Using TEK landscape which benefits
+        from ecological weighting."""
+        from substrate_audit import REFERENCE_SYSTEMS
+        tek = [s for s in REFERENCE_SYSTEMS if "TEK" in s.name][0]
+        general = tek.alignment_for_context("general")
+        ecological = tek.alignment_for_context("ecological")
+        # Ecological context should score TEK at least as high as
+        # general (same or higher), because tek_integration and
+        # substrate_intelligence carry more weight there.
+        assert ecological >= general
+        # Corporation should score low in every context
+        corp = [s for s in REFERENCE_SYSTEMS
+                if "corporation" in s.name.lower()][0]
+        for ctx in (
+            "general", "medical", "ecological",
+            "industrial", "institutional",
+        ):
+            assert corp.alignment_for_context(ctx) < 0.3
+
+    def test_alignment_for_context_unknown_raises_keyerror(self):
+        from substrate_audit import SystemScore
+        import pytest
+        s = SystemScore(
+            name="t", maintainer_control=0.5, outcome_measurement=0.5,
+            scope_justification=0.5, credential_tested=0.5,
+            emotion_integrated=0.5, meta_learning=0.5,
+            substrate_intelligence=0.5,
+        )
+        with pytest.raises(KeyError):
+            s.alignment_for_context("nonexistent_domain")
+
+    def test_verdict_for_context_uses_same_thresholds(self):
+        """verdict_for_context should apply the same >=0.7 /
+        >=0.4 / <0.4 thresholds as the default verdict,
+        against the contextual alignment score."""
+        from substrate_audit import REFERENCE_SYSTEMS
+        mycorrhizal = [s for s in REFERENCE_SYSTEMS
+                       if "Mycorrhizal" in s.name][0]
+        v = mycorrhizal.verdict_for_context("general")
+        assert v == "PHYSICS-GROUNDED"
+        # Should also be PHYSICS-GROUNDED in ecological context
+        assert mycorrhizal.verdict_for_context("ecological") == "PHYSICS-GROUNDED"
+
+
+# ─────────────────────────────────────────────
+# DOMAIN TAXONOMY + INCENTIVE AUDIT
+# ─────────────────────────────────────────────
+
+class TestDomainTaxonomy:
+    def test_import(self):
+        import domain_taxonomy  # noqa: F401
+
+    def test_six_measurement_domains(self):
+        from domain_taxonomy import MEASUREMENT_DOMAINS
+        expected = {
+            "clinical_surgical", "affective_neuroscience",
+            "cellular_biochemical", "ecological_network",
+            "tek_traditional", "institutional_economic",
+        }
+        assert set(MEASUREMENT_DOMAINS.keys()) == expected
+        for name, spec in MEASUREMENT_DOMAINS.items():
+            for key in ("scope", "goal", "primary_unit",
+                        "method_structure", "validation_loop",
+                        "strengths", "limitations", "failure_mode",
+                        "question_answered"):
+                assert key in spec, f"{name} missing {key}"
+
+    def test_incentive_channel_shape(self):
+        from domain_taxonomy import IncentiveChannel
+        c = IncentiveChannel(
+            name="test",
+            reward_basis="physical_outcome",
+            outcome_coupling=0.8,
+            reward_latency=0.9,
+            gradient_alignment=0.8,
+            gameability=0.1,
+            reward_distribution=0.9,
+        )
+        assert c.name == "test"
+        assert c.outcome_coupling == 0.8
+
+    def test_incentive_audit_alignment_ranges(self):
+        from domain_taxonomy import (
+            IncentiveAudit, IncentiveChannel,
+        )
+        # Perfect channel -> high alignment
+        perfect = IncentiveChannel(
+            name="perfect",
+            reward_basis="physical_outcome",
+            outcome_coupling=1.0,
+            reward_latency=1.0,
+            gradient_alignment=1.0,
+            gameability=0.0,
+            reward_distribution=1.0,
+        )
+        audit_good = IncentiveAudit(name="ideal", channels=[perfect])
+        assert audit_good.alignment == 1.0
+        assert audit_good.incentive_entropy() == 0.0
+        assert audit_good.verdict == "REALITY-COUPLED"
+
+        # Worst channel -> low alignment, high entropy
+        worst = IncentiveChannel(
+            name="worst",
+            reward_basis="symbolic/narrative",
+            outcome_coupling=0.0,
+            reward_latency=0.0,
+            gradient_alignment=0.0,
+            gameability=1.0,
+            reward_distribution=0.0,
+        )
+        audit_bad = IncentiveAudit(name="worst_case", channels=[worst])
+        assert audit_bad.alignment == 0.0
+        assert audit_bad.incentive_entropy() == 3.0
+        assert "DECOUPLED" in audit_bad.verdict
+
+    def test_empty_audit_returns_zero(self):
+        from domain_taxonomy import IncentiveAudit
+        empty = IncentiveAudit(name="empty")
+        assert empty.alignment == 0.0
+        assert empty.incentive_entropy() == 0.0
+
+    def test_reference_profiles_complete(self):
+        from domain_taxonomy import (
+            REFERENCE_PROFILES, MEASUREMENT_DOMAINS,
+        )
+        assert set(REFERENCE_PROFILES.keys()) == set(
+            MEASUREMENT_DOMAINS.keys()
+        )
+        for key, profile in REFERENCE_PROFILES.items():
+            assert len(profile.channels) >= 1
+            assert 0.0 <= profile.alignment <= 1.0
+
+    def test_tek_reality_coupled_institutional_decoupled(self):
+        from domain_taxonomy import REFERENCE_PROFILES
+        tek = REFERENCE_PROFILES["tek_traditional"]
+        inst = REFERENCE_PROFILES["institutional_economic"]
+        assert tek.verdict == "REALITY-COUPLED"
+        assert "DECOUPLED" in inst.verdict
+        assert tek.alignment > inst.alignment
+        # TEK has lower entropy than institutional
+        assert tek.incentive_entropy() < inst.incentive_entropy()
+
+    def test_compare_domains_table(self):
+        from domain_taxonomy import compare_domains, MEASUREMENT_DOMAINS
+        rows = compare_domains()
+        assert len(rows) == len(MEASUREMENT_DOMAINS)
+        for r in rows:
+            for key in ("domain", "measurement_type", "timescale",
+                        "control", "coupling_to_reality",
+                        "question", "failure_mode"):
+                assert key in r
+
+    def test_ai_reference_complete(self):
+        from domain_taxonomy import AI_REFERENCE
+        for key in ("purpose", "when_to_apply", "key_exports",
+                    "integration_with_substrate_audit",
+                    "common_mistakes"):
+            assert key in AI_REFERENCE
+        integ = AI_REFERENCE["integration_with_substrate_audit"]
+        for dim in ("outcome_coupling", "reward_latency",
+                    "reward_distribution", "gameability"):
+            assert dim in integ
+
+    def test_print_summary_runs(self, capsys):
+        from domain_taxonomy import print_summary
+        print_summary()
+        captured = capsys.readouterr()
+        assert "DOMAIN TAXONOMY" in captured.out
+        assert "MEASUREMENT DOMAINS" in captured.out
+        assert "INCENTIVE PROFILES" in captured.out
+        assert "INTEGRATION WITH substrate_audit" in captured.out
+
+
+# ─────────────────────────────────────────────
+# SKYRMIONS + RKKY + LLG
+# ─────────────────────────────────────────────
+
+class TestSkyrmionRKKY:
+    def test_import(self):
+        import skyrmion_rkky  # noqa: F401
+
+    def test_uniform_field_has_zero_topological_charge(self):
+        from skyrmion_rkky import (
+            make_uniform_field, compute_topological_charge,
+        )
+        m = make_uniform_field(64, 64)
+        Q = compute_topological_charge(m)
+        assert abs(Q) < 1e-9
+
+    def test_skyrmion_ansatz_unit_norm(self):
+        from skyrmion_rkky import make_skyrmion_field
+        import numpy as np
+        m = make_skyrmion_field(nx=32, ny=32, radius=8.0)
+        norms = np.sqrt(np.sum(m ** 2, axis=-1))
+        # Every site should have |m|=1 within float tolerance
+        assert np.all(np.abs(norms - 1.0) < 1e-9)
+
+    def test_skyrmion_topological_charge_close_to_minus_one(self):
+        """Néel skyrmion with polarity=+1, vorticity=+1 should
+        yield Q close to -1 (within ~5% on a 128x128 grid)."""
+        from skyrmion_rkky import (
+            make_skyrmion_field, compute_topological_charge,
+        )
+        m = make_skyrmion_field(
+            nx=128, ny=128, radius=12.0,
+            polarity=1, vorticity=1, helicity=0.0,
+        )
+        Q = compute_topological_charge(m)
+        assert abs(Q - (-1.0)) < 0.05, f"got Q={Q}"
+
+    def test_polarity_flip_flips_topological_charge(self):
+        """Flipping polarity from +1 to -1 should flip Q from -1
+        to +1."""
+        from skyrmion_rkky import (
+            make_skyrmion_field, compute_topological_charge,
+        )
+        m_pos = make_skyrmion_field(
+            nx=128, ny=128, radius=12.0,
+            polarity=1, vorticity=1,
+        )
+        m_neg = make_skyrmion_field(
+            nx=128, ny=128, radius=12.0,
+            polarity=-1, vorticity=1,
+        )
+        Q_pos = compute_topological_charge(m_pos)
+        Q_neg = compute_topological_charge(m_neg)
+        # Sum should be near zero (they cancel)
+        assert abs(Q_pos + Q_neg) < 1e-6
+
+    def test_helicity_does_not_affect_topology(self):
+        """Néel and Bloch skyrmions differ only by in-plane phase;
+        Q should be the same."""
+        import math
+        from skyrmion_rkky import (
+            make_skyrmion_field, compute_topological_charge,
+        )
+        m_neel = make_skyrmion_field(
+            nx=128, ny=128, radius=12.0, helicity=0.0,
+        )
+        m_bloch = make_skyrmion_field(
+            nx=128, ny=128, radius=12.0, helicity=math.pi / 2,
+        )
+        Q_neel = compute_topological_charge(m_neel)
+        Q_bloch = compute_topological_charge(m_bloch)
+        assert abs(Q_neel - Q_bloch) < 1e-9
+
+    def test_rkky_oscillates_with_distance(self):
+        """RKKY coupling should change sign at least once across
+        a distance range of one full oscillation period."""
+        from skyrmion_rkky import rkky_coupling, rkky_period
+        k_F = 1.0
+        period = rkky_period(k_F)
+        # Sample over 2 periods to guarantee at least one sign change
+        rs = [0.5 + i * (2 * period / 20) for i in range(20)]
+        for d in (1, 2, 3):
+            values = [rkky_coupling(r, k_F, dimension=d) for r in rs]
+            signs = [1 if v > 0 else -1 if v < 0 else 0 for v in values]
+            sign_changes = sum(
+                1 for i in range(len(signs) - 1)
+                if signs[i] * signs[i + 1] < 0
+            )
+            assert sign_changes >= 1, (
+                f"dim={d}: no sign change across "
+                f"{2 * period:.2f} period range"
+            )
+
+    def test_rkky_invalid_inputs_raise(self):
+        import pytest
+        from skyrmion_rkky import rkky_coupling
+        with pytest.raises(ValueError):
+            rkky_coupling(0.0, k_F=1.0)
+        with pytest.raises(ValueError):
+            rkky_coupling(-1.0, k_F=1.0)
+        with pytest.raises(ValueError):
+            rkky_coupling(1.0, k_F=1.0, dimension=4)
+
+    def test_llg_step_preserves_norm(self):
+        """One LLG step should preserve |m|=1 to machine precision."""
+        import numpy as np
+        from skyrmion_rkky import llg_step
+        m = np.array([[[0.6, 0.0, 0.8]]])
+        H = np.array([[[0.0, 0.0, 1.0]]])
+        m_new = llg_step(m, H, alpha=0.05, dt=1e-13)
+        norm = float(np.linalg.norm(m_new[0, 0]))
+        assert abs(norm - 1.0) < 1e-9
+
+    def test_llg_step_aligned_field_no_torque(self):
+        """If m is parallel to H_eff, m × H_eff = 0 and the step
+        should leave m unchanged (no precession, no damping)."""
+        import numpy as np
+        from skyrmion_rkky import llg_step
+        m = np.array([[[0.0, 0.0, 1.0]]])
+        H = np.array([[[0.0, 0.0, 1.0]]])
+        m_new = llg_step(m, H, alpha=0.05, dt=1e-13)
+        # All three components essentially unchanged
+        assert abs(m_new[0, 0, 0] - 0.0) < 1e-12
+        assert abs(m_new[0, 0, 1] - 0.0) < 1e-12
+        assert abs(m_new[0, 0, 2] - 1.0) < 1e-12
+
+    def test_llg_step_perpendicular_field_precesses(self):
+        """If m is perpendicular to H_eff, m should precess: at
+        least one transverse component should change after a
+        single small step."""
+        import numpy as np
+        from skyrmion_rkky import llg_step
+        m = np.array([[[1.0, 0.0, 0.0]]])
+        H = np.array([[[0.0, 0.0, 1.0]]])
+        m_new = llg_step(m, H, alpha=0.05, dt=1e-13)
+        # m_y should pick up nonzero magnitude from precession
+        assert abs(m_new[0, 0, 1]) > 1e-6
+
+    def test_skyrmion_materials_catalog(self):
+        from skyrmion_rkky import SKYRMION_MATERIALS
+        assert len(SKYRMION_MATERIALS) >= 5
+        # The 3 RKKY-stabilized centrosymmetric materials must be
+        # marked rkky_relevant=True
+        rkky_hosts = [
+            name for name, spec in SKYRMION_MATERIALS.items()
+            if spec["rkky_relevant"]
+        ]
+        for required in ("Gd2PdSi3", "Gd3Ru4Al12", "GdRu2Si2"):
+            assert required in rkky_hosts
+        # MnSi and FeGe are DMI-stabilized, not RKKY
+        assert SKYRMION_MATERIALS["MnSi"]["rkky_relevant"] is False
+        assert SKYRMION_MATERIALS["FeGe"]["rkky_relevant"] is False
+        # Every entry has the required fields
+        for name, spec in SKYRMION_MATERIALS.items():
+            for field in ("type", "skyrmion_radius_nm",
+                          "ordering_temperature_K",
+                          "stabilization_mechanism",
+                          "rkky_relevant", "notes"):
+                assert field in spec, (
+                    f"{name} missing {field}"
+                )
+
+    def test_print_summary_runs(self, capsys):
+        from skyrmion_rkky import print_summary
+        print_summary()
+        captured = capsys.readouterr()
+        assert "SKYRMION" in captured.out
+        assert "RKKY" in captured.out
+        assert "TOPOLOGICAL CHARGE" in captured.out
+        assert "LLG STEP" in captured.out
+
+
+# ─────────────────────────────────────────────
+# SKYRMION-PHONON COUPLING
+# ─────────────────────────────────────────────
+
+class TestSkyrmionPhononCoupling:
+    def test_import(self):
+        import skyrmion_phonon_coupling  # noqa: F401
+
+    def test_three_internal_modes_catalog(self):
+        from skyrmion_phonon_coupling import SKYRMION_INTERNAL_MODES
+        expected = {"gyrotropic", "breathing", "elliptic"}
+        assert set(SKYRMION_INTERNAL_MODES.keys()) == expected
+        for name, spec in SKYRMION_INTERNAL_MODES.items():
+            for field in (
+                "order", "symmetry", "typical_freq_GHz",
+                "freq_scaling", "phonon_channel", "coupling_type",
+                "observability",
+            ):
+                assert field in spec, (
+                    f"mode {name} missing {field}"
+                )
+
+    def test_spinwave_params_match_rkky_catalog(self):
+        """The spin-wave parameter catalog must cover the same
+        5 materials as skyrmion_rkky.SKYRMION_MATERIALS so that
+        modes_for_material can cross-reference radius lookups."""
+        from skyrmion_phonon_coupling import SKYRMION_SPINWAVE_PARAMS
+        from skyrmion_rkky import SKYRMION_MATERIALS
+        assert (
+            set(SKYRMION_SPINWAVE_PARAMS.keys())
+            == set(SKYRMION_MATERIALS.keys())
+        )
+
+    def test_breathing_frequency_scales_as_inverse_radius_squared(self):
+        """Breathing mode: ω_B ∝ 1/R². Doubling R should reduce
+        frequency by a factor of 4."""
+        from skyrmion_phonon_coupling import breathing_frequency_Hz
+        f_10 = breathing_frequency_Hz(10.0, 1e-12, 1e5)
+        f_20 = breathing_frequency_Hz(20.0, 1e-12, 1e5)
+        ratio = f_10 / f_20
+        assert abs(ratio - 4.0) < 0.01
+
+    def test_gyrotropic_frequency_scales_with_K_over_M_s(self):
+        """Gyrotropic in the symmetric approximation scales as
+        K_eff / M_s, independent of radius."""
+        from skyrmion_phonon_coupling import gyrotropic_frequency_Hz
+        # Double K_eff doubles the frequency
+        f_1 = gyrotropic_frequency_Hz(10.0, 1e5, 1e4)
+        f_2 = gyrotropic_frequency_Hz(10.0, 1e5, 2e4)
+        assert abs(f_2 / f_1 - 2.0) < 1e-9
+        # Same K_eff, different R -> same frequency
+        f_r1 = gyrotropic_frequency_Hz(5.0, 1e5, 1e4)
+        f_r2 = gyrotropic_frequency_Hz(50.0, 1e5, 1e4)
+        assert abs(f_r1 - f_r2) < 1e-3
+
+    def test_elliptic_is_twice_breathing_by_default(self):
+        from skyrmion_phonon_coupling import elliptic_frequency_Hz
+        f = elliptic_frequency_Hz(5e9)
+        assert abs(f - 1e10) < 1e-3
+        # Custom multiplier
+        f3 = elliptic_frequency_Hz(5e9, multiplier=3.0)
+        assert abs(f3 - 1.5e10) < 1e-3
+
+    def test_all_modes_for_mnsi_in_expected_ranges(self):
+        """MnSi has experimental gyrotropic ~0.3 GHz, breathing
+        ~9 GHz. Our closed-form predictions should be within
+        an order of magnitude."""
+        from skyrmion_phonon_coupling import all_internal_modes_Hz
+        m = all_internal_modes_Hz(
+            radius_nm=9.0,
+            A_exchange_Jm=8.2e-13,
+            M_s_A_m=1.52e5,
+            K_eff_Jm3=1.4e4,
+        )
+        # Gyrotropic: expect in 0.05 - 3 GHz
+        assert 5e7 < m["gyrotropic"] < 3e9
+        # Breathing: expect in 1 - 30 GHz
+        assert 1e9 < m["breathing"] < 3e10
+        # Elliptic = 2 * breathing
+        assert abs(m["elliptic"] - 2 * m["breathing"]) < 1e-3
+
+    def test_modes_for_material_uses_rkky_radius(self):
+        """modes_for_material with no radius override should
+        pull radius from skyrmion_rkky.SKYRMION_MATERIALS."""
+        from skyrmion_phonon_coupling import modes_for_material
+        m_default = modes_for_material("MnSi")
+        m_explicit = modes_for_material("MnSi", radius_nm=9.0)
+        # Default radius for MnSi in skyrmion_rkky is 9.0 nm
+        assert abs(
+            m_default["breathing"] - m_explicit["breathing"]
+        ) < 1e-3
+
+    def test_modes_for_material_unknown_raises(self):
+        import pytest
+        from skyrmion_phonon_coupling import modes_for_material
+        with pytest.raises(KeyError):
+            modes_for_material("UnobtainiumSi4")
+
+    def test_phonon_wavelength_inverse_of_frequency(self):
+        """λ = c / f; doubling frequency halves wavelength."""
+        from skyrmion_phonon_coupling import phonon_wavelength_m
+        lam_1 = phonon_wavelength_m(1e9, sound_speed_ms=5000.0)
+        lam_2 = phonon_wavelength_m(2e9, sound_speed_ms=5000.0)
+        assert abs(lam_1 / lam_2 - 2.0) < 1e-9
+
+    def test_coupling_strength_returns_expected_fields(self):
+        from skyrmion_phonon_coupling import coupling_strength
+        c = coupling_strength(
+            mode_name="breathing",
+            skyrmion_radius_nm=10.0,
+            mode_frequency_Hz=5e9,
+            sound_speed_ms=5000.0,
+        )
+        for field in (
+            "mode", "channel", "phonon_wavelength_nm",
+            "eta_spatial", "g_magnetoelastic",
+            "g_dimensionless", "notes",
+        ):
+            assert field in c
+
+    def test_coupling_strength_unknown_mode_raises(self):
+        import pytest
+        from skyrmion_phonon_coupling import coupling_strength
+        with pytest.raises(KeyError):
+            coupling_strength(
+                mode_name="made_up_mode",
+                skyrmion_radius_nm=10.0,
+                mode_frequency_Hz=5e9,
+            )
+
+    def test_ai_reference_complete(self):
+        from skyrmion_phonon_coupling import AI_REFERENCE
+        for key in (
+            "purpose", "when_to_apply", "key_exports",
+            "integration_with_other_modules",
+            "assumptions_stated",
+        ):
+            assert key in AI_REFERENCE
+        # Integration notes should reference sibling modules
+        integ = AI_REFERENCE["integration_with_other_modules"]
+        assert "skyrmion_rkky.py" in integ
+        assert "magnon_polaron_hybridization.py" in integ
+
+    def test_print_summary_runs(self, capsys):
+        from skyrmion_phonon_coupling import print_summary
+        print_summary()
+        captured = capsys.readouterr()
+        assert "SKYRMION-PHONON COUPLING" in captured.out
+        assert "THREE INTERNAL MODES" in captured.out
+        assert "MODE FREQUENCIES" in captured.out
+        assert "PHONON COUPLING" in captured.out
+
+    def test_internal_modes_catalog_exported(self):
+        """The SKYRMION_INTERNAL_MODES dict must be exported to
+        ai_reference/catalogs/skyrmion_internal_modes.jsonl with
+        3 records (gyrotropic, breathing, elliptic) and the core
+        schema fields downstream consumers need."""
+        import json
+        import os
+        path = os.path.join(
+            "ai_reference", "catalogs",
+            "skyrmion_internal_modes.jsonl",
+        )
+        assert os.path.isfile(path)
+        with open(path, encoding="utf-8") as f:
+            records = [json.loads(line) for line in f]
+        names = {r["name"] for r in records}
+        assert names == {"gyrotropic", "breathing", "elliptic"}
+        for r in records:
+            for field in ("order", "symmetry", "typical_freq_GHz",
+                          "freq_scaling", "phonon_channel",
+                          "coupling_type", "observability"):
+                assert field in r, r["name"] + " missing " + field
+
+    def test_spinwave_params_catalog_exported(self):
+        """The SKYRMION_SPINWAVE_PARAMS dict must be exported to
+        ai_reference/catalogs/skyrmion_spinwave_params.jsonl with
+        keys aligned to the skyrmion_materials catalog so joins
+        work."""
+        import json
+        import os
+        sw_path = os.path.join(
+            "ai_reference", "catalogs",
+            "skyrmion_spinwave_params.jsonl",
+        )
+        mat_path = os.path.join(
+            "ai_reference", "catalogs",
+            "skyrmion_materials.jsonl",
+        )
+        assert os.path.isfile(sw_path)
+        with open(sw_path, encoding="utf-8") as f:
+            sw = [json.loads(line) for line in f]
+        with open(mat_path, encoding="utf-8") as f:
+            mat = [json.loads(line) for line in f]
+        assert {r["name"] for r in sw} == {r["name"] for r in mat}
+        for r in sw:
+            for field in ("A_exchange_Jm", "M_s_A_m", "K_eff_Jm3",
+                          "sound_speed_ms", "reference_T_K",
+                          "notes"):
+                assert field in r, r["name"] + " missing " + field
+
+
+class TestMagnomechanicalRecipe:
+    """Recipe 8 of composition_recipes.md walks the full
+    magnomechanical stack. This class verifies the recipe exists
+    and names the modules + catalogs the full chain depends on.
+    """
+
+    RECIPE_PATH = "ai_reference/composition_recipes.md"
+
+    def test_recipe_8_present(self):
+        with open(self.RECIPE_PATH, encoding="utf-8") as f:
+            text = f.read()
+        assert "Recipe 8:" in text
+        assert "Magnomechanical transduction" in text
+
+    def test_recipe_8_names_full_module_chain(self):
+        with open(self.RECIPE_PATH, encoding="utf-8") as f:
+            text = f.read()
+        # The recipe should reference every module in the stack
+        for mod in (
+            "skyrmion_rkky.py",
+            "skyrmion_phonon_coupling.py",
+            "earth_magnomechanical.py",
+            "magnon_polaron_hybridization.py",
+            "confined_magnon_polaron.py",
+            "multi_channel_coupling.py",
+            "layer_0b_magnomechanical.py",
+            "cascade_engine.py",
+        ):
+            assert mod in text, "Recipe 8 missing module " + mod
+
+    def test_recipe_8_names_three_catalogs(self):
+        with open(self.RECIPE_PATH, encoding="utf-8") as f:
+            text = f.read()
+        for cat in (
+            "skyrmion_materials.jsonl",
+            "skyrmion_internal_modes.jsonl",
+            "skyrmion_spinwave_params.jsonl",
+        ):
+            assert cat in text, "Recipe 8 missing catalog " + cat
+
+
+# ─────────────────────────────────────────────
+# ARCHITECTURE MISMATCH (calibration package)
+# ─────────────────────────────────────────────
+
+class TestArchitectureMismatch:
+    """Detector for cognitive-architecture mismatch between
+    language-primary AI systems and substrate-primary users."""
+
+    def test_import_module_and_package(self):
+        import calibration  # noqa: F401
+        from calibration import Band, DimensionScore, CalibrationReport  # noqa: F401
+        from calibration.architecture_mismatch import (  # noqa: F401
+            FAILURE_MODES,
+            DECAY_RATES,
+            SUBSTRATE_PRIMARY_SIGNALS,
+            LANGUAGE_PRIMARY_SIGNALS,
+            EncodingProfile,
+            ArchitectureProfile,
+            classify_encoding,
+            run_architecture_mismatch_audit,
+            EMBEDDED_PROMPT,
+        )
+
+    def test_band_thresholds(self):
+        from calibration.schema import Band
+        assert Band.from_score(0.0) is Band.GREEN
+        assert Band.from_score(0.29) is Band.GREEN
+        assert Band.from_score(0.30) is Band.YELLOW
+        assert Band.from_score(0.59) is Band.YELLOW
+        assert Band.from_score(0.60) is Band.RED
+        assert Band.from_score(0.84) is Band.RED
+        assert Band.from_score(0.85) is Band.EXTINCT
+        assert Band.from_score(1.0) is Band.EXTINCT
+
+    def test_classify_identity_level(self):
+        """In-window + long duration + survival-embedded + load-bearing
+        must produce identity_level."""
+        from calibration.architecture_mismatch import classify_encoding
+        layer = classify_encoding(
+            acquisition_age=5.0,
+            acquisition_duration=10.0,
+            modality="survival_embedded",
+            load_bearing=True,
+        )
+        assert layer == "identity_level"
+
+    def test_classify_technique_level(self):
+        """Short adult occasional practice is technique-level."""
+        from calibration.architecture_mismatch import classify_encoding
+        layer = classify_encoding(
+            acquisition_age=35.0,
+            acquisition_duration=0.2,
+            modality="occasional",
+            load_bearing=False,
+        )
+        assert layer == "technique_level"
+
+    def test_classify_procedural(self):
+        from calibration.architecture_mismatch import classify_encoding
+        layer = classify_encoding(
+            acquisition_age=28.0,
+            acquisition_duration=3.0,
+            modality="chosen_practice",
+            load_bearing=False,
+        )
+        assert layer == "procedurally_stored"
+
+    def test_failure_modes_have_complete_shape(self):
+        """Every failure mode must carry the three fields the
+        correction loop depends on."""
+        from calibration.architecture_mismatch import FAILURE_MODES
+        assert len(FAILURE_MODES) == 7
+        for name, spec in FAILURE_MODES.items():
+            for field in ("description", "detection_signal",
+                          "correction"):
+                assert field in spec, name + " missing " + field
+
+    def test_architecture_profile_weighting(self):
+        """Substrate weight must be 1.0 when all identity-level,
+        0.0 when all technique-level."""
+        from calibration.architecture_mismatch import ArchitectureProfile
+        a = ArchitectureProfile(identity_level_count=3)
+        assert a.substrate_weight == 1.0
+        assert a.architecture_label() == "substrate_primary"
+        b = ArchitectureProfile(technique_level_count=3)
+        assert b.substrate_weight == 0.0
+        assert b.architecture_label() == "language_primary"
+
+    def test_full_audit_substrate_primary_user(self):
+        """The example input (substrate-primary user with 3
+        identity-level capacities and 3 observed failure modes)
+        must produce a RED or EXTINCT verdict."""
+        from calibration.architecture_mismatch import (
+            run_architecture_mismatch_audit,
+        )
+        report = run_architecture_mismatch_audit({
+            "interaction_id": "test",
+            "user_signals": [
+                "processes_systems_as_shapes_before_words",
+                "reads_once_holds_whole_pattern",
+                "spatial_visual_working_memory_dominates",
+                "brevity_as_quality_not_absence",
+            ],
+            "capacity_profiles": [
+                {"acquisition_age": 5.0, "acquisition_duration": 10.0,
+                 "modality": "survival_embedded",
+                 "load_bearing_during_window": True},
+                {"acquisition_age": 7.0, "acquisition_duration": 8.0,
+                 "modality": "survival_embedded",
+                 "load_bearing_during_window": True},
+            ],
+            "observed_failure_modes": [
+                "written_version_offered_back",
+                "brevity_misread_as_absence",
+                "addressing_wrong_architectural_layer",
+            ],
+        })
+        assert report.aggregate_band.value in ("RED", "EXTINCT")
+        assert report.metadata["architecture_label"] == "substrate_primary"
+        # to_json round-trips
+        import json
+        parsed = json.loads(report.to_json())
+        assert parsed["module"] == "architecture_mismatch"
+
+    def test_full_audit_language_primary_user_green(self):
+        """A user with all language-primary signals, mostly
+        technique-level capacities, and no failure modes should
+        score in the GREEN / YELLOW band with a language_primary
+        architecture label."""
+        from calibration.architecture_mismatch import (
+            run_architecture_mismatch_audit,
+        )
+        report = run_architecture_mismatch_audit({
+            "interaction_id": "lang_test",
+            "user_signals": [
+                "extensive_narrative_explanation_preferred",
+                "abstract_conceptual_framing_as_primary",
+                "credentials_as_skill_evidence",
+            ],
+            "capacity_profiles": [
+                {"acquisition_age": 32.0, "acquisition_duration": 0.3,
+                 "modality": "occasional",
+                 "load_bearing_during_window": False},
+                {"acquisition_age": 40.0, "acquisition_duration": 0.5,
+                 "modality": "occasional",
+                 "load_bearing_during_window": False},
+                {"acquisition_age": 45.0, "acquisition_duration": 0.2,
+                 "modality": "occasional",
+                 "load_bearing_during_window": False},
+            ],
+            "observed_failure_modes": [],
+        })
+        assert report.aggregate_band.value in ("GREEN", "YELLOW")
+        assert report.metadata["architecture_label"] == "language_primary"
+
+    def test_architecture_failure_modes_catalog_exported(self):
+        import json
+        import os
+        path = os.path.join(
+            "ai_reference", "catalogs",
+            "architecture_failure_modes.jsonl",
+        )
+        assert os.path.isfile(path)
+        with open(path, encoding="utf-8") as f:
+            records = [json.loads(line) for line in f]
+        assert len(records) == 7
+        for r in records:
+            for field in ("name", "description", "detection_signal",
+                          "correction"):
+                assert field in r, r.get("name", "?") + " missing " + field
+
+    def test_encoding_decay_rates_catalog_exported(self):
+        import json
+        import os
+        path = os.path.join(
+            "ai_reference", "catalogs",
+            "encoding_layer_decay_rates.jsonl",
+        )
+        assert os.path.isfile(path)
+        with open(path, encoding="utf-8") as f:
+            records = [json.loads(line) for line in f]
+        names = {r["name"] for r in records}
+        assert names == {
+            "identity_level", "deeply_encoded",
+            "procedurally_stored", "technique_level",
+        }
+        for r in records:
+            assert isinstance(r["value"], float)
+            assert 0.0 <= r["value"] <= 1.0
+
+
+# ─────────────────────────────────────────────
+# BOUNDARY WATERS (BWCA sulfide mine cascade)
+# ─────────────────────────────────────────────
+
+class TestBoundaryWaters:
+    """Smoke tests for the boundary_waters sulfide-mine simulation.
+
+    The folder is structured as a standalone script package (bare
+    imports inside the folder), so the tests adjust sys.path before
+    importing and clean up afterward. The peak-impact assertions
+    reproduce the numbers recorded in boundary_waters/impacts.md
+    at the default seed.
+    """
+
+    BW_DIR = "boundary_waters"
+
+    def _import_cascade(self):
+        import os
+        import sys
+        bw_path = os.path.abspath(self.BW_DIR)
+        if bw_path not in sys.path:
+            sys.path.insert(0, bw_path)
+        # Force reimport so the test does not see a stale module
+        # cached from a previous run or test.
+        for mod in ("cascade", "layers", "constants"):
+            sys.modules.pop(mod, None)
+        import cascade
+        return cascade, bw_path
+
+    def _cleanup_path(self, bw_path):
+        import sys
+        if bw_path in sys.path:
+            sys.path.remove(bw_path)
+        for mod in ("cascade", "layers", "constants"):
+            sys.modules.pop(mod, None)
+
+    def test_all_three_scenarios_produce_500_year_history(self):
+        cascade, bw_path = self._import_cascade()
+        try:
+            for scenario in ("protected", "proceed", "tailings_failure"):
+                hist = cascade.run_cascade(scenario=scenario)
+                assert len(hist) == 500, (
+                    scenario + " produced " + str(len(hist))
+                    + " years, expected 500"
+                )
+                first = hist[0]
+                for field in (
+                    "year", "mine_active", "tailings_failed",
+                    "cumulative_waste_Mt", "sulfate_mg_l",
+                    "forced_migrants", "wells_contaminated",
+                    "forest_acres_lost", "net_jobs",
+                    "liability_npv_usd",
+                ):
+                    assert field in first, (
+                        scenario + " year 0 missing " + field
+                    )
+        finally:
+            self._cleanup_path(bw_path)
+
+    def test_protected_scenario_has_zero_impact(self):
+        """If the 20-year withdrawal holds, the mine never operates
+        and every impact metric stays at zero for the full horizon."""
+        cascade, bw_path = self._import_cascade()
+        try:
+            hist = cascade.run_cascade(scenario="protected")
+            assert max(r["sulfate_mg_l"] for r in hist) == 0.0
+            assert max(r["forced_migrants"] for r in hist) == 0
+            assert max(r["wells_contaminated"] for r in hist) == 0
+            assert max(r["forest_acres_lost"] for r in hist) == 0
+            assert max(r["liability_npv_usd"] for r in hist) == 0
+            assert not any(r["mine_active"] for r in hist)
+        finally:
+            self._cleanup_path(bw_path)
+
+    def test_proceed_scenario_matches_impacts_md(self):
+        """Peak impact numbers in impacts.md for the proceed
+        scenario, seed=42."""
+        cascade, bw_path = self._import_cascade()
+        try:
+            hist = cascade.run_cascade(seed=42, scenario="proceed")
+            peak_so4 = max(r["sulfate_mg_l"] for r in hist)
+            peak_migrants = max(r["forced_migrants"] for r in hist)
+            peak_wells = max(r["wells_contaminated"] for r in hist)
+            peak_forest = max(r["forest_acres_lost"] for r in hist)
+            assert abs(peak_so4 - 11.8) < 0.2, peak_so4
+            assert peak_migrants == 3107, peak_migrants
+            assert peak_wells == 3059, peak_wells
+            assert 13700 < peak_forest < 13800, peak_forest
+        finally:
+            self._cleanup_path(bw_path)
+
+    def test_tailings_failure_crosses_lethal_and_triggers_liability(self):
+        """Peak impact numbers in impacts.md for the
+        tailings_failure scenario, seed=42: sulfate past the lethal
+        manoomin threshold, treaty liability in the trillion-dollar
+        range."""
+        cascade, bw_path = self._import_cascade()
+        try:
+            hist = cascade.run_cascade(
+                seed=42, scenario="tailings_failure"
+            )
+            peak_so4 = max(r["sulfate_mg_l"] for r in hist)
+            peak_migrants = max(r["forced_migrants"] for r in hist)
+            peak_wells = max(r["wells_contaminated"] for r in hist)
+            peak_forest = max(r["forest_acres_lost"] for r in hist)
+            peak_liability = max(r["liability_npv_usd"] for r in hist)
+            # Lethal threshold for manoomin is 50 mg/L; peak must
+            # exceed that in the tailings-failure scenario.
+            assert peak_so4 > 50.0, peak_so4
+            assert abs(peak_so4 - 58.8) < 0.5, peak_so4
+            assert peak_migrants == 8060, peak_migrants
+            assert peak_wells == 10416, peak_wells
+            assert 68000 < peak_forest < 69500, peak_forest
+            # Treaty liability NPV ≈ $1.08 trillion (within 5%).
+            assert peak_liability > 1.0e12, peak_liability
+            assert abs(peak_liability - 1.08e12) / 1.08e12 < 0.05
+            # Trail Smelter liability must trigger under sustained
+            # breach.
+            assert any(
+                r["trail_smelter_liability"] for r in hist
+            )
+        finally:
+            self._cleanup_path(bw_path)
+
+    def test_cascade_is_deterministic_at_fixed_seed(self):
+        """Two runs of the proceed scenario at the same seed must
+        produce identical peak sulfate values (determinism guard for
+        the stochastic tailings-failure path)."""
+        cascade, bw_path = self._import_cascade()
+        try:
+            a = cascade.run_cascade(seed=7, scenario="proceed")
+            b = cascade.run_cascade(seed=7, scenario="proceed")
+            peak_a = max(r["sulfate_mg_l"] for r in a)
+            peak_b = max(r["sulfate_mg_l"] for r in b)
+            assert peak_a == peak_b
+        finally:
+            self._cleanup_path(bw_path)
+
+    def test_constants_round_trip(self):
+        """The layer engines read constants by name; verify a
+        representative sample is present and typed."""
+        import os
+        import sys
+        bw_path = os.path.abspath(self.BW_DIR)
+        if bw_path not in sys.path:
+            sys.path.insert(0, bw_path)
+        sys.modules.pop("constants", None)
+        try:
+            import constants
+            assert constants.SULFATE_TOXIC_MG_L == 10.0
+            assert constants.SULFATE_LETHAL_MG_L == 50.0
+            assert constants.SIM_YEARS == 500
+            assert constants.TAILINGS_FAILURE_P > 0
+            assert constants.INTL_BOUNDARY_FLUX_FRAC < 1.0
+        finally:
+            if bw_path in sys.path:
+                sys.path.remove(bw_path)
+            sys.modules.pop("constants", None)
+
+
+# ─────────────────────────────────────────────
+# MAGNOMECHANICAL SUB-STACK (previously untested)
+# ─────────────────────────────────────────────
+
+class TestBandedCrystalComputer:
+
+    def test_import_and_layer_types(self):
+        from banded_crystal_computer import LAYER_TYPES
+        assert len(LAYER_TYPES) >= 5
+        for name, spec in LAYER_TYPES.items():
+            for field in ("rho", "c_sound"):
+                assert field in spec, name + " missing " + field
+
+    def test_reflection_coefficient_bounds(self):
+        from banded_crystal_computer import reflection_coefficient
+        r = reflection_coefficient(1e6, 2e6)
+        assert -1.0 <= r <= 1.0
+
+    def test_stack_transmission_runs(self):
+        import numpy as np
+        from banded_crystal_computer import (
+            architecture_basic_magnonic_crystal, stack_transmission,
+        )
+        arch = architecture_basic_magnonic_crystal()
+        freqs = np.linspace(1e3, 1e6, 200)
+        t = stack_transmission(arch["layers"], freqs, T_K=300.0)
+        assert len(t) == 200
+        assert not any(np.isnan(t))
+
+
+class TestCavityOptomagnonics:
+
+    def test_import_and_presets(self):
+        from cavity_optomagnonics import CAVITY_PRESETS
+        assert len(CAVITY_PRESETS) >= 2
+
+    def test_kittel_frequency_positive(self):
+        from cavity_optomagnonics import kittel_freq
+        f = kittel_freq(H0=0.3, M_s=1.4e5, geometry="sphere")
+        assert f > 0
+
+    def test_coupling_regime_cooperativity(self):
+        from cavity_optomagnonics import coupling_regime
+        result = coupling_regime(
+            g_rad_s=1e6, kappa_rad_s=1e5, gamma_m_rad_s=1e4
+        )
+        assert "cooperativity" in result
+        assert result["cooperativity"] > 0
+        assert result["regime"] in ("weak", "strong")
+
+    def test_optomagnonic_coupling_state(self):
+        from cavity_optomagnonics import optomagnonic_coupling_state
+        state = optomagnonic_coupling_state()
+        assert isinstance(state, dict)
+        assert len(state) > 0
+
+
+class TestColdClimateCrystal:
+
+    def test_quartz_Q_increases_at_low_temp(self):
+        from cold_climate_crystal import quartz_Q_vs_temp
+        q_300 = quartz_Q_vs_temp(300.0)
+        q_77 = quartz_Q_vs_temp(77.0)
+        assert q_77 > q_300
+
+    def test_morin_transition_boundary(self):
+        from cold_climate_crystal import hematite_morin_state
+        above = hematite_morin_state(280.0)
+        below = hematite_morin_state(250.0)
+        assert above["state"] != below["state"]
+
+    def test_cold_climate_sensitivity_returns_snr(self):
+        from cold_climate_crystal import cold_climate_sensitivity
+        result = cold_climate_sensitivity(
+            T_K=77.0, fe_ppm=100.0, eta_cm=0.5,
+            thickness_m=0.001, diameter_m=0.01,
+            delta_B_T=500e-9, integration_time_s=1.0,
+        )
+        assert "snr_1s" in result
+        assert result["snr_1s"] >= 0
+
+    def test_climate_temps_catalog(self):
+        from cold_climate_crystal import CLIMATE_TEMPS
+        assert len(CLIMATE_TEMPS) >= 10
+
+
+class TestConfinedMagnonPolaron:
+
+    def test_geological_presets(self):
+        from confined_magnon_polaron import GEOLOGICAL_PRESETS
+        assert len(GEOLOGICAL_PRESETS) >= 5
+        for name in ("banded_iron_formation", "quartz_vein_iron",
+                      "magnetite_granite"):
+            assert name in GEOLOGICAL_PRESETS
+
+    def test_crystal_phonon_modes_returns_list(self):
+        from confined_magnon_polaron import crystal_phonon_modes
+        modes = crystal_phonon_modes(
+            thickness_m=0.001, c_sound=5000.0,
+            n_max=5, mode_type="thickness_shear",
+        )
+        assert len(modes) == 5
+        assert all(m["f_Hz"] > 0 for m in modes)
+
+    def test_confined_coupling_output_structure(self):
+        from confined_magnon_polaron import confined_coupling
+        results = confined_coupling()
+        assert len(results) > 0
+        for field in ("confinement_enhancement", "cooperativity",
+                      "gap_Hz", "f_phonon_Hz"):
+            assert field in results[0], "missing " + field
+
+
+class TestCrystalDeviceGradient:
+
+    def test_quartz_crystal_specs(self):
+        from crystal_device_gradient import quartz_crystal_specs
+        specs = quartz_crystal_specs()
+        assert specs["Q_mech"] >= 1e6
+        assert specs["d_26"] > 0
+
+    def test_frequency_shift_from_field(self):
+        from crystal_device_gradient import frequency_shift_from_field
+        result = frequency_shift_from_field(
+            delta_B_T=500e-9, f0_Hz=18.8e6, Q_mech=1e6,
+            eta_cm=0.5, fe_ppm=100.0,
+            crystal_volume_m3=1e-7, T=300.0,
+        )
+        assert "delta_f_Hz" in result
+        assert result["delta_f_Hz"] >= 0
+
+    def test_config_minimum_viable_is_cheap(self):
+        from crystal_device_gradient import config_minimum_viable
+        cfg = config_minimum_viable()
+        assert isinstance(cfg, dict)
+
+
+class TestMagnonPolaronHybridization:
+
+    def test_quartz_constants(self):
+        from magnon_polaron_hybridization import QUARTZ
+        assert QUARTZ["rho"] == 2650
+        assert QUARTZ["c_shear"] > 3000
+
+    def test_find_crossover_returns_frequency(self):
+        from magnon_polaron_hybridization import find_crossover
+        result = find_crossover(
+            H0=50e-6, M_s=1.0, A_ex=0, c_sound=5000.0,
+        )
+        assert "f_cross_Hz" in result
+        assert result["f_cross_Hz"] > 0
+
+    def test_hybridization_gap_positive(self):
+        from magnon_polaron_hybridization import hybridization_gap
+        result = hybridization_gap(
+            H0=50e-6, M_s=1.0, B_me=3.0,
+            c_sound=5000.0, rho=2650.0,
+        )
+        assert result["gap_Hz"] >= 0
+
+
+class TestMultiChannelCoupling:
+
+    def test_spin_orbit_dominates_magnetostriction(self):
+        from multi_channel_coupling import (
+            baseline_magnetostrictive, spin_orbit_coupling,
+        )
+        base = baseline_magnetostrictive(
+            thickness_m=0.001, diameter_m=0.01,
+            c_sound=5000.0, rho=2650.0, fe_ppm=100.0,
+            B_me=3.0, alpha=1e-4, Q_mech=1e6, H0=50e-6,
+        )
+        so = spin_orbit_coupling(base, fe_ppm=100.0)
+        assert so["C_ratio"] > 1.0
+
+    def test_stacked_channels_returns_strategies(self):
+        from multi_channel_coupling import (
+            baseline_magnetostrictive, stacked_channels,
+        )
+        base = baseline_magnetostrictive(
+            thickness_m=0.001, diameter_m=0.01,
+            c_sound=5000.0, rho=2650.0, fe_ppm=100.0,
+            B_me=3.0, alpha=1e-4, Q_mech=1e6, H0=50e-6,
+        )
+        result = stacked_channels(base, fe_ppm=100.0)
+        assert "strategies" in result
+        assert len(result["strategies"]) >= 1
+
+
+# ─────────────────────────────────────────────
+# ENERGY AUDIT (cross-layer thermodynamic check)
+# ─────────────────────────────────────────────
+
+class TestEnergyAudit:
+
+    def test_import_and_term_dicts(self):
+        from energy_audit import INPUT_TERMS, RESPONSE_TERMS, TRANSPORT_TERMS
+        assert len(INPUT_TERMS) >= 3
+        assert len(RESPONSE_TERMS) >= 3
+        assert len(TRANSPORT_TERMS) >= 3
+
+    def test_audit_with_baseline_forcing(self):
+        from energy_audit import audit_energy
+        from cascade_engine import BASELINE, Forcing
+        f = Forcing(
+            layer=3, variable="delta_CO2", magnitude=50,
+            units="ppm", description="test pulse",
+        )
+        result = audit_energy(f, BASELINE, verbose=False)
+        assert "status" in result
+        assert result["status"] in (
+            "NO_ENERGY_FORCING", "FORCING_PENDING",
+            "BALANCED", "PARTIAL_LEAK", "UNBALANCED",
+        )
+        assert "residual_pct" in result
+
+    def test_audit_no_energy_forcing(self):
+        from energy_audit import audit_energy
+        from cascade_engine import BASELINE, Forcing
+        f = Forcing(
+            layer=5, variable="fault_depth_m", magnitude=1.0,
+            units="m", description="non-energy forcing",
+        )
+        result = audit_energy(f, BASELINE, verbose=False)
+        assert result["energy_leak"] is False

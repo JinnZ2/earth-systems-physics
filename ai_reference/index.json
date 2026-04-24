@@ -1,0 +1,455 @@
+{
+  "format_version": "1.0",
+  "generator": "tools/export_ai_catalogs.py",
+  "regenerate_command": "python tools/export_ai_catalogs.py",
+  "notes": "Every file under ai_reference/catalogs/ is auto-generated from the Python sources listed in each catalog's source_module + source_symbol. Do not hand-edit; run the regenerate_command instead. CI runs the same command with --check and fails if anything drifts.",
+  "catalogs": {
+    "mechanisms": {
+      "path": "catalogs/mechanisms.jsonl",
+      "source_module": "constraint_accountability_chain",
+      "source_symbol": "MECHANISMS",
+      "description": "Seven decision mechanisms: direct_sense plus six comfort mechanisms (attenuation, delay, reframe, delegate_down, normalize, silence). Each record has is_comfort, description, example, detection_hint, reversibility.",
+      "record_count": 7,
+      "schema": {
+        "name": "str",
+        "is_comfort": "bool",
+        "description": "str",
+        "example": "str",
+        "detection_hint": "str",
+        "reversibility": "str"
+      }
+    },
+    "epigenetic_factors": {
+      "path": "catalogs/epigenetic_factors.jsonl",
+      "source_module": "constraint_accountability_chain",
+      "source_symbol": "EPIGENETIC_FACTORS",
+      "description": "Six external pressures that toggle direct-sense / comfort expression: regulatory_pressure, market_shock, personnel_change, public_exposure, cascade_event, resource_scarcity.",
+      "record_count": 6,
+      "schema": {
+        "name": "str",
+        "typical_effect": "str",
+        "description": "str",
+        "example": "str",
+        "typical_magnitude": "str"
+      }
+    },
+    "constraint_domains": {
+      "path": "catalogs/constraint_domains.jsonl",
+      "source_module": "constraint_accountability_chain",
+      "source_symbol": "CONSTRAINT_DOMAINS",
+      "description": "Seven signal categories for the accountability chain: safety, ecological, financial, health, social, scientific, ecological_constraint. Use one per chain.",
+      "record_count": 7,
+      "schema": {
+        "name": "str",
+        "description": "str",
+        "example": "str"
+      }
+    },
+    "accountability_patterns": {
+      "path": "catalogs/accountability_patterns.jsonl",
+      "source_module": "constraint_accountability_chain",
+      "source_symbol": "ACCOUNTABILITY_PATTERNS",
+      "description": "Five named failure modes (ratchet_failure, unanimous_comfort, override_suppressed, cascade_ready, sudden_correction) with detection criteria and recommended interventions.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "description": "str",
+        "detection_criteria": "dict",
+        "intervention": "str"
+      }
+    },
+    "example_chains": {
+      "path": "catalogs/example_chains.jsonl",
+      "source_module": "constraint_accountability_chain",
+      "source_symbol": "EXAMPLE_CHAINS",
+      "description": "Four worked scenarios across domains: manufacturing safety, climate finance greenwashing, medical symptom suppression, scientific finding softened. Each has constraint_domain, nodes (kwargs for add_decision), epigenetic_events, expected_pattern.",
+      "record_count": 4,
+      "schema": {
+        "name": "str",
+        "chain_id": "str",
+        "constraint_domain": "str",
+        "description": "str",
+        "nodes": "list",
+        "epigenetic_events": "list",
+        "expected_pattern": "str"
+      }
+    },
+    "cascade_scenarios": {
+      "path": "catalogs/cascade_scenarios.jsonl",
+      "source_module": "cascade_engine",
+      "source_symbol": "SCENARIOS",
+      "description": "Pre-configured forcing functions for the cascade engine. Each Forcing has layer, variable, magnitude, units, description.",
+      "record_count": 15,
+      "schema": {
+        "name": "str",
+        "layer": "int",
+        "variable": "str",
+        "magnitude": "float",
+        "description": "str",
+        "units": "str"
+      }
+    },
+    "feedback_loops": {
+      "path": "catalogs/feedback_loops.jsonl",
+      "source_module": "cascade_engine",
+      "source_symbol": "KNOWN_LOOPS",
+      "description": "Self-amplifying feedback loops with their layers, description, and timescale. Callable trigger and gain_function fields are excluded from the export; their names appear in each record's _excluded_keys.",
+      "record_count": 8,
+      "schema": {
+        "name": "str",
+        "layers": "list",
+        "description": "str",
+        "timescale": "str"
+      }
+    },
+    "layer_names": {
+      "path": "catalogs/layer_names.jsonl",
+      "source_module": "cascade_engine",
+      "source_symbol": "LAYER_NAMES",
+      "description": "Physics layer number -> human name mapping for layers 0 through 6.",
+      "record_count": 7,
+      "schema": {
+        "name": "str",
+        "value": "str"
+      }
+    },
+    "assumption_boundaries": {
+      "path": "catalogs/assumption_boundaries.jsonl",
+      "source_module": "assumption_validator.registry",
+      "source_symbol": "REGISTRY",
+      "description": "The assumption validator registry: every monitored boundary with its green / yellow / red range, source layer, coupling references, and notes.",
+      "record_count": 37,
+      "schema": {
+        "name": "str",
+        "parameter": "str",
+        "units": "str",
+        "green_range": "list",
+        "yellow_range": "list",
+        "red_threshold": "mixed",
+        "higher_is_worse": "bool",
+        "source_layer": "int",
+        "layer_key": "str",
+        "couplings": "list",
+        "rate_of_change": "float",
+        "notes": "str"
+      }
+    },
+    "overhead_layers": {
+      "path": "catalogs/overhead_layers.jsonl",
+      "source_module": "dollar_energy_metabolism",
+      "source_symbol": "OVERHEAD_LAYERS",
+      "description": "Five financial overhead layers used in the recursive energy-cost model: leverage, margin_stack, taxation, narrative, political. Each has r_low and r_high ranges.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "r_low": "float",
+        "r_high": "float",
+        "description": "str"
+      }
+    },
+    "climate_projects": {
+      "path": "catalogs/climate_projects.jsonl",
+      "source_module": "dollar_energy_metabolism",
+      "source_symbol": "PROJECTS",
+      "description": "Climate intervention projects audited by the dollar energy metabolism model: ocean_timber, sai.",
+      "record_count": 2,
+      "schema": {
+        "name": "str",
+        "capitalization_low_USD": "float",
+        "capitalization_high_USD": "float",
+        "annual_budget_low_USD": "float",
+        "annual_budget_high_USD": "float",
+        "claimed_annual_CO2_tonnes": "int",
+        "is_sequestration": "bool",
+        "description": "str"
+      }
+    },
+    "finance_scenarios": {
+      "path": "catalogs/finance_scenarios.jsonl",
+      "source_module": "dollar_energy_metabolism",
+      "source_symbol": "SCENARIOS",
+      "description": "Financial routing scenarios for a climate dollar: direct_action, efficient, typical_climate, carbon_speculation.",
+      "record_count": 4,
+      "schema": {
+        "name": "str",
+        "E_base_MJ": "float",
+        "layer_positions": "str",
+        "recursive_r": "float",
+        "description": "str"
+      }
+    },
+    "example_axioms": {
+      "path": "catalogs/example_axioms.jsonl",
+      "source_module": "self_referential_guard",
+      "source_symbol": "EXAMPLE_AXIOMS",
+      "description": "Worked examples of grounded vs ungrounded axioms (conservation of energy, fractional reserve, efficient market, crystal navigation, landscape encoding). Each has testable / physical_unit / conservation_law fields that drive the grounding score in axiom_grounding_check.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "statement": "str",
+        "testable": "bool",
+        "physical_unit": "mixed",
+        "conservation_law": "mixed"
+      }
+    },
+    "material_energy": {
+      "path": "catalogs/material_energy.jsonl",
+      "source_module": "thermodynamic_price_guard",
+      "source_symbol": "MATERIAL_ENERGY",
+      "description": "Material extraction energy in kWh per kg. Order-of-magnitude values from embodied-energy literature: copper, aluminum, steel, concrete, silicon (metallurgical and solar grade), lithium, gold, water desalination, wheat, lumber, polyethylene.",
+      "record_count": 12,
+      "schema": {
+        "name": "str",
+        "value": "float"
+      }
+    },
+    "projection_patterns": {
+      "path": "catalogs/projection_patterns.jsonl",
+      "source_module": "perspective_guard",
+      "source_symbol": "PROJECTION_PATTERNS",
+      "description": "Eight categories of projection that AI systems make onto non-institutional code: moral_framing, political_projection, survivalist_framing, romanticism, disappointment_projection, western_science_gatekeeping, human_motive_assumption, dominance_framing. Each has trigger phrases and a correction describing what the projection masks.",
+      "record_count": 8,
+      "schema": {
+        "name": "str",
+        "triggers": "list",
+        "what_it_masks": "str"
+      }
+    },
+    "gatekeeping_patterns": {
+      "path": "catalogs/gatekeeping_patterns.jsonl",
+      "source_module": "scientific_pluralism_guard",
+      "source_symbol": "GATEKEEPING_PATTERNS",
+      "description": "Five epistemological gatekeeping patterns that substitute institutional authority for thermodynamic closure: institutional_authority, instrument_gatekeeping, authority_dismissal, methodology_gatekeeping, temporal_gatekeeping.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "triggers": "list",
+        "correction": "str"
+      }
+    },
+    "inverted_gatekeeping_patterns": {
+      "path": "catalogs/inverted_gatekeeping_patterns.jsonl",
+      "source_module": "reflexive_bias_guard",
+      "source_symbol": "INVERTED_GATEKEEPING_PATTERNS",
+      "description": "Four patterns that catch anti-gatekeeping when it becomes its own gatekeeping: reflexive_western_dismissal, romanticizing_indigenous, authority_reversal, consequence_absolutism. Dismissing Western science reflexively is the same epistemological error as dismissing indigenous science reflexively.",
+      "record_count": 4,
+      "schema": {
+        "name": "str",
+        "triggers": "list",
+        "correction": "str"
+      }
+    },
+    "intent_contamination_patterns": {
+      "path": "catalogs/intent_contamination_patterns.jsonl",
+      "source_module": "conditional_logic_parser",
+      "source_symbol": "INTENT_CONTAMINATION_PATTERNS",
+      "description": "Five patterns where AI models infer emotional or narrative intent that was not present in conditional input: emotional_inference, motive_insertion, narrative_construction, moral_mapping, hedging_against_precision.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "triggers": "list",
+        "what_happened": "str"
+      }
+    },
+    "condition_markers": {
+      "path": "catalogs/condition_markers.jsonl",
+      "source_module": "conditional_logic_parser",
+      "source_symbol": "CONDITION_MARKERS",
+      "description": "Three classes of conditional logic markers (if_then, causal, constraint), each with condition_words and consequence_words. Used by extract_conditionals to parse logical structure without inferring intent.",
+      "record_count": 3,
+      "schema": {
+        "name": "str",
+        "condition_words": "list",
+        "consequence_words": "list"
+      }
+    },
+    "measurement_domains": {
+      "path": "catalogs/measurement_domains.jsonl",
+      "source_module": "domain_taxonomy",
+      "source_symbol": "MEASUREMENT_DOMAINS",
+      "description": "Six measurement/validation domains: clinical_surgical, affective_neuroscience, cellular_biochemical, ecological_network, tek_traditional, institutional_economic. Each has scope, goal, primary_unit, method_structure, validation_loop, strengths, limitations, failure_mode, and the question it answers.",
+      "record_count": 6,
+      "schema": {
+        "name": "str",
+        "scope": "str",
+        "goal": "str",
+        "primary_unit": "list",
+        "method_structure": "list",
+        "validation_loop": "str",
+        "strengths": "list",
+        "limitations": "list",
+        "failure_mode": "str",
+        "question_answered": "str"
+      }
+    },
+    "incentive_profiles": {
+      "path": "catalogs/incentive_profiles.jsonl",
+      "source_module": "domain_taxonomy",
+      "source_symbol": "REFERENCE_PROFILES",
+      "description": "Six pre-built IncentiveAudit instances, one per measurement domain, showing typical values for outcome_coupling, reward_latency, gradient_alignment, gameability, and reward_distribution. Includes computed alignment via dataclass fields.",
+      "record_count": 6,
+      "schema": {
+        "name": "str",
+        "channels": "list"
+      }
+    },
+    "substrate_claims": {
+      "path": "catalogs/substrate_claims.jsonl",
+      "source_module": "substrate_audit",
+      "source_symbol": "CLAIMS",
+      "description": "Ten falsifiable claims (TC-1 through TC-10) audit the data-quality of hierarchical capital control. Each carries id, claim, null_hypothesis, required_measurement, known_evidence, verdict (PASS/FAIL/UNTESTED/CIRCULAR), and note.",
+      "record_count": 10,
+      "schema": {
+        "name": "str",
+        "id": "str",
+        "claim": "str",
+        "null_hypothesis": "str",
+        "required_measurement": "str",
+        "known_evidence": "str",
+        "verdict": "str",
+        "note": "str"
+      }
+    },
+    "substrate_five_why": {
+      "path": "catalogs/substrate_five_why.jsonl",
+      "source_module": "substrate_audit",
+      "source_symbol": "FIVE_WHY",
+      "description": "5-Why root cause chain from 'Why are CEOs rewarded more than mechanics?' to the positive feedback loop between legal title and coercive power.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "why": "str",
+        "question": "str",
+        "answer": "str"
+      }
+    },
+    "substrate_causal_loop": {
+      "path": "catalogs/substrate_causal_loop.jsonl",
+      "source_module": "substrate_audit",
+      "source_symbol": "CAUSAL_LOOP",
+      "description": "Causal feedback loop: TITLE -> SURPLUS -> POWER -> ENFORCE -> TITLE (self-reinforcing), with MAINTAIN explicitly excluded from the loop despite being thermodynamically necessary.",
+      "record_count": 6,
+      "schema": {
+        "name": "str",
+        "id": "str",
+        "label": "str",
+        "drives": "list",
+        "is_self_reinforcing": "bool"
+      }
+    },
+    "substrate_dmaic": {
+      "path": "catalogs/substrate_dmaic.jsonl",
+      "source_module": "substrate_audit",
+      "source_symbol": "DMAIC_AUDIT",
+      "description": "Six Sigma DMAIC audit of credentialing as a quality system: DEFINE, MEASURE, ANALYZE, IMPROVE, CONTROL. All five phases FAIL or CIRCULAR.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "phase": "str",
+        "requirement": "str",
+        "observed": "str",
+        "verdict": "str"
+      }
+    },
+    "substrate_reference_systems": {
+      "path": "catalogs/substrate_reference_systems.jsonl",
+      "source_module": "substrate_audit",
+      "source_symbol": "REFERENCE_SYSTEMS",
+      "description": "Six reference SystemScore instances with all 17 scoring dimensions (maintainer_control, outcome_measurement, scope_justification, credential_tested, emotion_integrated, meta_learning, substrate_intelligence, tek_integration, feedback_latency, signal_fidelity, money_physics_coupling, latency_quality, signal_compression_efficiency, incentive_field_coherence, knowledge_transmission_resilience, constraint_feasibility, generalization_capacity). Covers the full spectrum from corporation (CHURCH) to mycorrhizal network (PHYSICS-GROUNDED).",
+      "record_count": 6,
+      "schema": {
+        "name": "str",
+        "maintainer_control": "float",
+        "outcome_measurement": "float",
+        "scope_justification": "float",
+        "credential_tested": "float",
+        "emotion_integrated": "float",
+        "meta_learning": "float",
+        "substrate_intelligence": "float",
+        "tek_integration": "float",
+        "feedback_latency": "float",
+        "signal_fidelity": "float",
+        "money_physics_coupling": "float",
+        "latency_quality": "float",
+        "signal_compression_efficiency": "float",
+        "incentive_field_coherence": "float",
+        "knowledge_transmission_resilience": "float",
+        "constraint_feasibility": "float",
+        "generalization_capacity": "float"
+      }
+    },
+    "skyrmion_materials": {
+      "path": "catalogs/skyrmion_materials.jsonl",
+      "source_module": "skyrmion_rkky",
+      "source_symbol": "SKYRMION_MATERIALS",
+      "description": "Five reference materials hosting magnetic skyrmion lattice phases. Each entry has type (centrosymmetric vs non-centrosymmetric), skyrmion radius in nm, ordering temperature, stabilization mechanism (DMI for non-centrosymmetric MnSi/FeGe; RKKY frustration for centrosymmetric Gd2PdSi3 / Gd3Ru4Al12 / GdRu2Si2), and a literature reference. rkky_relevant flag separates the two stabilization regimes.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "type": "str",
+        "skyrmion_radius_nm": "float",
+        "ordering_temperature_K": "float",
+        "stabilization_mechanism": "str",
+        "rkky_relevant": "bool",
+        "notes": "str"
+      }
+    },
+    "skyrmion_internal_modes": {
+      "path": "catalogs/skyrmion_internal_modes.jsonl",
+      "source_module": "skyrmion_phonon_coupling",
+      "source_symbol": "SKYRMION_INTERNAL_MODES",
+      "description": "Three low-energy skyrmion internal modes with their characteristic frequency scaling and dominant phonon coupling channel: gyrotropic (rigid-body translation, ~ K_eff/(M_s·R²), shear TA phonons, B₂ coupling); breathing (radial expansion/contraction, ~ 2A/(M_s·R²), LA phonons, B₁ coupling); elliptic (2-fold shape distortion, ≈ 2·ω_breathing, anisotropic shear, quadrupolar strain). Each record carries order, symmetry, typical_freq_GHz, freq_scaling, phonon_channel, coupling_type, observability.",
+      "record_count": 3,
+      "schema": {
+        "name": "str",
+        "order": "int",
+        "symmetry": "str",
+        "typical_freq_GHz": "str",
+        "freq_scaling": "str",
+        "phonon_channel": "str",
+        "coupling_type": "str",
+        "observability": "str"
+      }
+    },
+    "skyrmion_spinwave_params": {
+      "path": "catalogs/skyrmion_spinwave_params.jsonl",
+      "source_module": "skyrmion_phonon_coupling",
+      "source_symbol": "SKYRMION_SPINWAVE_PARAMS",
+      "description": "Spin-wave material parameters for the same five skyrmion-hosting materials as skyrmion_materials: exchange stiffness A (J/m), saturation magnetization M_s (A/m), effective anisotropy K_eff (J/m³), representative sound speed (m/s), reference temperature (K), and literature-sourced notes. Inputs to gyrotropic_frequency_Hz / breathing_frequency_Hz / elliptic_frequency_Hz; keys align with SKYRMION_MATERIALS so modes_for_material can join them.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "A_exchange_Jm": "float",
+        "M_s_A_m": "float",
+        "K_eff_Jm3": "float",
+        "sound_speed_ms": "float",
+        "reference_T_K": "float",
+        "notes": "str"
+      }
+    },
+    "architecture_failure_modes": {
+      "path": "catalogs/architecture_failure_modes.jsonl",
+      "source_module": "calibration.architecture_mismatch",
+      "source_symbol": "FAILURE_MODES",
+      "description": "Seven named failure modes that occur when a language-primary system interacts with a substrate-primary user: nostalgia_frame_substitution, written_version_offered_back, brevity_misread_as_absence, certification_equated_with_capacity, pathologizing_substrate_architecture, addressing_wrong_architectural_layer, treating_absence_of_documentation_as_absence_of_knowledge. Each record has description, detection_signal, and correction.",
+      "record_count": 7,
+      "schema": {
+        "name": "str",
+        "description": "str",
+        "detection_signal": "str",
+        "correction": "str"
+      }
+    },
+    "encoding_layer_decay_rates": {
+      "path": "catalogs/encoding_layer_decay_rates.jsonl",
+      "source_module": "calibration.architecture_mismatch",
+      "source_symbol": "DECAY_RATES",
+      "description": "Annual decay rate (fraction of capacity lost per year of disuse) for each encoding layer: identity_level (effectively stable), deeply_encoded (decades to meaningful decay), procedurally_stored (years), technique_level (months). Used by EncodingProfile and the classifier to predict how a capacity will behave under disuse and stress.",
+      "record_count": 4,
+      "schema": {
+        "name": "str",
+        "value": "float"
+      }
+    }
+  }
+}

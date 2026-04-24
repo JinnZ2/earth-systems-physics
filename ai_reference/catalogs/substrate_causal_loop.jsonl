@@ -1,0 +1,6 @@
+{"drives": ["SURPLUS"], "id": "TITLE", "is_self_reinforcing": false, "label": "Legal ownership of capital", "name": "TITLE"}
+{"drives": ["POWER"], "id": "SURPLUS", "is_self_reinforcing": false, "label": "Captured surplus value", "name": "SURPLUS"}
+{"drives": ["ENFORCE"], "id": "POWER", "is_self_reinforcing": false, "label": "Political / coercive power", "name": "POWER"}
+{"drives": ["TITLE"], "id": "ENFORCE", "is_self_reinforcing": true, "label": "Enforcement of ownership rules", "name": "ENFORCE"}
+{"drives": [], "id": "MAINTAIN", "is_self_reinforcing": false, "label": "Maintainer thermodynamic work", "name": "MAINTAIN"}
+{"drives": ["SURPLUS", "POWER"], "id": "CONSTRAINT", "is_self_reinforcing": false, "label": "External physical / resource constraint", "name": "CONSTRAINT"}

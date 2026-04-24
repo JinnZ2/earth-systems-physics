@@ -18,15 +18,10 @@ If net <= 0, the project is a carbon SOURCE sold as a carbon SINK.
 CC0 — No rights reserved.
 Part of: github.com/JinnZ2/earth-systems-physics
 
-Dependencies: numpy (optional, falls back to stdlib math)
+Dependencies: None (stdlib only)
 """
 
-try:
-    import numpy as np
-    HAS_NUMPY = True
-except ImportError:
-    import math
-    HAS_NUMPY = False
+import math
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -169,7 +164,7 @@ def harvest_carbon_cost(state):
     road_CO2 = road_km * C["kg_CO2_per_km_road_construction"]
 
     # Soil carbon liberation
-    area_per_tree = 3.14159 * C["soil_disturbance_radius_m"] ** 2
+    area_per_tree = math.pi * C["soil_disturbance_radius_m"] ** 2
     total_disturbed_m2 = n * area_per_tree
     soil_C_released = (
         total_disturbed_m2 *

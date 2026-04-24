@@ -332,6 +332,51 @@ def testable_predictions():
                    "in 0.01-10 Hz band coincident with SSC.",
             "signal_level": "Requires stacking multiple SSC events.",
         },
+        {
+            "prediction": "Natural Fe-bearing centrosymmetric minerals with "
+                         "itinerant electrons (magnetite, pyrrhotite, "
+                         "Ti-bearing magnetite, ilmenite-hematite exsolution) "
+                         "host skyrmion-like magnetic textures at specific "
+                         "temperatures and applied fields where RKKY "
+                         "frustration becomes competitive with direct "
+                         "exchange",
+            "mechanism": "RKKY oscillatory coupling between localized Fe "
+                        "moments mediated by conduction electrons creates "
+                        "the same frustration that stabilizes the laboratory "
+                        "skyrmion lattices in Gd2PdSi3, Gd3Ru4Al12, and "
+                        "GdRu2Si2 — centrosymmetric materials with no DMI. "
+                        "Magnetite is half-metallic above the Verwey "
+                        "transition (T > 120 K) and has the conduction "
+                        "electrons needed to mediate RKKY. Pyrrhotite "
+                        "(Fe1-xS) is a natural ferrimagnet with metallic "
+                        "conductivity. Ilmenite-hematite exsolution "
+                        "textures produce natural magnetic superlattices. "
+                        "See skyrmion_rkky.py for the stabilization "
+                        "physics and skyrmion_phonon_coupling.py for "
+                        "predicted internal-mode frequencies.",
+            "test": "Small-angle neutron scattering (SANS) on powdered "
+                   "samples, Lorentz transmission electron microscopy on "
+                   "thin sections, or magnetic force microscopy on polished "
+                   "surfaces, performed under applied field (0.01-1 T) and "
+                   "at temperatures spanning the magnetic phase transitions "
+                   "(magnetite: Verwey at 120 K; Ti-magnetites: variable; "
+                   "pyrrhotite: antiferro-to-ferri near 320 K). Look for "
+                   "periodic real-space magnetic modulation at scales of "
+                   "2-100 nm, outside any crystallographic superlattice.",
+            "signal_level": "Skyrmion radii 2-20 nm predicted from the "
+                           "exchange length sqrt(A/K_eff) of the mineral. "
+                           "Internal modes predicted at 0.1-10 GHz via "
+                           "skyrmion_phonon_coupling.all_internal_modes_Hz; "
+                           "detectable by FMR at cryogenic temperatures.",
+            "control": "Same measurements on (a) non-iron centrosymmetric "
+                      "minerals (quartz, calcite, feldspar) — no magnetic "
+                      "modulation; (b) iron-bearing minerals with simple "
+                      "ferri/antiferromagnetic order (pure hematite below "
+                      "Morin transition) — uniform order, not skyrmion "
+                      "texture; (c) DMI-containing non-centrosymmetric "
+                      "natural minerals if any can be identified — should "
+                      "show chiral textures distinct from RKKY skyrmions.",
+        },
     ]
 
 

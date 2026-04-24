@@ -1,0 +1,3 @@
+{"condition_words": ["if ", "when ", "given that ", "in the case that ", "provided that ", "assuming ", "suppose ", "in the event that ", "whenever "], "consequence_words": ["then ", "it follows that ", "the result is ", "that means ", "the consequence is ", "it becomes ", "it functions as "], "name": "if_then"}
+{"condition_words": ["because ", "since ", "due to ", "as a result of ", "owing to ", "on account of "], "consequence_words": ["therefore ", "thus ", "hence ", "so ", "consequently ", "accordingly "], "name": "causal"}
+{"condition_words": ["as long as ", "only if ", "unless ", "except when ", "until ", "while "], "consequence_words": ["cannot ", "will not ", "must ", "is constrained to ", "is limited to "], "name": "constraint"}
