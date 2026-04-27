@@ -68,9 +68,9 @@ def water_pH(co2_ppm: float, temp_K: float = 298.15,
         OH = Kw / H
         charge = H + buffering_alkalinity_eq_per_L - HCO3 - 2 * CO3 - OH
         if charge > 0:
-            lo = H
-        else:
             hi = H
+        else:
+            lo = H
         if abs(hi - lo) / max(H, 1e-30) < 1e-9:
             break
     return -math.log10(H)
