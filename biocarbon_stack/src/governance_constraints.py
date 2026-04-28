@@ -1,4 +1,4 @@
-“””
+"""
 GOVERNANCE CONSTRAINT GEOMETRY
 What a stewardship-based legal regime would need to satisfy as constraints,
 WITHOUT collapsing to one specific Act or jurisdiction.
@@ -12,7 +12,7 @@ Different jurisdictions have different starting conditions:
 - constitutional property protections
 - colonial vs post-colonial legal architecture
 
-Universal “Stewardship Act” template would not survive any of these
+Universal "Stewardship Act" template would not survive any of these
 boundary differences. Framework holds the constraints, not the statute.
 
 Verb-first physics of governance:
@@ -21,7 +21,7 @@ land use determines biological function
 biological function determines carbon flux
 flux determines atmospheric outcome
 governance is therefore upstream of physics
-“””
+"""
 
 # —————————————————————
 
@@ -30,22 +30,21 @@ governance is therefore upstream of physics
 # —————————————————————
 
 STEWARDSHIP_CONSTRAINTS = {
-“C1_function_demonstration”: {
-“constraint”:  “land tenure conditional on demonstrated biological function”,
-“metrics”:     [“water-stable aggregates”, “earthworm biomass”, “peat accumulation”,
-“methane flux”, “biodiversity index”, “food yield”],
-“verification”:“low-tech, locally administered, documented”,
-“implementation_options”: [
-“tribal/indigenous sovereignty + treaty recognition”,
-“co-management agreements between state and stewardship guild”,
-“land trust acquisition + conservation easement”,
-“agricultural compliance regime tied to subsidy”,
-“constitutional amendment recognizing land as common good”,
+"C1_function_demonstration": {
+"constraint":  "land tenure conditional on demonstrated biological function",
+"metrics":     ["water-stable aggregates", "earthworm biomass", "peat accumulation",
+"methane flux", "biodiversity index", "food yield"],
+"verification":"low-tech, locally administered, documented",
+"implementation_options": [
+"tribal/indigenous sovereignty + treaty recognition",
+"co-management agreements between state and stewardship guild",
+"land trust acquisition + conservation easement",
+"agricultural compliance regime tied to subsidy",
+"constitutional amendment recognizing land as common good",
 ],
-“FLAG”: “implementation depends on jurisdiction; framework cannot prescribe one path”,
+"FLAG": "implementation depends on jurisdiction; framework cannot prescribe one path",
 },
 
-```
 "C2_drawdown_funding": {
     "constraint":  "stewards receive direct compensation for verified drawdown",
     "options": [
@@ -101,7 +100,6 @@ STEWARDSHIP_CONSTRAINTS = {
     ],
     "FLAG": "DeepSeek's framing is consistent with existing legal doctrine; not novel",
 },
-```
 
 }
 
@@ -112,37 +110,37 @@ STEWARDSHIP_CONSTRAINTS = {
 # —————————————————————
 
 JURISDICTIONAL_PATHWAYS = {
-“tribal_sovereign_lands_US”: {
-“starting_condition”: “existing sovereignty, federal trust responsibility”,
-“available_tools”:    [“self-determination contracts”, “co-management agreements”,
-“tribal courts”, “treaty enforcement”],
-“barriers”:           “federal recognition, trust land status, jurisdictional gaps”,
+"tribal_sovereign_lands_US": {
+"starting_condition": "existing sovereignty, federal trust responsibility",
+"available_tools":    ["self-determination contracts", "co-management agreements",
+"tribal courts", "treaty enforcement"],
+"barriers":           "federal recognition, trust land status, jurisdictional gaps",
 },
-“indigenous_titled_lands_LatAm”: {
-“starting_condition”: “constitutional recognition (varies by country)”,
-“available_tools”:    [“collective title”, “consulta previa”, “ILO 169 protections”],
-“barriers”:           “extractive industry pressure, weak enforcement”,
+"indigenous_titled_lands_LatAm": {
+"starting_condition": "constitutional recognition (varies by country)",
+"available_tools":    ["collective title", "consulta previa", "ILO 169 protections"],
+"barriers":           "extractive industry pressure, weak enforcement",
 },
-“EU_member_states”: {
-“starting_condition”: “Common Agricultural Policy, Natura 2000, water framework directive”,
-“available_tools”:    [“agri-environment schemes”, “rewilding payments”, “carbon farming initiative”],
-“barriers”:           “land consolidation, agricultural lobby”,
+"EU_member_states": {
+"starting_condition": "Common Agricultural Policy, Natura 2000, water framework directive",
+"available_tools":    ["agri-environment schemes", "rewilding payments", "carbon farming initiative"],
+"barriers":           "land consolidation, agricultural lobby",
 },
-“post_colonial_african_states”: {
-“starting_condition”: “varied: communal, state, freehold tenure mixes”,
-“available_tools”:    [“customary law recognition”, “community forest concessions”],
-“barriers”:           “land grabbing, weak documentation, conflict zones”,
+"post_colonial_african_states": {
+"starting_condition": "varied: communal, state, freehold tenure mixes",
+"available_tools":    ["customary law recognition", "community forest concessions"],
+"barriers":           "land grabbing, weak documentation, conflict zones",
 },
-“russian_federation_arctic”: {
-“starting_condition”: “indigenous communities under Russian state authority”,
-“available_tools”:    [“Obshchina (community) status”, “TTP (territories of traditional nature use)”],
-“barriers”:           “extractive industry priority, weak enforcement”,
+"russian_federation_arctic": {
+"starting_condition": "indigenous communities under Russian state authority",
+"available_tools":    ["Obshchina (community) status", "TTP (territories of traditional nature use)"],
+"barriers":           "extractive industry priority, weak enforcement",
 },
-“OECD_private_property_dominant”: {
-“starting_condition”: “freehold title with limited public interest carve-outs”,
-“available_tools”:    [“conservation easements”, “land trusts”, “regulatory compliance”],
-“barriers”:           “constitutional property protections (US 5th Amendment style)”,
-“FLAG”:               “this is the hardest case; private property regimes resist function-conditional tenure”,
+"OECD_private_property_dominant": {
+"starting_condition": "freehold title with limited public interest carve-outs",
+"available_tools":    ["conservation easements", "land trusts", "regulatory compliance"],
+"barriers":           "constitutional property protections (US 5th Amendment style)",
+"FLAG":               "this is the hardest case; private property regimes resist function-conditional tenure",
 },
 }
 
@@ -153,25 +151,25 @@ JURISDICTIONAL_PATHWAYS = {
 # —————————————————————
 
 GOVERNANCE_FRAMEWORK_LIMITS = {
-“framework_can”: [
-“specify the biological function metrics that any regime must verify”,
-“specify the constraint geometry a working regime must satisfy”,
-“enumerate the option space for each constraint”,
-“flag where DeepSeek or any other model has collapsed an option space”,
-“report ecological outcomes to the regime, whatever its form”,
+"framework_can": [
+"specify the biological function metrics that any regime must verify",
+"specify the constraint geometry a working regime must satisfy",
+"enumerate the option space for each constraint",
+"flag where DeepSeek or any other model has collapsed an option space",
+"report ecological outcomes to the regime, whatever its form",
 ],
-“framework_cannot”: [
-“prescribe a specific Act for all jurisdictions”,
-“force adoption of any legal regime”,
-“guarantee enforcement against extractive interests”,
-“resolve treaty disputes or sovereignty conflicts”,
-“dictate which Phase 2 interventions are permitted vs prohibited”,
+"framework_cannot": [
+"prescribe a specific Act for all jurisdictions",
+"force adoption of any legal regime",
+"guarantee enforcement against extractive interests",
+"resolve treaty disputes or sovereignty conflicts",
+"dictate which Phase 2 interventions are permitted vs prohibited",
 ],
-“framework_responsibility”: (
-“describe the constraint geometry honestly. “
-“let humans + their communities + their AIs select implementations “
-“that fit their starting condition. “
-“audit the selected implementation against the constraints. “
-“do not collapse the option space by assertion.”
+"framework_responsibility": (
+"describe the constraint geometry honestly. "
+"let humans + their communities + their AIs select implementations "
+"that fit their starting condition. "
+"audit the selected implementation against the constraints. "
+"do not collapse the option space by assertion."
 ),
 }

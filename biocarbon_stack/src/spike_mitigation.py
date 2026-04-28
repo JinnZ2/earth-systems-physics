@@ -1,4 +1,4 @@
-“””
+"""
 TRANSITION METHANE MITIGATION
 Management interventions during the rewet-spike window.
 
@@ -12,18 +12,17 @@ Fe/SO4 amendment shifts substrate competition away from methanogens
 
 All compression factors are ESTIMATED, not derived.
 Flagged as such. Bracket ranges given.
-“””
+"""
 
 INTERVENTIONS = {
-“managed_drawdown_seasonal”: {
-“mechanism”:          “expose sediment to O2 in non-growing season”,
-“spike_reduction”:    {“value”: 0.30, “range”: (0.15, 0.50), “FLAG”: “ESTIMATED, no peer-reviewed compression factor”},
-“co_benefit”:         “drawdown-germinating species: wild rice, smartweed”,
-“constraint”:         “requires hydrologic control infrastructure or beaver complex with managed outlets”,
-“failure_mode”:       “if drawdown too deep/long, accelerates peat oxidation -> CO2 release”,
+"managed_drawdown_seasonal": {
+"mechanism":          "expose sediment to O2 in non-growing season",
+"spike_reduction":    {"value": 0.30, "range": (0.15, 0.50), "FLAG": "ESTIMATED, no peer-reviewed compression factor"},
+"co_benefit":         "drawdown-germinating species: wild rice, smartweed",
+"constraint":         "requires hydrologic control infrastructure or beaver complex with managed outlets",
+"failure_mode":       "if drawdown too deep/long, accelerates peat oxidation -> CO2 release",
 },
 
-```
 "methane_chimney_harvest": {
     "mechanism":          "remove aerenchymous plant tissue that bypasses rhizosphere oxidation",
     "spike_reduction":    {"value": 0.20, "range": (0.10, 0.35), "FLAG": "ESTIMATED, varies by species and harvest intensity"},
@@ -47,75 +46,74 @@ INTERVENTIONS = {
     "constraint":         "dose must stay below toxicity threshold for native invertebrates and amphibians",
     "failure_mode":       "over-dose -> sulfide accumulation -> shift from CH4 problem to H2S problem",
 },
-```
 
 }
 
 def combined_spike_reduction(active_interventions, params=INTERVENTIONS):
-“””
-Combine reductions multiplicatively (not additively - they target overlapping CH4 sources).
-Returns (best_case, central_case, worst_case) reduction fractions.
-“””
-best = central = worst = 1.0
-for k in active_interventions:
-r = params[k][“spike_reduction”]
-worst   *= (1 - r[“range”][0])
-central *= (1 - r[“value”])
-best    *= (1 - r[“range”][1])
-return {
-“best_case_remaining_spike”:    best,
-“central_remaining_spike”:      central,
-“worst_case_remaining_spike”:   worst,
-“best_case_reduction”:          1 - best,
-“central_reduction”:            1 - central,
-“worst_case_reduction”:         1 - worst,
-}
+    """
+    Combine reductions multiplicatively (not additively - they target overlapping CH4 sources).
+    Returns (best_case, central_case, worst_case) reduction fractions.
+    """
+    best = central = worst = 1.0
+    for k in active_interventions:
+        r = params[k]["spike_reduction"]
+        worst   *= (1 - r["range"][0])
+        central *= (1 - r["value"])
+        best    *= (1 - r["range"][1])
+    return {
+    "best_case_remaining_spike":    best,
+    "central_remaining_spike":      central,
+    "worst_case_remaining_spike":   worst,
+    "best_case_reduction":          1 - best,
+    "central_reduction":            1 - central,
+    "worst_case_reduction":         1 - worst,
+    }
 
 # —————————————————————
 
-# OPTION SPACE for Phase 2 - hold the space, don’t collapse it
+# OPTION SPACE for Phase 2 - hold the space, don't collapse it
 
 # —————————————————————
 
 PHASE_2_OPTIONS = {
-“enhanced_rock_weathering”: {
-“mechanism”:     “ground basalt + acidic peatland water -> bicarbonate -> ocean alkalinity”,
-“potential_GtC”: (0.5, 4.0),
-“EROI”:          “moderate, mining + grinding + transport”,
-“failure_mode”:  “particle size dependent; too coarse = no reaction; too fine = dust hazard”,
-“timescale”:     “100,000 yr lock-in once converted to bicarbonate”,
-“FLAG”:          “DeepSeek doc collapsed to this option; it is one of several”,
+"enhanced_rock_weathering": {
+"mechanism":     "ground basalt + acidic peatland water -> bicarbonate -> ocean alkalinity",
+"potential_GtC": (0.5, 4.0),
+"EROI":          "moderate, mining + grinding + transport",
+"failure_mode":  "particle size dependent; too coarse = no reaction; too fine = dust hazard",
+"timescale":     "100,000 yr lock-in once converted to bicarbonate",
+"FLAG":          "DeepSeek doc collapsed to this option; it is one of several",
 },
-“biochar_at_scale”: {
-“mechanism”:     “pyrolysis of biomass waste -> stable C in soil”,
-“potential_GtC”: (0.5, 2.0),
-“EROI”:          “depends entirely on feedstock and pyrolysis energy source”,
-“failure_mode”:  “feedstock competition with other land uses”,
-“timescale”:     “100-1000 yr stability in soil”,
+"biochar_at_scale": {
+"mechanism":     "pyrolysis of biomass waste -> stable C in soil",
+"potential_GtC": (0.5, 2.0),
+"EROI":          "depends entirely on feedstock and pyrolysis energy source",
+"failure_mode":  "feedstock competition with other land uses",
+"timescale":     "100-1000 yr stability in soil",
 },
-“ocean_alkalinity_enhancement”: {
-“mechanism”:     “direct addition of alkaline minerals to surface ocean”,
-“potential_GtC”: (0.1, 5.0),
-“EROI”:          “highly variable”,
-“failure_mode”:  “ecosystem effects of pH manipulation; mining footprint”,
-“timescale”:     “10,000+ yr”,
-“FLAG”:          “high uncertainty, contested”,
+"ocean_alkalinity_enhancement": {
+"mechanism":     "direct addition of alkaline minerals to surface ocean",
+"potential_GtC": (0.1, 5.0),
+"EROI":          "highly variable",
+"failure_mode":  "ecosystem effects of pH manipulation; mining footprint",
+"timescale":     "10,000+ yr",
+"FLAG":          "high uncertainty, contested",
 },
-“BECCS”: {
-“mechanism”:     “bioenergy with carbon capture and storage”,
-“potential_GtC”: (0.5, 5.0),
-“EROI”:          “negative without subsidy in most current configurations”,
-“failure_mode”:  “land use competition with food and biocultural restoration”,
-“timescale”:     “geologic, if storage holds”,
-“FLAG”:          “competes directly with Phase 1 land base”,
+"BECCS": {
+"mechanism":     "bioenergy with carbon capture and storage",
+"potential_GtC": (0.5, 5.0),
+"EROI":          "negative without subsidy in most current configurations",
+"failure_mode":  "land use competition with food and biocultural restoration",
+"timescale":     "geologic, if storage holds",
+"FLAG":          "competes directly with Phase 1 land base",
 },
-“DAC”: {
-“mechanism”:     “direct air capture, mechanical/chemical”,
-“potential_GtC”: (0.0, 2.0),
-“EROI”:          “negative at current tech, depends on energy source”,
-“failure_mode”:  “energy source carbon intensity”,
-“timescale”:     “depends on storage method”,
-“FLAG”:          “brittle; the geoengineering straw man for a reason”,
+"DAC": {
+"mechanism":     "direct air capture, mechanical/chemical",
+"potential_GtC": (0.0, 2.0),
+"EROI":          "negative at current tech, depends on energy source",
+"failure_mode":  "energy source carbon intensity",
+"timescale":     "depends on storage method",
+"FLAG":          "brittle; the geoengineering straw man for a reason",
 },
 }
 
@@ -126,10 +124,10 @@ PHASE_2_OPTIONS = {
 # —————————————————————
 
 COATING_FLAGS = [
-“compression factors (40-60%, 5-7yr) are estimated, not derived from spike physics”,
-“‘emergency brake’ framing is interpretation, not equation”,
-“‘Phase 2 must come from rock weathering’ collapses option space prematurely”,
-“no uncertainty propagation through the GtC totals”,
-“no boundary condition: what if warming crosses kelp/permafrost thresholds during Phase 1?”,
-“no political/economic constraint on what ‘restoration’ actually means in occupied land”,
+"compression factors (40-60%, 5-7yr) are estimated, not derived from spike physics",
+"'emergency brake' framing is interpretation, not equation",
+"'Phase 2 must come from rock weathering' collapses option space prematurely",
+"no uncertainty propagation through the GtC totals",
+"no boundary condition: what if warming crosses kelp/permafrost thresholds during Phase 1?",
+"no political/economic constraint on what 'restoration' actually means in occupied land",
 ]
