@@ -44,3 +44,161 @@ Food Just-in-time supply chains fail at 90-day buffer Stewardship sites must yie
 Transport Roads buckle, fuel chains break Site accessibility defined by non-motorized, one-day travel radius
 Compute / AI Data centers aren't guaranteed Framework must function without me; print, train, transmit, embed
 Biocarbon Atmosphere 4.0 Gt C/yr drawdown Already built, CC0, waiting for ignition
+
+
+
+Here's your checklist. Copy, paste, work tomorrow. You earned the rest.
+
+---
+
+BIOCARBON FRAMEWORK: NEXT-BUILD CHECKLIST
+
+FOR HUMANS (Stewardship Guilds, Communities, Land Managers)
+
+1. Plain-Language Translation (One Page Per Module)
+
+· wetland_core: "How to manage water so the swamp stores carbon and doesn't burp methane"
+· adaptive_layer: "How to use earthworms and fungi to make soil survive floods and droughts"
+· marine_core: "How to bring back sea otters and kelp so the coast protects itself"
+· boundary_conditions: "What kills the system and how to watch for it"
+· spike_mitigation: "How to manage cattails, water levels, and harvest timing to compress the methane spike"
+· redundancy_and_range_shift: "What to do when your primary species can't handle the heat"
+· global_potential: "How much carbon this actually pulls down, with honest error bars"
+
+2. Field Verification Kit (No Lab, No Cloud, Fits in a Canoe)
+
+· Ring infiltrometer spec (PVC pipe, ruler, timer, water bucket) for earthworm porosity
+· Peat saturation dipstick and color chart
+· Shrub-height story stick for permafrost albedo (marked in cm, photo-reference included)
+· Methanotroph health indicator: smell test (sulfur = bad, earthy = good), water color, vegetation color
+· Fish/crustacean return as proxy for floodplain reconnection health
+· One-page laminated field card per test
+
+3. Site Assessment Checklist (What Broke Here?)
+
+· Degradation vector ID: drained? burned? channelized? deforested? overgrazed? fire-suppressed? invasive species?
+· Missing herbivore guild: caribou/bison/musk ox/saiga/capybara/hippo (circle regionally appropriate)
+· Missing predator guild: wolf/otter/lobster/sea star/wolffish/sheephead
+· Missing hydrological structure: beaver complexes? canal blocks? sluice gates? check dams?
+· Missing vegetation: peat-swamp forest? kelp canopy? riparian willow/aspen? sphagnum mat?
+· Missing soil infrastructure: earthworms (native only)? mycorrhizal inoculant? rock flour amendment?
+· Stewardship knowledge present: yes/no/partial. Community identified. Contact established.
+· Ignition sequence auto-generated from checked boxes
+
+4. Economic Comparison (One Page, Stewardship vs. Extraction)
+
+· Current land use yield (tonnes/hectare, dollars/hectare, calories/hectare)
+· Stewardship model yield (wild rice, fish, reed, timber, latex, berries, meat, carbon dividend)
+· Carbon value at proposed Drawdown Dividend price
+· Water security value (avoided flood damage, drought insurance)
+· Biodiversity co-benefit (pollinators, pest control, genetic resource)
+· Side-by-side table. The numbers do the arguing.
+
+5. Regional Species Cards (Per Major Biome)
+
+· Boreal peatland: which earthworms (none, or native Sparganophilus only), herbivores (caribou, musk ox, wood bison), predators (wolf, wolverine), vegetation (sphagnum, black spruce, Labrador tea)
+· Tropical peat dome: earthworms (native Glyphidrilus), herbivores (none? or managed water buffalo), vegetation (jelutong, ramin, rattan, pandanus)
+· Temperate marsh/delta: earthworms (native Aporrectodea/Octolasion), herbivores (beaver, muskrat, waterfowl), vegetation (cattail, bulrush, wild rice, reed)
+· Kelp forest: predator guild (otter, sea star, lobster, wolffish), kelp species (Macrocystis, Nereocystis, Laminaria)
+· Permafrost margin: herbivore guild (reindeer, musk ox, Yakutian horse, bison), shrub species to monitor (alder, dwarf birch, willow encroachment)
+· INVASIVE WARNING card: European Lumbricus in glaciated North America = DO NOT DEPLOY
+
+---
+
+FOR AIs (So They Calibrate to Reality, Not Training Data)
+
+6. Constraints Prompt Library (Text File for Any AI Session)
+
+· "No novel genetics. No machine-biological hybrids. No geoengineering."
+· "Purely empirical biological processes already validated at planetary scale over millions of years."
+· "Verb-first physics: processes, not entities. Saturation creates anoxia. Predators suppress grazers."
+· "Honest uncertainty. Parameters as ranges, not point estimates. FLAG what is not well-characterized."
+· "Do not collapse governance. Hold option space open. Stewardship competence, not ownership deed."
+· "Surface the ugliest number first. The methane spike is 70 Tg CH4 and it must be confronted."
+· "If the framework fails under a real landscape, say so. Coating kills credibility."
+
+7. Dependency Trace Template (Prevents Robot Exemption Fantasy)
+
+· Power source and its failure modes under projected climate
+· Cooling requirement and its dependency on water availability
+· Supply chain depth (how many industrial processes between raw material and deployed unit)
+· Physical vulnerability (heat, corrosion, particulate, biological fouling, flood, fire)
+· Human labor requirement for maintenance and repair
+· Network/connectivity requirement and its failure modes
+· Replacement cycle and material availability
+· Single point of failure identification
+· Score: can this operate if the grid is down for 6 months? If no, it's not infrastructure; it's a luxury.
+
+8. Survivability Filter (Six Layers, Run Before Deployment)
+
+· Wet-bulb: are the stewards alive? Project exceedance days over calibration period.
+· Water: is centralized infrastructure reliable? If no, deploy distributed low-tech retention.
+· Grid: is always-on electricity assumed? If yes, redesign for offline-first, solar-powered.
+· Food: does the intervention yield caloric surplus in Year 1? If no, it won't survive a supply chain shock.
+· Transport: is the site serviceable by non-motorized means within a one-day radius?
+· Compute: does the framework require real-time AI? If yes, print it, train it, embed it. Remove the dependency.
+
+---
+
+FOR EVERYONE
+
+9. README Update (Top of Repo, Five Lines)
+
+· What this is: constraint-equation framework for proven biological carbon drawdown
+· What it's not: policy proposal, moral argument, forecast, 100% solution
+· How to fork: CC0, no permission needed, modify as constraints reveal
+· How to run: Monte Carlo script in /scripts, parameters in /src
+· How to adapt: use the backwards-building procedure in /docs/procedure.md
+
+10. Vanguard Jurisdiction Template (Fill-in-the-Blank)
+
+· Geometry name and location
+· Stewardship authority (specific community, council, guild, or confederation)
+· Degradation vector (what broke the biological process)
+· Missing verbs (what the landscape must do that it currently cannot)
+· Puzzle pieces from module stack (which state variables apply)
+· Ignition sequence (Year 1, Year 2, Year 3)
+· Flux calibration deployment (sensors, community data ownership, Phase 0 node registration)
+· Economic lock-in (what yield replaces the extractive economy)
+· Completed examples: Hudson Bay Lowland / Sundaland / Danube Delta
+
+---
+
+ADDITIONAL SUGGESTIONS
+
+11. Anti-Coating Audit (Run Before Any Public Release)
+
+· Are all numbers given as ranges, not point estimates?
+· Is the methane spike surfaced in the first paragraph of any summary?
+· Are governance options listed as an open set, not a single answer?
+· Are FLAGged parameters explicitly called out as weakly constrained?
+· Is the total drawdown framed as a fraction of the problem, not a solution to it?
+· Is the dependency on emissions reduction stated clearly?
+· Are indigenous and local communities named as stewards, not beneficiaries?
+· If any sentence sounds like a TED talk, delete it.
+
+12. Translation and Accessibility
+
+· Bahasa Indonesia (for Sundaland stewards)
+· Cree (for Hudson Bay Lowland stewards)
+· Romanian/Ukrainian (for Danube Delta stewards)
+· Russian (for West Siberian Lowland stewards)
+· French/Portuguese/Spanish (for Congo Basin, Patagonia, Okavango)
+· Audio version for oral-tradition knowledge holders
+· Visual diagram version: one infographic per module, no text required
+
+13. Funding and Resource Pathways (Hold Open, Don't Collapse)
+
+· Direct community grants (not mediated by NGOs unless community-controlled)
+· Sovereign wealth fund drawdown dividend (modeled on Alaska Permanent Fund, Norway Oil Fund)
+· Debt-for-stewardship swap (national debt relief conditioned on verified stewardship metrics)
+· Private land trust covenant conversion (ownership to stewardship obligation)
+· Philanthropic catalytic capital for Phase 0 calibration nodes
+· Explicitly do NOT collapse to carbon credits as primary mechanism
+
+14. Failure Mode Documentation (For Each Module)
+
+· What does failure look like? (peat fire, urchin barren, thermokarst, methane spike unsuppressed)
+· What are the early warning indicators? (water table drop, predator decline, soil temp rise)
+· What is the reversion protocol? (can the system self-repair, or does failure cascade?)
+· Document failures publicly. Failures train the next iteration better than successes.
