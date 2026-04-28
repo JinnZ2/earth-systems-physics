@@ -92,7 +92,6 @@ def permafrost_net_benefit(area_km2, density_per_km2, species_mix, warming_avoid
     Compute net warming benefit of herbivore-permafrost protection.
     Subtracts enteric CH4 cost from C-protection benefit.
 
-    ```
     species_mix: dict of fraction by species, e.g. {"reindeer": 0.5, "bison": 0.3, ...}
     warming_avoided_GtC: gross C kept frozen if intervention works
     """
