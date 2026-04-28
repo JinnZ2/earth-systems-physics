@@ -91,7 +91,6 @@ def net_co2eq_flux(W, R_p, p, transition_year=None):
     Net CO2-equivalent flux to atmosphere (kg CO2eq / m2 / yr).
     Negative = drawdown.
 
-    ```
     transition_year: if rewetting drained peat, year since rewet.
                      During spike window, methane is amplified.
     """

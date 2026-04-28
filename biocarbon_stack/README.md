@@ -52,17 +52,24 @@ cuts.
 ## Module structure
 
 ```
-src/
-  wetland_core.py              hydrology -> anoxia -> CH4 balance -> peat
-  marine_core.py               kelp NPP -> deep export -> millennial seq
-  spike_mitigation.py          managed drawdown / harvest / inoculation / Fe-S
-  boundary_conditions.py       nested buffer thresholds (otter, herbivore)
-  redundancy_and_range_shift.py guild stacking + 7-option range-shift space
-  adaptive_layer.py            earthworm + mycorrhizal load-bearing infra
-  global_potential.py          extent estimates + aggregation
-
-scripts/
-  run_full_stack.py            Monte Carlo over all parameter ranges
+biocarbon_stack/
+├── README.md
+├── docs/
+│   ├── ARCHITECTURE.md         module coupling map + composition with other JinnZ2 frameworks
+│   └── OPEN_QUESTIONS.md       gaps, missing layers, validation TODOs
+├── scripts/
+│   └── run_full_stack.py       Monte Carlo over all parameter ranges (n=3000)
+└── src/
+    ├── wetland_core.py             hydrology -> anoxia -> CH4 balance -> peat
+    ├── marine_core.py              kelp NPP -> deep export -> millennial seq
+    ├── spike_mitigation.py         managed drawdown / harvest / inoculation / Fe-S
+    ├── boundary_conditions.py      nested buffer thresholds (otter, herbivore)
+    ├── redundancy_and_range_shift.py  guild stacking + 7-option range-shift space
+    ├── adaptive_layer.py           earthworm + mycorrhizal load-bearing infra
+    ├── geological_vector.py        ERW with stewardship integration
+    ├── governance_constraints.py   constraint geometry, not specific Act
+    ├── global_potential.py         extent estimates + aggregation
+    └── backwards_building.py       5-step procedure, validated on 3 geometries
 ```
 
 ## Verb-first physics
