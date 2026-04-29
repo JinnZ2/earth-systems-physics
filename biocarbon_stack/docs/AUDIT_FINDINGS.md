@@ -129,18 +129,44 @@ system (ocean carbonate chemistry).
   (specify quantity, unit, instrument, conservation law, boundary,
   and falsifiability). The guard checks claim *shape*, not *truth*.
 
-## Independence assumption
+## Independence assumption — addressed in follow-up
 
-The Monte Carlo sums the six components arithmetically as if they
-were independent. The framework's own `docs/ARCHITECTURE.md` lists
-explicit cross-component couplings: wetland N retention enables
-stable kelp; ERW raises soil pH which feeds the adaptive layer;
-adaptive-layer porosity affects wetland CH4 spike; herbivore
-restoration affects regional albedo which couples to atmospheric
-trajectory. None of these couplings appear in the MC sum. They
-likely produce both positive and negative interaction terms; net
-sign is not analytically obvious. Worth a follow-up: a coupled MC
-that propagates at least the largest documented couplings.
+(Original finding: the Monte Carlo summed the six components
+arithmetically as if independent. The framework's own
+`docs/ARCHITECTURE.md` documents real cross-component couplings.)
+
+**Resolution.** Added `src/cross_couplings.py` enumerating four
+documented couplings as data (verb chain, affected component,
+multiplier range, FLAG, source citation). Added
+`coupled_monte_carlo` to `scripts/run_full_stack.py` that applies the
+multipliers per iteration. The `__main__` block now runs both the
+independent and coupled MC and prints the headline shift.
+
+**Empirical result (n=3000).**
+
+| MC variant | p05 | median | p95 |
+|---|---:|---:|---:|
+| independent | 3.06 | 3.98 | 4.91 |
+| coupled     | 3.13 | 4.04 | 4.95 |
+| Δ median    |      | +1.4% |     |
+
+Headline shifts by ≈+1% with the documented coupling magnitudes.
+The simple-sum MC is therefore **not significantly biased** by
+ignoring the documented couplings, given those magnitudes. If
+better-anchored measurements raise any coupling's upper bound
+materially (e.g. wetland→kelp from 1.10 to 1.30), the shift would
+scale linearly.
+
+What's still **not** modeled (per `cross_couplings.NOT_MODELED`):
+
+- land-overlap double-counting between adaptive and ERW. (Argued
+  not to be double-counting because the two store carbon in
+  different pools — soil aggregates vs. ocean bicarbonate.)
+- the wetland CH4 transient spike during years 2-15. The
+  `adaptive_to_wetland_spike` coupling reduces it by 0-45%, but the
+  steady-state headline doesn't include the transient anyway.
+- ocean-alkalinity feedback to kelp. Folded into `wetland_to_kelp`
+  to avoid double-counting.
 
 ## Composite verdict
 
