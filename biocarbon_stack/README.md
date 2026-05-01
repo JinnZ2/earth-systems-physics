@@ -69,7 +69,8 @@ biocarbon_stack/
     ├── geological_vector.py        ERW with stewardship integration
     ├── governance_constraints.py   constraint geometry, not specific Act
     ├── global_potential.py         extent estimates + aggregation
-    └── backwards_building.py       5-step procedure, validated on 3 geometries
+    ├── backwards_building.py       5-step procedure, validated on 3 geometries
+    └── cross_couplings.py          documented inter-component couplings for coupled MC
 ```
 
 ## Verb-first physics

@@ -25,6 +25,7 @@ SRC_MODULES = [
     "governance_constraints",
     "global_potential",
     "backwards_building",
+    "cross_couplings",
 ]
 
 
@@ -51,3 +52,23 @@ def test_run_full_stack_monte_carlo():
     assert mc["p05"] <= mc["p50"] <= mc["p95"]
     sp = rf.methane_spike_distribution()
     assert 0 < sp["central_reduction"] < 1
+
+
+def test_coupled_monte_carlo():
+    sys.path.insert(0, BIOCARBON_SCRIPTS)
+    import run_full_stack as rf
+    mcc = rf.coupled_monte_carlo(n=200)
+    # Coupled MC should always exceed independent (all documented
+    # couplings have lower bound 1.0 on multipliers affecting the headline).
+    mc = rf.monte_carlo(n=200)
+    assert mcc["p50"] >= mc["p50"] * 0.95  # generous: same RNG draws differ
+    # Bounded above too: documented couplings cap at ~10% lift.
+    assert mcc["p50"] <= mc["p50"] * 1.30
+
+
+def test_couplings_are_documented():
+    import cross_couplings as cc
+    for name, c in cc.COUPLINGS.items():
+        assert "verb_chain" in c, f"{name} missing verb_chain"
+        assert "FLAG" in c, f"{name} missing FLAG"
+        assert c["multiplier_range"][0] <= c["multiplier_range"][1]
