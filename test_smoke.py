@@ -4078,3 +4078,137 @@ class TestLayer0Emag:
         assert out.dM_dt.shape == (N,)
         assert out.B_surface_equator.shape == (N,)
         assert out.method_used == "spectral"
+
+
+# ─────────────────────────────────────────────
+# CASCADE HISTORY MODE — time-series cascade with
+# layer_0_emag spectral / flat dynamo response
+# ─────────────────────────────────────────────
+
+class TestCascadeHistory:
+    def test_imports_and_presets(self):
+        from cascade_engine import (
+            run_cascade_history, CascadeHistoryResult,
+            HISTORY_PRESETS, history_preset_paleo_lgm,
+            history_preset_full_pleistocene,
+        )
+        assert "paleo_lgm" in HISTORY_PRESETS
+        assert "full_pleistocene" in HISTORY_PRESETS
+
+    def test_paleo_preset_shape(self):
+        from cascade_engine import history_preset_paleo_lgm
+        t = history_preset_paleo_lgm(n_samples=121)
+        assert t.shape == (121,)
+        assert t[0]  == -60_000.0
+        assert t[-1] == 0.0
+
+    def test_history_runs_lgm(self):
+        from cascade_engine import (
+            run_cascade_history, history_preset_paleo_lgm,
+            CascadeHistoryResult,
+        )
+        t = history_preset_paleo_lgm(n_samples=121)
+        result = run_cascade_history(t, verbose=False)
+        assert isinstance(result, CascadeHistoryResult)
+        assert result.t_years.shape == (121,)
+        assert result.delta_omega_orbital_rads_history.shape == (121,)
+        assert result.delta_omega_total_rads_history.shape == (121,)
+        assert result.l0_spectral.M_dipole.shape == (121,)
+        assert result.l0_flat.M_dipole.shape == (121,)
+
+    def test_history_orbital_delta_omega_nonzero(self):
+        """Orbital Δω varies across the LGM-to-present window."""
+        from cascade_engine import (
+            run_cascade_history, history_preset_paleo_lgm,
+        )
+        t = history_preset_paleo_lgm(n_samples=121)
+        r = run_cascade_history(t, verbose=False)
+        domega = r.delta_omega_orbital_rads_history
+        assert domega.std() > 0
+        assert (domega.max() - domega.min()) > 1e-15
+
+    def test_history_anchor_at_reference_epoch(self):
+        """Δω should be ~0 at the reference epoch (default t=0)."""
+        from cascade_engine import (
+            run_cascade_history, history_preset_paleo_lgm,
+        )
+        t = history_preset_paleo_lgm(n_samples=121)
+        r = run_cascade_history(t, verbose=False)
+        # t_years[-1] is the reference epoch (0); Δω there should be 0
+        assert abs(r.delta_omega_orbital_rads_history[-1]) < 1e-18
+
+    def test_history_spectral_differs_from_flat(self):
+        """The whole point: spectral and flat dynamo responses differ."""
+        from cascade_engine import (
+            run_cascade_history, history_preset_paleo_lgm,
+        )
+        import numpy as np
+        t = history_preset_paleo_lgm(n_samples=121)
+        r = run_cascade_history(t, verbose=False)
+        spec_rms = float(np.sqrt(np.mean(r.l0_spectral.dM_dt**2)))
+        flat_rms = float(np.sqrt(np.mean(r.l0_flat.dM_dt**2)))
+        # Spectral amplifies near f_res, so RMS should differ by > 5%.
+        assert abs(spec_rms - flat_rms) / max(flat_rms, 1e-30) > 0.05
+
+    def test_history_spectral_peak_in_precession_band(self):
+        """SPECTRAL dM/dt PSD should peak in 18-25 kyr (precession band)."""
+        from cascade_engine import (
+            run_cascade_history, history_preset_paleo_lgm,
+        )
+        from layer_0_emag import spectral_power
+        import numpy as np
+        t = history_preset_paleo_lgm(n_samples=121)
+        r = run_cascade_history(t, verbose=False)
+        f, psd = spectral_power(r.l0_spectral.dM_dt, t)
+        # Skip f=0
+        idx = np.argmax(psd[1:]) + 1
+        peak_period_yr = 1.0 / f[idx]
+        assert 18_000 <= peak_period_yr <= 25_000, (
+            f"SPECTRAL peak at {peak_period_yr:.0f} yr — "
+            f"expected DRESDYN/precession band 18-25 kyr"
+        )
+
+    def test_history_final_states_all_layers(self):
+        """Final-state snapshot includes all nine cascade layers."""
+        from cascade_engine import (
+            run_cascade_history, history_preset_paleo_lgm,
+            LAYER_INDICES,
+        )
+        t = history_preset_paleo_lgm(n_samples=121)
+        r = run_cascade_history(t, verbose=False)
+        assert set(r.final_states.keys()) == set(LAYER_INDICES)
+
+    def test_history_rejects_nonuniform_grid(self):
+        from cascade_engine import run_cascade_history
+        import numpy as np
+        t_nonuniform = np.array([0.0, 1000.0, 3000.0, 4000.0, 5000.0])
+        with pytest.raises(ValueError, match="uniformly spaced"):
+            run_cascade_history(t_nonuniform, verbose=False)
+
+    def test_history_rejects_too_few_samples(self):
+        from cascade_engine import run_cascade_history
+        import numpy as np
+        with pytest.raises(ValueError, match="at least 4 samples"):
+            run_cascade_history(np.array([0.0, 1.0, 2.0]), verbose=False)
+
+    def test_history_offset_when_t_ref_outside_window(self):
+        """If t_ref is outside the t_years window, the integral should
+        be offset accordingly (non-zero at the window boundary)."""
+        from cascade_engine import run_cascade_history
+        import numpy as np
+        # Window entirely in the past, ref at 0 (present)
+        t = np.linspace(-30_000.0, -10_000.0, 41)
+        r = run_cascade_history(t, t_ref_year=0.0, verbose=False)
+        # Δω at t_years[-1] (which is -10000) should be the
+        # cumulative integral from 0 to -10000, NOT zero.
+        assert abs(r.delta_omega_orbital_rads_history[-1]) > 1e-18
+
+    def test_history_dynamo_method_flat_only(self):
+        """Disable flat null and confirm result.l0_flat is None."""
+        from cascade_engine import (
+            run_cascade_history, history_preset_paleo_lgm,
+        )
+        t = history_preset_paleo_lgm(n_samples=121)
+        r = run_cascade_history(t, include_flat_null=False, verbose=False)
+        assert r.l0_flat is None
+        assert r.l0_spectral is not None

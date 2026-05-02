@@ -15,6 +15,9 @@ from typing import Any
 from layer_minus1_orbital     import (
     coupling_state    as orbital_state,
     OrbitalForcingConfig,
+    delta_omega_orbital as _orbital_rate,
+    cumulative_delta_omega as _orbital_cumulative_delta_omega,
+    SIDEREAL_YEAR_S as _ORBITAL_SIDEREAL_YEAR_S,
 )
 from layer_0_electromagnetics import coupling_state as em_state
 from layer_1_magnetosphere    import coupling_state as mag_state
@@ -1187,6 +1190,277 @@ def run_ocean_timber_full_audit(n_trees_per_year=1_000_000,
     }
 
 
+# ─────────────────────────────────────────────
+# CASCADE HISTORY MODE
+# Time-series cascade for orbital / spectral analysis.
+# Operates on a uniform-spaced t_years array, integrates L-1 dω/dt
+# into a Δω(t) history, sums with the (presently-static) L5 internal
+# Δω, and feeds the total into layer_0_emag.compute_l0_response for
+# the FFT-based dynamo transfer. Produces both spectral and flat-null
+# outputs so the discriminator (paleomag spectral peak in the
+# precession band) is testable side-by-side.
+#
+# This mode is COMPLEMENTARY to the per-instant run_all_layers /
+# run_cascade pathway, not a replacement. The per-instant cascade
+# remains the entry point for Forcing-driven scenarios.
+# ─────────────────────────────────────────────
+
+@dataclass
+class CascadeHistoryResult:
+    """Bundle returned by run_cascade_history()."""
+    t_years: np.ndarray                              # uniform grid, yr
+    delta_omega_orbital_rads_history: np.ndarray     # L-1 integrated, rad/s
+    delta_omega_l5_internal_rads_history: np.ndarray # L5 ice/mass, rad/s
+    delta_omega_total_rads_history: np.ndarray       # sum, fed to L0
+    l0_spectral: Any                                 # layer_0_emag.L0Output
+    l0_flat: Any = None                              # null-comparison L0Output
+    final_states: dict = field(default_factory=dict) # per-instant at last t
+    config_summary: dict = field(default_factory=dict)
+
+
+def _integrate_orbital_delta_omega(t_years, orbital_cfg, t_ref_year=0.0):
+    """
+    Vectorised cumulative integral of dω/dt(t) over a uniform t array.
+    Uses centered finite-difference rates plus trapezoidal cumsum;
+    O(N) rate evaluations, O(N) integration.
+
+    Anchoring: if t_ref_year is inside [t_years.min(), t_years.max()],
+    Δω is shifted so the value at the nearest grid point to t_ref_year
+    is exactly 0. This is trapezoidal-self-consistent. Otherwise we
+    fall back to a scipy.quad offset from t_ref_year to t_years[0]
+    (introduces small sub-ppm drift from blending two estimators).
+    """
+    t_years = np.asarray(t_years, dtype=float)
+    rates_rads2 = np.array([_orbital_rate(float(t), orbital_cfg)
+                            for t in t_years])
+    rates_per_year = rates_rads2 * _ORBITAL_SIDEREAL_YEAR_S
+    dt = np.diff(t_years)
+    delta_omega = np.zeros_like(t_years)
+    delta_omega[1:] = np.cumsum(
+        0.5 * (rates_per_year[:-1] + rates_per_year[1:]) * dt
+    )
+
+    if t_years.min() <= t_ref_year <= t_years.max():
+        idx_ref = int(np.argmin(np.abs(t_years - t_ref_year)))
+        delta_omega = delta_omega - delta_omega[idx_ref]
+    else:
+        offset = _orbital_cumulative_delta_omega(
+            float(t_years[0]), orbital_cfg, t_ref_year=t_ref_year
+        )
+        delta_omega = delta_omega + offset
+    return delta_omega
+
+
+def run_cascade_history(
+    t_years,
+    baseline=None,
+    orbital_cfg=None,
+    dynamo_cfg=None,
+    include_flat_null=True,
+    t_ref_year=0.0,
+    verbose=True,
+):
+    """
+    Time-series cascade. Loops over t_years to build a Δω(t) history,
+    then feeds it into layer_0_emag.compute_l0_response for the
+    spectral dynamo response (and the flat-method null for comparison).
+
+    t_years           : uniform-spaced numpy array of years (J2000 epoch)
+    baseline          : parameter dict (uses BASELINE if None)
+    orbital_cfg       : OrbitalForcingConfig (default constructed from
+                          baseline knobs if None)
+    dynamo_cfg        : DynamoResponseConfig (default constructed from
+                          baseline tau_dynamo_yr if None)
+    include_flat_null : also compute the flat-method comparison
+    t_ref_year        : reference epoch for Δω integration (default 0)
+    verbose           : print summary report
+
+    Returns: CascadeHistoryResult
+    """
+    from layer_0_emag import (
+        DynamoResponseConfig, compute_l0_response,
+    )
+
+    if baseline is None:
+        baseline = dict(BASELINE)
+
+    if orbital_cfg is None:
+        orbital_cfg = OrbitalForcingConfig(
+            k_tide_rad_s2_per_de_dyr  = baseline.get("k_tidal_ecc",     1.0e-22),
+            eta_cmb_rad_s2_per_rad_yr = baseline.get("k_precession_cmb", 5.0e-20),
+            tau_dynamo_yr             = baseline.get("tau_dynamo_yr",   1500.0),
+        )
+    orbital_cfg.validate()
+
+    if dynamo_cfg is None:
+        dynamo_cfg = DynamoResponseConfig(
+            tau_dynamo_yr = orbital_cfg.tau_dynamo_yr,
+            method        = "spectral",
+        )
+    dynamo_cfg.validate()
+
+    t_years = np.asarray(t_years, dtype=float)
+    if t_years.size < 4:
+        raise ValueError("t_years must have at least 4 samples for FFT mode")
+    dt = np.diff(t_years)
+    if not np.allclose(dt, dt[0], rtol=1e-6):
+        raise ValueError("t_years must be uniformly spaced")
+
+    # 1. L-1 orbital Δω history
+    delta_omega_orbital = _integrate_orbital_delta_omega(
+        t_years, orbital_cfg, t_ref_year=t_ref_year
+    )
+
+    # 2. L5 internal Δω from ice mass — currently static (BASELINE
+    #    does not model ice-mass variation across the orbital window).
+    #    A future paleo-mode would pass an ice_mass_loss_Gt(t) array
+    #    here; for now we use the BASELINE present-day ice anomaly
+    #    constant across the window.
+    from layer_5_lithosphere import ice_melt_LOD_change
+    l5_lod = ice_melt_LOD_change(
+        baseline.get("ice_mass_loss_Gt", 280.0),
+        baseline.get("lat_ice", 71.0),
+        baseline.get("lon_ice", -40.0),
+    )
+    delta_omega_l5_internal = np.full_like(
+        t_years, l5_lod["omega_change_rads"]
+    )
+
+    delta_omega_total = delta_omega_orbital + delta_omega_l5_internal
+
+    # 3. L0 spectral response (default)
+    l0_spectral = compute_l0_response(delta_omega_total, t_years, dynamo_cfg)
+
+    # 4. Optional flat-method null
+    l0_flat = None
+    if include_flat_null:
+        flat_cfg = DynamoResponseConfig(
+            alpha_0       = dynamo_cfg.alpha_0,
+            tau_dynamo_yr = dynamo_cfg.tau_dynamo_yr,
+            f_res_per_yr  = dynamo_cfg.f_res_per_yr,
+            Q_factor      = dynamo_cfg.Q_factor,
+            method        = "flat",
+        )
+        l0_flat = compute_l0_response(delta_omega_total, t_years, flat_cfg)
+
+    # 5. Per-instant final-state snapshot at last t (for diagnostic
+    #    parity with run_all_layers).
+    final_baseline = dict(baseline)
+    final_baseline["t_kyr"]     = float(t_years[-1] / 1000.0)
+    final_baseline["t_ref_kyr"] = float(t_ref_year   / 1000.0)
+    final_states = run_all_layers(final_baseline)
+
+    config_summary = {
+        "n_samples":       int(t_years.size),
+        "dt_years":        float(dt[0]),
+        "t_min_year":      float(t_years[0]),
+        "t_max_year":      float(t_years[-1]),
+        "t_ref_year":      float(t_ref_year),
+        "dynamo_method":   dynamo_cfg.method,
+        "dynamo_Q":        float(dynamo_cfg.Q_factor),
+        "dynamo_f_res":    float(dynamo_cfg.f_res_per_yr),
+        "tau_dynamo_yr":   float(dynamo_cfg.tau_dynamo_yr),
+        "k_tide":          float(orbital_cfg.k_tide_rad_s2_per_de_dyr),
+        "eta_cmb":         float(orbital_cfg.eta_cmb_rad_s2_per_rad_yr),
+    }
+
+    result = CascadeHistoryResult(
+        t_years                              = t_years,
+        delta_omega_orbital_rads_history     = delta_omega_orbital,
+        delta_omega_l5_internal_rads_history = delta_omega_l5_internal,
+        delta_omega_total_rads_history       = delta_omega_total,
+        l0_spectral                          = l0_spectral,
+        l0_flat                              = l0_flat,
+        final_states                         = final_states,
+        config_summary                       = config_summary,
+    )
+
+    if verbose:
+        _print_history_report(result)
+
+    return result
+
+
+def _print_history_report(result):
+    """Print summary of a time-series cascade run."""
+    r = result
+    t = r.t_years
+    cfg = r.config_summary
+
+    print("=" * 64)
+    print("CASCADE HISTORY ANALYSIS  (time-series mode)")
+    print("=" * 64)
+    print(f"  Sample window     : t = {t[0]:+.0f} .. {t[-1]:+.0f} years")
+    print(f"  Sample count      : {cfg['n_samples']}")
+    print(f"  Sample spacing    : {cfg['dt_years']:.1f} yr")
+    print(f"  Reference epoch   : t = {cfg['t_ref_year']:+.0f} yr")
+    print()
+    print(f"  Δω_orbital (L-1)  : "
+          f"min {r.delta_omega_orbital_rads_history.min():+.3e} "
+          f"max {r.delta_omega_orbital_rads_history.max():+.3e} rad/s")
+    print(f"  Δω_internal (L5)  : "
+          f"{r.delta_omega_l5_internal_rads_history[0]:+.3e} rad/s "
+          f"(constant baseline)")
+    rms_total = float(np.sqrt(np.mean(r.delta_omega_total_rads_history**2)))
+    print(f"  Δω_total RMS      : {rms_total:.3e} rad/s")
+    print()
+    print(f"  L0 SPECTRAL response (Q={cfg['dynamo_Q']:.1f}, "
+          f"f_res=1/{1.0/cfg['dynamo_f_res']:.0f} yr):")
+    print(f"    M_dipole range  : {r.l0_spectral.M_dipole.min():.4e} .. "
+          f"{r.l0_spectral.M_dipole.max():.4e} A·m²")
+    rms_spec = float(np.sqrt(np.mean(r.l0_spectral.dM_dt**2)))
+    print(f"    dM/dt RMS       : {rms_spec:.3e} A·m²/yr")
+    print(f"    B_eq range      : "
+          f"{r.l0_spectral.B_surface_equator.min()*1e6:.3f} .. "
+          f"{r.l0_spectral.B_surface_equator.max()*1e6:.3f} µT")
+
+    if r.l0_flat is not None:
+        print()
+        print(f"  L0 FLAT response  (institutional null):")
+        rms_flat = float(np.sqrt(np.mean(r.l0_flat.dM_dt**2)))
+        print(f"    dM/dt RMS       : {rms_flat:.3e} A·m²/yr")
+        print(f"    B_eq range      : "
+              f"{r.l0_flat.B_surface_equator.min()*1e6:.3f} .. "
+              f"{r.l0_flat.B_surface_equator.max()*1e6:.3f} µT")
+
+        # Discriminator: PSD peak periods.
+        from layer_0_emag import spectral_power
+        f_s, psd_s = spectral_power(r.l0_spectral.dM_dt, t)
+        f_f, psd_f = spectral_power(r.l0_flat.dM_dt, t)
+        if len(f_s) > 1 and len(f_f) > 1:
+            pk_s = float(f_s[1:][np.argmax(psd_s[1:])])
+            pk_f = float(f_f[1:][np.argmax(psd_f[1:])])
+            print()
+            print(f"  PSD peak periods:")
+            if pk_s > 0:
+                print(f"    SPECTRAL : {1.0/pk_s:.0f} yr  "
+                      f"(expect ~ DRESDYN / precession band 19-23 kyr)")
+            if pk_f > 0:
+                print(f"    FLAT     : {1.0/pk_f:.0f} yr  "
+                      f"(expect at lowest input tone, no resonant selection)")
+    print("=" * 64)
+
+
+# ─────────────────────────────────────────────
+# CASCADE HISTORY PRESETS
+# ─────────────────────────────────────────────
+
+def history_preset_paleo_lgm(n_samples=601):
+    """Last Glacial Maximum to present, every 100 yr (default 60 kyr window)."""
+    return np.linspace(-60_000.0, 0.0, n_samples)
+
+
+def history_preset_full_pleistocene(n_samples=2001):
+    """Full Pleistocene window (-1 Myr to present), every 500 yr."""
+    return np.linspace(-1_000_000.0, 0.0, n_samples)
+
+
+HISTORY_PRESETS = {
+    "paleo_lgm":         history_preset_paleo_lgm,
+    "full_pleistocene":  history_preset_full_pleistocene,
+}
+
+
 if __name__ == "__main__":
     # Run all standard scenarios
     for name, scenario in SCENARIOS.items():
@@ -1202,3 +1476,9 @@ if __name__ == "__main__":
     print(f"# SCENARIO: co2_pulse_iterative (ITERATIVE)")
     print(f"{'#'*64}")
     run_cascade_iterative(SCENARIOS["co2_pulse_iterative"])
+
+    # Run a default cascade history preset (LGM to present)
+    print(f"\n{'#'*64}")
+    print(f"# HISTORY: paleo_lgm  (LGM to present, time-series mode)")
+    print(f"{'#'*64}")
+    run_cascade_history(HISTORY_PRESETS["paleo_lgm"]())

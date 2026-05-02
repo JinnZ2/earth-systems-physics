@@ -44,7 +44,7 @@ Two coupling channels into the natural stack:
   Direct insolation → CMB heat flux is rejected at orbital cadence
   (mantle thermalisation lag ~Gyr).
 
-**Cascade Engine** (`cascade_engine.py`): Accepts forcing at any layer, propagates through all coupled systems. Includes iterative solver, feedback loop gain measurement, and assumption validator integration.
+**Cascade Engine** (`cascade_engine.py`): Accepts forcing at any layer, propagates through all coupled systems. Includes iterative solver, feedback loop gain measurement, assumption validator integration, AND a parallel time-series mode (`run_cascade_history`) that builds a Δω(t) history and feeds it into `layer_0_emag.compute_l0_response` for the FFT-based dynamo transfer with spectral-vs-flat null comparison. Per-instant `run_all_layers` remains the entry point for Forcing-driven scenarios.
 
 **Assumption Validator** (`assumption_validator/`): Monitors layer outputs and flags when equations leave their valid domain. 36 assumption boundaries across all layers.
 
