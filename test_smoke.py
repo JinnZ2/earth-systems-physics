@@ -3791,3 +3791,118 @@ class TestOrbitalInfrastructureWiring:
                              verbose=False)
         assert result.layer_states[7]["corrosion_mass_rate_kg_s"] \
             > baseline_states[7]["corrosion_mass_rate_kg_s"]
+
+
+# ─────────────────────────────────────────────
+# METROLOGY-AWARE EXTREME EVENT MODULES
+# Companions, hooked to https://github.com/JinnZ2/thermodynamic-accountability-framework/tree/main/metrology
+# ─────────────────────────────────────────────
+
+class TestPhaseLockDetector:
+    def test_import(self):
+        import phase_lock_detector
+
+    def test_lunar_nodal_phase_monotonic(self):
+        from phase_lock_detector import lunar_nodal_phase
+        years = np.arange(1990, 2025, dtype=float)
+        phase = lunar_nodal_phase(years)
+        assert np.all(np.diff(phase) > 0)
+
+    def test_hilbert_returns_complex_with_correct_length(self):
+        from phase_lock_detector import hilbert_transform
+        x = np.sin(np.linspace(0, 8 * np.pi, 64))
+        h = hilbert_transform(x)
+        assert h.shape == x.shape
+        assert np.iscomplexobj(h)
+
+    def test_instantaneous_phase_unwrapped(self):
+        from phase_lock_detector import instantaneous_phase
+        x = np.sin(np.linspace(0, 8 * np.pi, 256))
+        phase = instantaneous_phase(x)
+        # No 2-pi jumps after unwrap
+        assert np.max(np.abs(np.diff(phase))) < 1.0
+
+    def test_detect_returns_required_keys(self):
+        from phase_lock_detector import detect
+        r = detect()
+        for k in ("locked", "windows", "cohens_d",
+                  "n_clusters_in_lock", "expected_clusters_in_lock"):
+            assert k in r
+
+    def test_detect_locked_mask_length_matches_years(self):
+        from phase_lock_detector import detect, YEARS
+        r = detect()
+        assert len(r["locked"]) == len(YEARS)
+
+
+class TestPhysicsOnlyExtremes:
+    def test_import(self):
+        import physics_only_extremes
+
+    def test_series_lengths_match(self):
+        from physics_only_extremes import (
+            YEARS, MAJOR_HURRICANES, STRONG_TORNADOES, ACRES_BURNED,
+            EQ_M6, EQ_M7, NAMED_STORMS,
+            TORNADO_TOTAL, BILLION_DOLLAR, OHC,
+        )
+        n = len(YEARS)
+        for arr in (MAJOR_HURRICANES, STRONG_TORNADOES, ACRES_BURNED,
+                    EQ_M6, EQ_M7, NAMED_STORMS,
+                    TORNADO_TOTAL, BILLION_DOLLAR, OHC):
+            assert len(arr) == n
+
+    def test_helpers_dimensional(self):
+        from physics_only_extremes import (
+            zscore, detrend_linear, pearson, trend_slope_per_decade,
+            bandpass_fft,
+        )
+        x = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 4.0, 3.0, 2.0])
+        assert abs(zscore(x).mean()) < 1e-9
+        assert abs(detrend_linear(x).mean()) < 1e-9
+        assert pearson(x, x) == pytest.approx(1.0)
+        assert trend_slope_per_decade(x) == pytest.approx(
+            np.polyfit(np.arange(len(x), dtype=float), x, 1)[0] * 10.0
+        )
+        bp = bandpass_fft(x, 2.0, 8.0)
+        assert bp.shape == x.shape
+
+    def test_run_report_runs(self, capsys):
+        from physics_only_extremes import run_report
+        run_report()
+        out = capsys.readouterr().out
+        assert "PHYSICS-ONLY EXTREME ANALYSIS" in out
+
+
+class TestCleanEraAnalysis:
+    def test_import(self):
+        import clean_era_analysis
+
+    def test_window_is_eighteen_years(self):
+        from clean_era_analysis import YEARS
+        assert YEARS[0] == 2007 and YEARS[-1] == 2024 and len(YEARS) == 18
+
+    def test_tornado_decomposition_consistent(self):
+        from clean_era_analysis import (
+            EF0, EF1, EF2, EF3, EF4, EF5,
+            TORNADO_TOTAL, TORNADO_STRONG, TORNADO_VIOLENT,
+        )
+        np.testing.assert_array_equal(TORNADO_TOTAL, EF0 + EF1 + EF2 + EF3 + EF4 + EF5)
+        np.testing.assert_array_equal(TORNADO_STRONG, EF2 + EF3 + EF4 + EF5)
+        np.testing.assert_array_equal(TORNADO_VIOLENT, EF3 + EF4 + EF5)
+
+    def test_no_ef5_after_2013(self):
+        """Documented falsifier: no EF5 since May 2013."""
+        from clean_era_analysis import EF5, YEARS
+        post_2013_idx = YEARS > 2013
+        assert int(EF5[post_2013_idx].sum()) == 0
+
+    def test_fisher_p_bounds(self):
+        from clean_era_analysis import fisher_p
+        assert fisher_p(0.0, 18) == pytest.approx(1.0, abs=1e-6)
+        assert fisher_p(0.99, 18) < 0.001
+
+    def test_run_report_runs(self, capsys):
+        from clean_era_analysis import run_report
+        run_report()
+        out = capsys.readouterr().out
+        assert "CLEAN-ERA ANALYSIS" in out
