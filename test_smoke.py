@@ -201,25 +201,26 @@ class TestLayer6CouplingState:
 
 class TestCascadeEngine:
     def test_run_all_layers_baseline(self):
-        from cascade_engine import run_all_layers, BASELINE
+        from cascade_engine import run_all_layers, BASELINE, LAYER_INDICES
         states = run_all_layers(BASELINE)
-        assert len(states) == 7
-        for i in range(7):
+        assert set(states.keys()) == set(LAYER_INDICES)
+        for i in LAYER_INDICES:
             assert isinstance(states[i], dict)
             assert len(states[i]) > 0
 
     def test_run_cascade_co2_pulse(self):
-        from cascade_engine import run_cascade, SCENARIOS
+        from cascade_engine import run_cascade, SCENARIOS, LAYER_INDICES
         result = run_cascade(SCENARIOS["co2_pulse_100ppm"], verbose=False)
         assert result.forcing is not None
-        assert len(result.layer_states) == 7
+        assert set(result.layer_states.keys()) == set(LAYER_INDICES)
 
     def test_run_cascade_all_scenarios(self):
-        from cascade_engine import run_cascade, SCENARIOS
+        from cascade_engine import run_cascade, SCENARIOS, LAYER_INDICES
         for name, scenario in SCENARIOS.items():
             result = run_cascade(scenario, verbose=False)
             assert result.forcing is not None, f"Scenario {name} failed"
-            assert len(result.layer_states) == 7, f"Scenario {name} missing layers"
+            assert set(result.layer_states.keys()) == set(LAYER_INDICES), \
+                f"Scenario {name} missing layers"
 
     def test_cascade_result_has_summary(self):
         from cascade_engine import run_cascade, SCENARIOS
@@ -334,7 +335,9 @@ class TestAssumptionValidator:
         assert isinstance(report, dict)
 
     def test_every_layer_has_assumption(self):
-        """Every layer (0-6) has at least one registered assumption check."""
+        """Every Earth-system physics layer (0-6) has at least one
+        registered assumption check. Layer -1 (orbital) and Layer 7
+        (infrastructure) are auxiliary and not required to register."""
         from assumption_validator.registry import REGISTRY
         layers_covered = set()
         for boundary in REGISTRY.values():
@@ -461,10 +464,10 @@ class TestMagnonicSublayer:
 
     def test_geomagnetic_scenario_runs(self):
         """The geomagnetic_field_weakening scenario should run."""
-        from cascade_engine import run_cascade, SCENARIOS
+        from cascade_engine import run_cascade, SCENARIOS, LAYER_INDICES
         result = run_cascade(SCENARIOS["geomagnetic_field_weakening"], verbose=False)
         assert result.forcing is not None
-        assert len(result.layer_states) == 7
+        assert set(result.layer_states.keys()) == set(LAYER_INDICES)
 
 
 # ─────────────────────────────────────────────
@@ -554,12 +557,12 @@ class TestMagnomechanicalSublayer:
 
     def test_new_scenarios_run(self):
         """New magnomechanical scenarios should run."""
-        from cascade_engine import run_cascade, SCENARIOS
+        from cascade_engine import run_cascade, SCENARIOS, LAYER_INDICES
         for name in ["geomagnetic_storm_magnomech", "morin_transition",
                      "bif_magnonic_crystal"]:
             result = run_cascade(SCENARIOS[name], verbose=False)
             assert result.forcing is not None, f"Scenario {name} failed"
-            assert len(result.layer_states) == 7
+            assert set(result.layer_states.keys()) == set(LAYER_INDICES)
 
     def test_magnomechanical_feedback_loop_exists(self):
         """The Magnomechanical-EM loop should be in KNOWN_LOOPS."""
@@ -3500,3 +3503,291 @@ class TestEnergyAudit:
         )
         result = audit_energy(f, BASELINE, verbose=False)
         assert result["energy_leak"] is False
+
+
+# ─────────────────────────────────────────────
+# LAYER -1 — ORBITAL FORCING (Milankovitch)
+# ─────────────────────────────────────────────
+
+class TestLayerMinus1Orbital:
+    def test_import(self):
+        import layer_minus1_orbital
+
+    def test_eccentricity_present_in_range(self):
+        from layer_minus1_orbital import eccentricity
+        e = eccentricity(0.0)
+        assert 0.0 <= e <= 0.07
+
+    def test_obliquity_present_in_range(self):
+        from layer_minus1_orbital import obliquity_deg
+        eps = obliquity_deg(0.0)
+        assert 21.5 <= eps <= 24.8
+
+    def test_climatic_precession_bounded(self):
+        from layer_minus1_orbital import climatic_precession
+        for t in (-100.0, -21.0, 0.0, 50.0):
+            p = climatic_precession(t)
+            assert -0.07 <= p <= 0.07
+
+    def test_lgm_obliquity_lower_than_present(self):
+        """Obliquity at LGM (-21 kyr) is below present per Berger 1978."""
+        from layer_minus1_orbital import obliquity_deg
+        assert obliquity_deg(-21.0) < obliquity_deg(0.0)
+
+    def test_orbital_to_rotation_returns_dict(self):
+        from layer_minus1_orbital import orbital_to_rotation_perturbation
+        r = orbital_to_rotation_perturbation(0.0)
+        assert "delta_omega_orbital_rads" in r
+        assert "delta_omega_tidal_rads" in r
+        assert "delta_omega_precession_rads" in r
+
+    def test_orbital_rotation_superposes_two_channels(self):
+        """Total = tidal + precession (channel a + channel c)."""
+        from layer_minus1_orbital import orbital_to_rotation_perturbation
+        r = orbital_to_rotation_perturbation(0.0)
+        expected = r["delta_omega_tidal_rads"] + r["delta_omega_precession_rads"]
+        assert abs(r["delta_omega_orbital_rads"] - expected) < 1e-25
+
+    def test_rotation_to_dipole_drift_signs(self):
+        """Negative delta_omega -> positive dM/dt (linear response)."""
+        from layer_minus1_orbital import rotation_to_dipole_drift
+        assert rotation_to_dipole_drift(-1e-13) > 0
+        assert rotation_to_dipole_drift(+1e-13) < 0
+        assert rotation_to_dipole_drift(0.0) == 0.0
+
+    def test_coupling_state_returns_required_keys(self):
+        from layer_minus1_orbital import coupling_state
+        s = coupling_state(0.0)
+        for k in ("eccentricity", "obliquity_deg", "climatic_precession",
+                  "insolation_65N_summer_Wm2",
+                  "delta_omega_orbital_rads", "dM_dipole_per_yr_Am2"):
+            assert k in s, f"Missing key: {k}"
+
+    def test_tau_dynamo_zero_returns_zero_drift(self):
+        from layer_minus1_orbital import rotation_to_dipole_drift
+        assert rotation_to_dipole_drift(-1e-13, tau_dynamo_yr=0.0) == 0.0
+
+    def test_orbital_lgm_scenario_runs(self):
+        from cascade_engine import run_cascade, SCENARIOS
+        result = run_cascade(SCENARIOS["orbital_lgm_epoch"], verbose=False)
+        assert result.layer_states[-1]["epoch_kyr"] == -21.0
+
+
+# ─────────────────────────────────────────────
+# LAYER 5 — ORBITAL ROTATION COUPLING
+# ─────────────────────────────────────────────
+
+class TestLayer5OrbitalCoupling:
+    def test_orbital_omega_added_to_total(self):
+        """Layer 5 should superpose ice-mass omega change with orbital."""
+        from layer_5_lithosphere import coupling_state
+        s = coupling_state(ice_mass_loss_Gt=280.0, SLR_m=0.20,
+                           T_ocean_C=15.0,
+                           delta_omega_orbital_rads=-3.87e-13)
+        assert s["delta_omega_orbital_rads"] == -3.87e-13
+        expected = s["omega_change_rads"] + s["delta_omega_orbital_rads"]
+        assert abs(s["omega_change_total_rads"] - expected) < 1e-25
+
+    def test_orbital_default_zero_preserves_legacy_behaviour(self):
+        from layer_5_lithosphere import coupling_state
+        s = coupling_state(ice_mass_loss_Gt=280.0, SLR_m=0.20,
+                           T_ocean_C=15.0)
+        assert s["delta_omega_orbital_rads"] == 0.0
+        assert s["omega_change_total_rads"] == s["omega_change_rads"]
+
+
+# ─────────────────────────────────────────────
+# LAYER 0 — DIPOLE DRIFT FROM ORBITAL
+# ─────────────────────────────────────────────
+
+class TestLayer0DipoleDrift:
+    def test_M_EARTH_constant_present(self):
+        from layer_0_electromagnetics import M_EARTH
+        assert 7e22 < M_EARTH < 9e22
+
+    def test_dipole_static_when_dt_is_zero(self):
+        from layer_0_electromagnetics import coupling_state, M_EARTH
+        s = coupling_state(n_e=1e12, B_surface=5e-5, E_surface=1e-4,
+                           frequency_range=(1e3, 1e7),
+                           dM_dipole_per_yr_Am2=1e11,
+                           dt_orbital_yr=0.0)
+        assert s["M_dipole_Am2"] == M_EARTH
+        assert s["dipole_drift_fraction"] == 0.0
+
+    def test_dipole_drifts_with_time(self):
+        from layer_0_electromagnetics import coupling_state, M_EARTH
+        s = coupling_state(n_e=1e12, B_surface=5e-5, E_surface=1e-4,
+                           frequency_range=(1e3, 1e7),
+                           dM_dipole_per_yr_Am2=1e17,
+                           dt_orbital_yr=100.0)
+        assert s["M_dipole_Am2"] != M_EARTH
+        assert s["dipole_drift_fraction"] != 0.0
+
+
+# ─────────────────────────────────────────────
+# LAYER 2 — AEROSOL CONDUCTIVITY MODULATION
+# ─────────────────────────────────────────────
+
+class TestLayer2AerosolModulation:
+    def test_zero_aerosol_factor_is_one(self):
+        from layer_2_ionosphere import aerosol_conductivity_modulation
+        r = aerosol_conductivity_modulation(0.0)
+        assert r["aerosol_modulation_factor"] == 1.0
+        assert r["sigma_atm_S_m"] == r["sigma_atm_baseline_S_m"]
+
+    def test_aerosol_increases_conductivity(self):
+        from layer_2_ionosphere import aerosol_conductivity_modulation
+        r0 = aerosol_conductivity_modulation(0.0)
+        r1 = aerosol_conductivity_modulation(1e-9)
+        assert r1["sigma_atm_S_m"] > r0["sigma_atm_S_m"]
+
+    def test_negative_aerosol_clipped_to_zero(self):
+        """Negative loading should not reduce conductivity below baseline."""
+        from layer_2_ionosphere import aerosol_conductivity_modulation
+        r = aerosol_conductivity_modulation(-1e-6)
+        assert r["aerosol_modulation_factor"] == 1.0
+
+    def test_coupling_state_includes_sigma_atm(self):
+        from layer_2_ionosphere import coupling_state
+        s = coupling_state(n_e_F2=1e12, B_surface=5e-5, kp=2.0,
+                           solar_flux=1.0, metallic_aerosol_kg_m3=1e-9)
+        assert "sigma_atm_S_m" in s
+        assert s["aerosol_modulation_factor"] > 1.0
+
+
+# ─────────────────────────────────────────────
+# LAYER 7 — INFRASTRUCTURE (GIC + corrosion + transformer)
+# ─────────────────────────────────────────────
+
+class TestLayer7Infrastructure:
+    def test_import(self):
+        import layer_7_infrastructure
+
+    def test_zero_dBdt_zero_E_field(self):
+        from layer_7_infrastructure import ground_electric_field
+        assert ground_electric_field(0.0) == 0.0
+
+    def test_E_field_scales_with_dBdt(self):
+        from layer_7_infrastructure import ground_electric_field
+        e1 = ground_electric_field(1e-9)
+        e2 = ground_electric_field(2e-9)
+        assert abs(e2 / e1 - 2.0) < 1e-9
+
+    def test_E_field_scales_with_sqrt_rho(self):
+        """Plane-wave: E ~ sqrt(rho)."""
+        from layer_7_infrastructure import ground_electric_field
+        e1 = ground_electric_field(1e-9, soil_rho_ohm_m=100.0)
+        e2 = ground_electric_field(1e-9, soil_rho_ohm_m=400.0)
+        # 4x rho -> 2x E
+        assert abs(e2 / e1 - 2.0) < 1e-6
+
+    def test_gic_increases_with_E(self):
+        from layer_7_infrastructure import gic_current
+        assert gic_current(2.0) > gic_current(1.0)
+
+    def test_corrosion_zero_when_no_defects(self):
+        from layer_7_infrastructure import corrosion_mass_rate
+        assert corrosion_mass_rate(100.0, coating_defect_fraction=0.0) == 0.0
+
+    def test_damage_index_three_factors(self):
+        """damage = (I/I_ref) * (defect/defect_ref) * (rho_ref/rho_soil)."""
+        from layer_7_infrastructure import damage_rate_index
+        # Reference conditions -> 1.0
+        d_ref = damage_rate_index(50.0, 1e-3, 100.0)
+        assert abs(d_ref - 1.0) < 1e-9
+        # Doubling current doubles damage
+        assert abs(damage_rate_index(100.0, 1e-3, 100.0) - 2.0) < 1e-9
+        # Halving soil rho doubles damage (more current to ground)
+        assert abs(damage_rate_index(50.0, 1e-3, 50.0) - 2.0) < 1e-9
+        # Doubling defect doubles damage
+        assert abs(damage_rate_index(50.0, 2e-3, 100.0) - 2.0) < 1e-9
+
+    def test_transformer_risk_bounded(self):
+        from layer_7_infrastructure import transformer_half_cycle_saturation_risk
+        assert transformer_half_cycle_saturation_risk(0.0) == 0.0
+        assert transformer_half_cycle_saturation_risk(1e6) > 0.999
+
+    def test_coupling_state_quiet_day(self):
+        """Quiet day (dB/dt ~ 0.01 nT/s) should give negligible damage."""
+        from layer_7_infrastructure import coupling_state
+        s = coupling_state(dB_dt_Ts=1e-11)
+        assert s["damage_rate_index"] < 0.1
+        assert s["transformer_at_risk"] is False
+
+    def test_coupling_state_carrington_class(self):
+        """Carrington-class storm should drive damage above unity."""
+        from layer_7_infrastructure import coupling_state
+        s = coupling_state(dB_dt_Ts=8e-8, soil_rho_ohm_m=1000.0,
+                           coating_defect_fraction=1e-3)
+        assert s["damage_rate_index"] > 1.0
+        assert s["transformer_at_risk"] is True
+
+    def test_carrington_scenario_runs(self):
+        from cascade_engine import run_cascade, SCENARIOS
+        result = run_cascade(SCENARIOS["carrington_class_storm"], verbose=False)
+        assert result.layer_states[7]["damage_rate_index"] > 1.0
+
+
+# ─────────────────────────────────────────────
+# CASCADE WIRING — ORBITAL + INFRASTRUCTURE
+# ─────────────────────────────────────────────
+
+class TestOrbitalInfrastructureWiring:
+    def test_layer_indices_extended(self):
+        from cascade_engine import LAYER_INDICES
+        assert -1 in LAYER_INDICES
+        assert 7 in LAYER_INDICES
+
+    def test_layer_names_extended(self):
+        from cascade_engine import LAYER_NAMES
+        assert LAYER_NAMES[-1] == "Orbital"
+        assert LAYER_NAMES[7] == "Infrastructure"
+
+    def test_baseline_has_orbital_keys(self):
+        from cascade_engine import BASELINE
+        for k in ("t_kyr", "k_tidal_ecc", "k_precession_cmb",
+                  "tau_dynamo_yr"):
+            assert k in BASELINE
+
+    def test_baseline_has_infrastructure_keys(self):
+        from cascade_engine import BASELINE
+        for k in ("dB_dt_Ts", "soil_rho_ohm_m",
+                  "coating_defect_fraction", "asset_length_m"):
+            assert k in BASELINE
+
+    def test_orbital_propagates_to_layer_5(self):
+        """Layer -1 delta_omega_orbital_rads should appear in Layer 5 state."""
+        from cascade_engine import run_all_layers, BASELINE
+        states = run_all_layers(BASELINE)
+        l_minus1 = states[-1]["delta_omega_orbital_rads"]
+        l5       = states[5]["delta_omega_orbital_rads"]
+        assert l_minus1 == l5
+
+    def test_orbital_dipole_drift_propagates_to_layer_0(self):
+        from cascade_engine import run_all_layers, BASELINE
+        states = run_all_layers(BASELINE)
+        dM_minus1 = states[-1]["dM_dipole_per_yr_Am2"]
+        dM_0      = states[0]["dM_dipole_per_yr_Am2"]
+        assert dM_minus1 == dM_0
+
+    def test_new_scenarios_registered(self):
+        from cascade_engine import SCENARIOS
+        for name in ("orbital_lgm_epoch", "orbital_obliquity_max",
+                     "metallic_aerosol_injection",
+                     "carrington_class_storm",
+                     "pipeline_coating_failure"):
+            assert name in SCENARIOS, f"Scenario {name} missing"
+
+    def test_metallic_aerosol_changes_sigma_atm(self):
+        from cascade_engine import run_cascade, SCENARIOS
+        result = run_cascade(SCENARIOS["metallic_aerosol_injection"],
+                             verbose=False)
+        assert result.layer_states[2]["aerosol_modulation_factor"] > 1.0
+
+    def test_pipeline_coating_failure_increases_corrosion(self):
+        from cascade_engine import run_cascade, SCENARIOS, BASELINE, run_all_layers
+        baseline_states = run_all_layers(BASELINE)
+        result = run_cascade(SCENARIOS["pipeline_coating_failure"],
+                             verbose=False)
+        assert result.layer_states[7]["corrosion_mass_rate_kg_s"] \
+            > baseline_states[7]["corrosion_mass_rate_kg_s"]

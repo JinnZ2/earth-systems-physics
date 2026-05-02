@@ -79,7 +79,7 @@
       "source_module": "cascade_engine",
       "source_symbol": "SCENARIOS",
       "description": "Pre-configured forcing functions for the cascade engine. Each Forcing has layer, variable, magnitude, units, description.",
-      "record_count": 15,
+      "record_count": 20,
       "schema": {
         "name": "str",
         "layer": "int",
@@ -107,7 +107,7 @@
       "source_module": "cascade_engine",
       "source_symbol": "LAYER_NAMES",
       "description": "Physics layer number -> human name mapping for layers 0 through 6.",
-      "record_count": 7,
+      "record_count": 9,
       "schema": {
         "name": "str",
         "value": "str"

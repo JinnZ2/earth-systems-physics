@@ -272,20 +272,63 @@ def gravity_wave_ionospheric_signature(wave_period_min, amplitude_ms):
 
 
 # ─────────────────────────────────────────────
+# AEROSOL CONDUCTIVITY MODULATION
+# Atmospheric conductivity is currently treated as stationary
+# (sigma_atm ~1e-4 S/m at the upper boundary). Metallic-aerosol
+# loading from solar geoengineering proposals, large wildfires,
+# and rocket-launch debris shifts the conductivity profile.
+# Conductive metal particles increase ion mobility paths and lower
+# the effective resistivity of the lower atmosphere.
+# ─────────────────────────────────────────────
+
+SIGMA_ATM_BASELINE_S_M = 1e-4    # baseline upper-atm conductivity (S/m)
+
+
+def aerosol_conductivity_modulation(metallic_aerosol_kg_m3,
+                                    baseline_sigma_Sm=SIGMA_ATM_BASELINE_S_M,
+                                    sensitivity=5e3):
+    """
+    Modulate atmospheric conductivity by metallic-aerosol loading.
+    Approximate linear sensitivity:
+        sigma_atm ~ sigma_0 * (1 + sensitivity * loading)
+    metallic_aerosol_kg_m3 : aerosol mass density (kg/m^3)
+    baseline_sigma_Sm      : unperturbed conductivity (S/m)
+    sensitivity            : (m^3/kg) — wide range, geoengineering
+                              proposals at ~1e-9 kg/m^3 stratospheric
+                              loading shift sigma by ~5e-6 (factor of
+                              1.05x). Defaults give that scaling.
+    returns: dict with modulated sigma and the factor
+    """
+    factor = 1.0 + sensitivity * max(0.0, metallic_aerosol_kg_m3)
+    return {
+        "sigma_atm_S_m":           baseline_sigma_Sm * factor,
+        "sigma_atm_baseline_S_m":  baseline_sigma_Sm,
+        "aerosol_modulation_factor": factor,
+    }
+
+
+# ─────────────────────────────────────────────
 # COUPLING INTERFACES
 # ─────────────────────────────────────────────
 
 def coupling_state(n_e_F2, B_surface, kp, solar_flux,
-                   nu_en=1e3, E_field=1e-3, delta_T_thermo=0.0):
+                   nu_en=1e3, E_field=1e-3, delta_T_thermo=0.0,
+                   metallic_aerosol_kg_m3=0.0,
+                   sigma_atm_baseline_S_m=SIGMA_ATM_BASELINE_S_M):
     """
     Full ionosphere state vector for adjacent layer consumption.
-    n_e_F2       : F2 layer peak electron density (m^-3)
-    B_surface    : surface magnetic field (T)
-    kp           : geomagnetic index
-    solar_flux   : solar EUV proxy (normalized, 1.0 = quiet sun)
-    nu_en        : electron-neutral collision frequency (Hz)
-    E_field      : convection electric field (V/m)
-    delta_T_thermo: thermosphere temperature anomaly (K)
+    n_e_F2                 : F2 layer peak electron density (m^-3)
+    B_surface              : surface magnetic field (T)
+    kp                     : geomagnetic index
+    solar_flux             : solar EUV proxy (normalized, 1.0 = quiet sun)
+    nu_en                  : electron-neutral collision frequency (Hz)
+    E_field                : convection electric field (V/m)
+    delta_T_thermo         : thermosphere temperature anomaly (K)
+    metallic_aerosol_kg_m3 : metallic-aerosol mass density (kg/m^3).
+                              Geoengineering / wildfire / launch debris
+                              loading; default 0 reproduces the previous
+                              stationary-conductivity behaviour.
+    sigma_atm_baseline_S_m : baseline atmospheric conductivity (S/m).
     """
     f_c   = critical_frequency(n_e_F2)
     sigma_P = pedersen_conductivity(n_e_F2, B_surface, nu_en)
@@ -294,6 +337,8 @@ def coupling_state(n_e_F2, B_surface, kp, solar_flux,
     sr_shift = schumann_frequency_shift(delta_T_thermo)
     joule = joule_heating(sigma_P, E_field)
     aurora_flux = auroral_energy_flux(kp)
+    aerosol = aerosol_conductivity_modulation(metallic_aerosol_kg_m3,
+                                              sigma_atm_baseline_S_m)
 
     return {
         "critical_frequency_hz":         f_c,
@@ -306,8 +351,14 @@ def coupling_state(n_e_F2, B_surface, kp, solar_flux,
         "schumann_f1_shift_hz":          sr_shift,
         "cosmic_ray_D_layer_proxy":      cosmic_ray_ionization(75, "moderate"),
         "gravity_wave_coupling_active":  True,
+        "sigma_atm_S_m":                 aerosol["sigma_atm_S_m"],
+        "sigma_atm_baseline_S_m":        aerosol["sigma_atm_baseline_S_m"],
+        "aerosol_modulation_factor":     aerosol["aerosol_modulation_factor"],
+        "metallic_aerosol_kg_m3":        metallic_aerosol_kg_m3,
         "cascade_to_atmosphere":         joule > 1e-9,
         "cascade_to_magnetosphere":      sigma_P > 1e-4,
+        "cascade_to_infrastructure":     "Hall+Pedersen current sheets -> dB/dt -> ground GIC",
         "cascade_from_troposphere":      "gravity_waves, lightning, convection",
+        "cascade_from_atmosphere":       "metallic aerosol loading -> sigma_atm shift",
         "note": "ionosphere is not a boundary — it is a bidirectional coupling membrane"
     }

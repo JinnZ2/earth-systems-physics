@@ -17,18 +17,32 @@ pytest -v                             # Run test suite (308 tests)
 
 ## Architecture
 
-Seven physics layers plus a magnomechanical sub-layer, each importing from lower layers:
+Seven physics layers plus a magnomechanical sub-layer, an orbital
+forcing layer below the natural stack, and an infrastructure sink
+above it. Each natural layer imports from lower layers:
 
 ```
-Layer 0   Electromagnetics     → layer_0_electromagnetics.py   (Maxwell equations, EM fields)
+Layer -1  Orbital              → layer_minus1_orbital.py       (Milankovitch geometry, insolation, derived rates)
+Layer 0   Electromagnetics     → layer_0_electromagnetics.py   (Maxwell equations, EM fields, dipole drift)
 Layer 0b  Magnomechanical      → layer_0b_magnomechanical.py   (spin-phonon coupling in crustal minerals)
 Layer 1   Magnetosphere        → layer_1_magnetosphere.py      (solar wind, field geometry)
-Layer 2   Ionosphere           → layer_2_ionosphere.py         (charge distribution, EM propagation)
+Layer 2   Ionosphere           → layer_2_ionosphere.py         (charge distribution, EM propagation, aerosol→σ)
 Layer 3   Atmosphere           → layer_3_atmosphere.py         (thermodynamics, radiation, dynamics)
 Layer 4   Hydrosphere          → layer_4_hydrosphere.py        (oceans, ice, phase transitions)
-Layer 5   Lithosphere          → layer_5_lithosphere.py        (crustal mechanics, isostasy)
+Layer 5   Lithosphere          → layer_5_lithosphere.py        (crustal mechanics, isostasy, rotation)
 Layer 6   Biosphere            → layer_6_biosphere.py          (energy flows, carbon cycle)
+Layer 7   Infrastructure       → layer_7_infrastructure.py     (GIC × coating defect × soil ρ; downstream sink)
 ```
+
+Layer -1 emits secular RATES; the cascade engine integrates them.
+Two coupling channels into the natural stack:
+- L-1 → L5 (rotation): superposes (a) eccentricity-tidal torque
+  + (c) precession → core-mantle inertial coupling. Channel (b)
+  obliquity-LOD via ice mass is already handled inside L5 by
+  `ice_melt_LOD_change` to avoid double-counting.
+- L-1 → L0 (dipole): routed THROUGH L5 (Δω → dynamo response → dM/dt).
+  Direct insolation → CMB heat flux is rejected at orbital cadence
+  (mantle thermalisation lag ~Gyr).
 
 **Cascade Engine** (`cascade_engine.py`): Accepts forcing at any layer, propagates through all coupled systems. Includes iterative solver, feedback loop gain measurement, and assumption validator integration.
 
@@ -39,11 +53,13 @@ Layer 6   Biosphere            → layer_6_biosphere.py          (energy flows, 
 ### Dependency Flow
 
 ```
+Layer -1 → Layer 5 → Layer 0  (orbital → rotation → dynamo response)
 Layer 0 ←→ Layer 0b ←→ Layer 5  (bidirectional magnomechanical coupling)
 Layer 0 → Layer 1 → Layer 2 → Layer 3 → Layer 4 → Layer 5 → Layer 6
+Layer 2 + Layer 5 → Layer 7   (Hall+Pedersen sheets → dB/dt + soil ρ → GIC)
 ```
 
-Each higher layer imports from lower layers. The cascade engine imports all layers. Layer 0b provides the first direct coupling between EM (Layer 0) and Lithosphere (Layer 5).
+Each higher layer imports from lower layers. The cascade engine imports all layers. Layer 0b provides the first direct coupling between EM (Layer 0) and Lithosphere (Layer 5). Layer -1 closes the orbital→rotation→dipole loop end-to-end; Layer 7 closes infrastructure damage end-to-end.
 
 ## File Structure
 

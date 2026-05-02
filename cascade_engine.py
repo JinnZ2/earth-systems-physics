@@ -12,6 +12,7 @@ import numpy as np
 from dataclasses import dataclass, field
 from typing import Any
 
+from layer_minus1_orbital     import coupling_state as orbital_state
 from layer_0_electromagnetics import coupling_state as em_state
 from layer_1_magnetosphere    import coupling_state as mag_state
 from layer_2_ionosphere       import coupling_state as iono_state
@@ -19,6 +20,12 @@ from layer_3_atmosphere       import coupling_state as atmo_state
 from layer_4_hydrosphere      import coupling_state as hydro_state
 from layer_5_lithosphere      import coupling_state as litho_state
 from layer_6_biosphere        import coupling_state as bio_state
+from layer_7_infrastructure   import coupling_state as infra_state
+
+# Layers in cascade order. Negative = below Layer 0 (orbital forcing
+# from outside the Earth system). Layer 7 = built infrastructure
+# downstream of all natural layers.
+LAYER_INDICES = (-1, 0, 1, 2, 3, 4, 5, 6, 7)
 
 # ─────────────────────────────────────────────
 # DATA STRUCTURES
@@ -61,6 +68,13 @@ class CascadeResult:
 # ─────────────────────────────────────────────
 
 BASELINE = {
+    # Layer -1 — Orbital (Milankovitch)
+    "t_kyr":             0.0,       # epoch (kyr from present)
+    "k_tidal_ecc":       1.0e-13,   # rad/s per eccentricity
+    "k_precession_cmb":  0.05,      # dimensionless CMB efficiency
+    "tau_dynamo_yr":     3000.0,    # dynamo response timescale (yr)
+    "dt_orbital_yr":     0.0,       # elapsed time since dipole reference
+
     # Layer 0 — Electromagnetics
     "n_e":              1e12,       # F2 electron density m^-3
     "B_surface":        5e-5,       # Earth surface field T
@@ -84,6 +98,8 @@ BASELINE = {
     "nu_en":            1e3,        # electron-neutral collision Hz
     "E_convection":     1e-3,       # convection electric field V/m
     "delta_T_thermo":   0.0,        # thermosphere anomaly K
+    "metallic_aerosol_kg_m3": 0.0,  # metallic aerosol loading kg/m^3
+    "sigma_atm_baseline_S_m": 1e-4, # baseline atmospheric conductivity S/m
 
     # Layer 3 — Atmosphere
     "T_surface":        288.0,      # K global mean surface temp
@@ -128,6 +144,15 @@ BASELINE = {
     "GPP_GtC":          120.0,
     "anthro_GtC":       10.0,
     "AMOC_bio_Sv":      16.0,
+
+    # Layer 7 — Infrastructure (built environment)
+    "dB_dt_Ts":          1e-11,     # quiet-day dB/dt T/s (~0.01 nT/s)
+    "soil_rho_ohm_m":    100.0,     # ground resistivity ohm·m
+    "coating_defect_fraction": 1e-3, # 0.1% pipe coating breakdown
+    "asset_length_m":    1000e3,    # 1000 km characteristic span
+    "omega_rads":        1e-2,      # disturbance frequency rad/s
+    "transfer_A_per_V_per_km": 50.0, # GIC network transfer
+    "transformer_threshold_A": 10.0, # transformer saturation threshold
 }
 
 
@@ -138,10 +163,25 @@ BASELINE = {
 
 def run_all_layers(p):
     """
-    Run all seven layer coupling states with parameter set p.
-    Returns dict of layer outputs.
+    Run all coupling states (Layer -1 through Layer 7) with parameter
+    set p. Returns dict keyed by layer index.
+
+    Order matters: Layer -1 (orbital) runs first, its rotation and
+    dipole-drift outputs feed Layer 5 and Layer 0 respectively.
+    Layer 7 (infrastructure) consumes Layer 2 outputs at the end.
     """
     states = {}
+
+    # Layer -1 — Orbital. Produces delta_omega_orbital_rads (->L5)
+    # and dM_dipole_per_yr_Am2 (->L0).
+    states[-1] = orbital_state(
+        t_kyr          = p.get("t_kyr", 0.0),
+        k_tidal        = p.get("k_tidal_ecc", 1.0e-13),
+        k_precession   = p.get("k_precession_cmb", 0.05),
+        tau_dynamo_yr  = p.get("tau_dynamo_yr", 3000.0),
+    )
+    delta_omega_orbital = states[-1]["delta_omega_orbital_rads"]
+    dM_dipole_per_yr    = states[-1]["dM_dipole_per_yr_Am2"]
 
     states[0] = em_state(
         n_e          = p["n_e"],
@@ -153,6 +193,8 @@ def run_all_layers(p):
         magnomech_grain_size = p.get("magnomech_grain_size", 50e-6),
         magnomech_rock_volume = p.get("magnomech_rock_volume", 1000.0),
         magnomech_mineral_fraction = p.get("magnomech_mineral_fraction", 0.02),
+        dM_dipole_per_yr_Am2 = dM_dipole_per_yr,
+        dt_orbital_yr        = p.get("dt_orbital_yr", 0.0),
     )
     states[1] = mag_state(
         B_surface    = p["B_surface"],
@@ -170,6 +212,8 @@ def run_all_layers(p):
         nu_en        = p["nu_en"],
         E_field      = p["E_convection"],
         delta_T_thermo = p["delta_T_thermo"],
+        metallic_aerosol_kg_m3 = p.get("metallic_aerosol_kg_m3", 0.0),
+        sigma_atm_baseline_S_m = p.get("sigma_atm_baseline_S_m", 1e-4),
     )
     states[3] = atmo_state(
         T_surface    = p["T_surface"],
@@ -202,6 +246,7 @@ def run_all_layers(p):
         lon_ice          = p["lon_ice"],
         fault_depth_m    = p["fault_depth_m"],
         SO2_volcanic_Tg  = p["SO2_volcanic"],
+        delta_omega_orbital_rads = delta_omega_orbital,
     )
     states[6] = bio_state(
         T_surface_K      = p["T_surface_K"],
@@ -215,6 +260,18 @@ def run_all_layers(p):
         GPP_GtC_yr       = p["GPP_GtC"],
         anthropogenic_GtC_yr = p["anthro_GtC"],
         AMOC_Sv          = p["AMOC_bio_Sv"],
+    )
+
+    # Layer 7 — Infrastructure. Pure downstream sink; consumes
+    # surface dB/dt (from L1/L2 cascade) and soil resistivity (L5).
+    states[7] = infra_state(
+        dB_dt_Ts                  = p.get("dB_dt_Ts", 1e-11),
+        soil_rho_ohm_m            = p.get("soil_rho_ohm_m", 100.0),
+        coating_defect_fraction   = p.get("coating_defect_fraction", 1e-3),
+        asset_length_m            = p.get("asset_length_m", 1000e3),
+        omega_rads                = p.get("omega_rads", 1e-2),
+        transfer_A_per_V_per_km   = p.get("transfer_A_per_V_per_km", 50.0),
+        transformer_threshold_A   = p.get("transformer_threshold_A", 10.0),
     )
     return states
 
@@ -280,6 +337,20 @@ def scan_thresholds(states):
 CASCADE_MAP = {
     # (source_layer, signal) -> [(target_layer, mechanism, amplifying)]
 
+    # ── LAYER -1 — ORBITAL ──────────────────────────────────────────
+    (-1, "delta_omega_orbital_rads"): [
+        (5, "orbital rotation perturbation -> length of day", True),
+        (1, "rotation -> magnetospheric field geometry", True),
+    ],
+    (-1, "dM_dipole_per_yr_Am2"): [
+        (0, "secular dipole drift adjusts surface B", True),
+        (1, "dipole drift -> magnetosphere standoff", True),
+    ],
+    (-1, "insolation_65N_summer_Wm2"): [
+        (3, "high-latitude NH summer forcing -> ice-sheet ablation", True),
+        (4, "insolation modulates ocean heat uptake", False),
+    ],
+
     # ── LAYER 0 — ELECTROMAGNETICS ──────────────────────────────────
     (0, "plasma_frequency_Hz"):       [(2, "ionospheric reflection cutoff shift", True),
                                        (1, "magnetospheric wave coupling change", True)],
@@ -330,6 +401,13 @@ CASCADE_MAP = {
     (5, "volcanic_enhancement"):   [(3, "SO2 -> aerosol cooling", False),
                                     (6, "reduced photosynthesis", False),
                                     (3, "CO2 from enhanced outgassing", True)],
+
+    # ── LAYER 2 -> LAYER 7 (infrastructure GIC pickup) ──────────────
+    (2, "hall_conductivity_Sm"):   [(7, "auroral electrojet -> dB/dt at surface", False)],
+    (2, "sigma_atm_S_m"):          [(7, "atm conductivity shift modulates surface E-field", False)],
+
+    # ── LAYER 5 -> LAYER 7 (soil resistivity sets ground E-field) ──
+    (5, "GIA_rebound_rate_mm_yr"): [(7, "regolith stress changes long-term soil resistivity", False)],
 }
 
 
@@ -497,6 +575,19 @@ FORCING_PARAM_MAP = {
     "n_e":              ["n_e", "n_e_F2"],
     "B_surface":        ["B_surface"],
     "n_sw":             ["n_sw"],
+    # Layer -1 — orbital forcing
+    "t_kyr":            ["t_kyr"],
+    "k_tidal_ecc":      ["k_tidal_ecc"],
+    "k_precession_cmb": ["k_precession_cmb"],
+    "tau_dynamo_yr":    ["tau_dynamo_yr"],
+    "dt_orbital_yr":    ["dt_orbital_yr"],
+    # Layer 2 — aerosol -> sigma_atm
+    "metallic_aerosol_kg_m3": ["metallic_aerosol_kg_m3"],
+    # Layer 7 — infrastructure
+    "dB_dt_Ts":               ["dB_dt_Ts"],
+    "soil_rho_ohm_m":         ["soil_rho_ohm_m"],
+    "coating_defect_fraction":["coating_defect_fraction"],
+    "asset_length_m":         ["asset_length_m"],
 }
 
 
@@ -571,7 +662,7 @@ def run_cascade(forcing, baseline=None, verbose=True, audit_energy=False):
 
     # Compute layer-level delta summary
     delta_summary = {}
-    for layer in range(7):
+    for layer in LAYER_INDICES:
         bs = baseline_states.get(layer, {})
         ps = perturbed_states.get(layer, {})
         deltas = {}
@@ -662,7 +753,7 @@ def run_cascade_iterative(forcing, baseline=None, max_steps=20,
 
         # Compute deltas between perturbed and baseline
         step_deltas = {}
-        for layer in range(7):
+        for layer in LAYER_INDICES:
             bs = baseline_states.get(layer, {})
             ps = perturbed_states.get(layer, {})
             for key in bs:
@@ -750,7 +841,7 @@ def run_cascade_iterative(forcing, baseline=None, max_steps=20,
 
     # Delta summary for final state
     delta_summary = {}
-    for layer in range(7):
+    for layer in LAYER_INDICES:
         bs = baseline_states.get(layer, {})
         ps = final_states.get(layer, {})
         deltas = {}
@@ -823,6 +914,7 @@ def _print_iterative_report(result):
 # ─────────────────────────────────────────────
 
 LAYER_NAMES = {
+    -1: "Orbital",
     0: "Electromagnetics",
     1: "Magnetosphere",
     2: "Ionosphere",
@@ -830,6 +922,7 @@ LAYER_NAMES = {
     4: "Hydrosphere",
     5: "Lithosphere",
     6: "Biosphere",
+    7: "Infrastructure",
 }
 
 
@@ -980,6 +1073,31 @@ SCENARIOS = {
         layer=0, variable="B_surface", magnitude=-3e-5,
         description="Field weakening 60% — magnonic band structure shift in BIF",
         units="T"
+    ),
+    "orbital_lgm_epoch": Forcing(
+        layer=-1, variable="t_kyr", magnitude=-21.0,
+        description="Step time to Last Glacial Maximum (-21 kyr) — orbital configuration check",
+        units="kyr"
+    ),
+    "orbital_obliquity_max": Forcing(
+        layer=-1, variable="t_kyr", magnitude=-9.5,
+        description="Step time to obliquity maximum (~9.5 kyr ago) — peak NH summer insolation",
+        units="kyr"
+    ),
+    "metallic_aerosol_injection": Forcing(
+        layer=2, variable="metallic_aerosol_kg_m3", magnitude=1e-9,
+        description="Stratospheric metallic-aerosol loading — non-stationary sigma_atm",
+        units="kg/m^3"
+    ),
+    "carrington_class_storm": Forcing(
+        layer=7, variable="dB_dt_Ts", magnitude=8e-8,
+        description="Carrington-class dB/dt at surface (~5000 nT/min) — infrastructure stress",
+        units="T/s"
+    ),
+    "pipeline_coating_failure": Forcing(
+        layer=7, variable="coating_defect_fraction", magnitude=0.05,
+        description="Pipeline coating defect grows from 0.1% to 5% — corrosion regime shift",
+        units="fraction"
     ),
     "ocean_timber_dumping": Forcing(
         layer=6, variable="deforestation", magnitude=0.001,

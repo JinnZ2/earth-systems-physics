@@ -328,15 +328,22 @@ def tectonic_co2_outgassing(spreading_rate_km_yr, arc_length_km):
 
 def coupling_state(ice_mass_loss_Gt, SLR_m, T_ocean_C,
                    lat_ice=71.0, lon_ice=-40.0,
-                   fault_depth_m=10e3, SO2_volcanic_Tg=0.0):
+                   fault_depth_m=10e3, SO2_volcanic_Tg=0.0,
+                   delta_omega_orbital_rads=0.0):
     """
     Full lithosphere state vector for adjacent layer consumption.
-    ice_mass_loss_Gt : cumulative land ice loss (Gt)
-    SLR_m            : sea level rise (m)
-    T_ocean_C        : ocean temperature for thermal load (°C)
-    lat_ice/lon_ice  : primary ice source location (Greenland default)
-    fault_depth_m    : representative fault system depth (m)
-    SO2_volcanic_Tg  : volcanic SO2 injection (Tg)
+    ice_mass_loss_Gt         : cumulative land ice loss (Gt)
+    SLR_m                    : sea level rise (m)
+    T_ocean_C                : ocean temperature for thermal load (°C)
+    lat_ice/lon_ice          : primary ice source location (Greenland default)
+    fault_depth_m            : representative fault system depth (m)
+    SO2_volcanic_Tg          : volcanic SO2 injection (Tg)
+    delta_omega_orbital_rads : rotation perturbation from Layer -1
+                               orbital forcing (rad/s). Channels (a)
+                               eccentricity-tidal + (c) precession-CMB.
+                               Channel (b) obliquity-LOD via ice mass
+                               is already captured by ice_melt_LOD_change
+                               above and must NOT be passed here.
     """
     GIA_rate       = glacial_isostatic_adjustment_rate(ice_mass_loss_Gt, 100)
     shelf_stress   = sea_level_load_crustal_stress(SLR_m)
@@ -347,23 +354,34 @@ def coupling_state(ice_mass_loss_Gt, SLR_m, T_ocean_C,
     volc_forcing   = volcanic_radiative_forcing(SO2_volcanic_Tg, 20.0)
     geo_co2        = tectonic_co2_outgassing(5.0, 60000)
 
+    # Combine ice-mass-driven omega change with orbital-driven omega change.
+    omega_total_rads = LOD["omega_change_rads"] + delta_omega_orbital_rads
+    LOD_orbital_ms   = -86400.0**2 * delta_omega_orbital_rads / (2 * np.pi) * 1000.0
+    LOD_total_ms     = LOD["LOD_change_ms"] + LOD_orbital_ms
+
     return {
         "GIA_rebound_rate_mm_yr":        GIA_rate,
         "shelf_stress_Pa":               shelf_stress,
         "fault_coulomb_change_Pa":       reservoir_seis["coulomb_stress_change_Pa"],
         "pore_pressure_diffusion_yr":    reservoir_seis["pore_diffusion_years"],
         "LOD_change_ms":                 LOD["LOD_change_ms"],
+        "LOD_change_orbital_ms":         LOD_orbital_ms,
+        "LOD_change_total_ms":           LOD_total_ms,
         "omega_change_rads":             LOD["omega_change_rads"],
+        "delta_omega_orbital_rads":      delta_omega_orbital_rads,
+        "omega_change_total_rads":       omega_total_rads,
         "polar_drift_deg_yr":            polar_drift["polar_drift_deg_yr"],
         "volcanic_enhancement":          deglac_volc["volcanic_activity_enhancement"],
         "volcanic_forcing_Wm2":          volc_forcing.get("peak_forcing_Wm2", 0),
         "geological_co2_GtC_yr":         geo_co2,
         "seismic_velocity_anomaly":      GIA_rate * 0.001,  # mm/yr rebound -> ~0.001 fractional velocity change
         "cascade_to_magnetosphere":      "LOD change -> core coupling -> field geometry",
+        "cascade_to_em_via_dynamo":      "omega_change_total_rads -> Layer 0 dipole drift",
         "cascade_to_atmosphere":         "volcanic SO2, CO2 outgassing, dust",
         "cascade_to_hydrosphere":        "isostasy changes basin geometry, SLR feedbacks",
         "cascade_to_biosphere":          "volcanic nutrients, soil formation, habitat change",
         "cascade_from_hydrosphere":      "ice load, sea level, pore pressure",
+        "cascade_from_orbital":          "Layer -1 delta_omega_orbital_rads superposed on ice-mass LOD",
         "hard_threshold": "deglaciation volcanic feedback — self-amplifying once triggered",
         "note": "solid Earth responds to climate forcing — it is not a static boundary"
     }
