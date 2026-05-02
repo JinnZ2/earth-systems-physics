@@ -4212,3 +4212,104 @@ class TestCascadeHistory:
         r = run_cascade_history(t, include_flat_null=False, verbose=False)
         assert r.l0_flat is None
         assert r.l0_spectral is not None
+
+
+# ─────────────────────────────────────────────
+# CONSTRAINT RECOVERY FRAMEWORK
+# Pre-1900 engineering systems with physical constraints
+# extracted into machine-readable form.
+# ─────────────────────────────────────────────
+
+class TestConstraintRecoveryFramework:
+    def test_import(self):
+        import constraint_recovery_framework
+
+    def test_three_systems_registered(self):
+        from constraint_recovery_framework import RECOVERED_SYSTEMS
+        ids = {s.system_id for s in RECOVERED_SYSTEMS}
+        assert "mill_pond_cascade"        in ids
+        assert "anishinaabe_seasonal_burn" in ids
+        assert "beaver_managed_hydrology"  in ids
+
+    def test_find_system_returns_none_for_missing(self):
+        from constraint_recovery_framework import find_system
+        assert find_system("nonexistent_system") is None
+
+    def test_find_system_returns_system(self):
+        from constraint_recovery_framework import find_system
+        s = find_system("mill_pond_cascade")
+        assert s is not None
+        assert s.name == "Mill Pond Cascade Hydrology"
+        assert len(s.constraints) == 4
+
+    def test_constraints_have_required_fields(self):
+        from constraint_recovery_framework import RECOVERED_SYSTEMS
+        for system in RECOVERED_SYSTEMS:
+            for c in system.constraints:
+                assert c.constraint_id
+                assert c.name
+                assert c.physical_trigger
+                assert c.problem_solved
+                assert c.solution_mechanism
+                assert c.lag_time_weeks > 0
+                assert c.failure_mode
+                assert c.cost_of_failure
+                assert c.validation
+
+    def test_find_constraints_by_problem_finds_flood(self):
+        from constraint_recovery_framework import find_constraints_by_problem
+        matches = find_constraints_by_problem("flood")
+        assert len(matches) >= 2  # mill pond + beaver hydrology
+        for m in matches:
+            assert "system" in m and "constraint" in m
+            assert "problem" in m and "mechanism" in m
+
+    def test_find_constraints_case_insensitive(self):
+        from constraint_recovery_framework import find_constraints_by_problem
+        lower = find_constraints_by_problem("flood")
+        upper = find_constraints_by_problem("FLOOD")
+        assert len(lower) == len(upper)
+
+    def test_coupled_failure_analysis_known(self):
+        from constraint_recovery_framework import coupled_failure_analysis
+        r = coupled_failure_analysis("beaver_managed_hydrology")
+        assert r["constraint_count"] == 3
+        assert r["cascade_risk"] == "high"
+        assert "system" in r
+        assert "constraints" in r
+
+    def test_coupled_failure_analysis_unknown(self):
+        from constraint_recovery_framework import coupled_failure_analysis
+        r = coupled_failure_analysis("nonexistent")
+        assert "error" in r
+
+    def test_export_recovered_system_round_trips(self):
+        import json
+        from constraint_recovery_framework import export_recovered_system
+        raw = export_recovered_system("mill_pond_cascade")
+        d = json.loads(raw)
+        assert d["system_id"] == "mill_pond_cascade"
+        assert len(d["constraints"]) == 4
+
+    def test_export_recovered_system_unknown(self):
+        import json
+        from constraint_recovery_framework import export_recovered_system
+        raw = export_recovered_system("nonexistent")
+        d = json.loads(raw)
+        assert "error" in d
+
+    def test_export_all_round_trips(self):
+        import json
+        from constraint_recovery_framework import export_all
+        raw = export_all()
+        d = json.loads(raw)
+        assert isinstance(d, list)
+        assert len(d) >= 3
+
+    def test_lag_times_span_seasonal_to_multiyear(self):
+        """Recovered constraints span weeks (sediment) to years (fuel cycles)."""
+        from constraint_recovery_framework import RECOVERED_SYSTEMS
+        all_lags = [c.lag_time_weeks
+                    for s in RECOVERED_SYSTEMS for c in s.constraints]
+        assert min(all_lags) <= 4.0       # sub-monthly response somewhere
+        assert max(all_lags) >= 52.0      # multi-year response somewhere
