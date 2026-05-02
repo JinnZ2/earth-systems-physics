@@ -3906,3 +3906,175 @@ class TestCleanEraAnalysis:
         run_report()
         out = capsys.readouterr().out
         assert "CLEAN-ERA ANALYSIS" in out
+
+
+# ─────────────────────────────────────────────
+# RESONANCE / DRIVER / METROLOGY ANALYSIS BATCH
+# Standalone analysis modules, all tied to the metrology audit at
+# https://github.com/JinnZ2/thermodynamic-accountability-framework/tree/main/metrology
+# ─────────────────────────────────────────────
+
+class TestExtremesCorrelation:
+    def test_import(self):
+        import extremes_correlation
+
+    def test_series_lengths(self):
+        from extremes_correlation import (
+            YEARS, ACRES_BURNED, FIRE_COUNT, NAMED_STORMS, HURRICANES,
+            MAJOR_HURRICANES, TORNADO_COUNT, BILLION_DOLLAR_DISASTERS,
+        )
+        n = len(YEARS)
+        for arr in (ACRES_BURNED, FIRE_COUNT, NAMED_STORMS, HURRICANES,
+                    MAJOR_HURRICANES, TORNADO_COUNT,
+                    BILLION_DOLLAR_DISASTERS):
+            assert len(arr) == n
+
+    def test_cross_corr_lag_self_is_one(self):
+        from extremes_correlation import cross_corr_lag, NAMED_STORMS
+        _, _, lag, r = cross_corr_lag(NAMED_STORMS, NAMED_STORMS)
+        assert lag == 0
+        assert abs(r - 1.0) < 1e-9
+
+    def test_run_report_runs(self, capsys):
+        from extremes_correlation import run_report
+        run_report()
+        out = capsys.readouterr().out
+        assert "PEARSON CORRELATION MATRIX" in out
+
+
+class TestDriversAnalysis:
+    def test_import(self):
+        import drivers_analysis
+
+    def test_run_report_runs(self, capsys):
+        from drivers_analysis import run_report
+        run_report()
+        out = capsys.readouterr().out
+        assert "DRIVER ANALYSIS" in out
+
+    def test_fisher_p_extremes(self):
+        from drivers_analysis import fisher_p
+        assert fisher_p(0.0, 35) == pytest.approx(1.0, abs=1e-6)
+        assert fisher_p(0.99, 35) < 0.001
+
+
+class TestSpectralCoherence:
+    def test_import(self):
+        import spectral_coherence
+
+    def test_periodogram_self_consistent(self):
+        from spectral_coherence import periodogram
+        x = np.sin(np.linspace(0, 8 * np.pi, 64))
+        f, psd = periodogram(x)
+        assert len(f) == len(psd)
+        assert (psd >= 0).all()
+
+    def test_coherence_self_is_one(self):
+        from spectral_coherence import coherence
+        x = np.sin(np.linspace(0, 8 * np.pi, 64))
+        _, c = coherence(x, x, smooth=2)
+        assert (c[1:] > 0.99).all()
+
+    def test_run_report_runs(self, capsys):
+        from spectral_coherence import run_report
+        run_report()
+        out = capsys.readouterr().out
+        assert "SPECTRAL COHERENCE" in out
+
+
+class TestResonanceAmplification:
+    def test_import(self):
+        import resonance_amplification_test
+
+    def test_bandpass_zero_for_dc_input(self):
+        from resonance_amplification_test import bandpass_fft
+        x = np.ones(40)
+        bp = bandpass_fft(x, 12.0, 24.0)
+        assert np.allclose(bp, 0, atol=1e-9)
+
+    def test_bootstrap_ci_brackets_self_correlation(self):
+        from resonance_amplification_test import bootstrap_corr_ci
+        rng = np.random.default_rng(0)
+        x = rng.standard_normal(50)
+        lo, hi = bootstrap_corr_ci(x, x, n_boot=200)
+        assert lo > 0.9 and hi >= 1.0 - 1e-6
+
+    def test_run_report_runs(self, capsys):
+        from resonance_amplification_test import run_report
+        run_report()
+        out = capsys.readouterr().out
+        assert "RESONANCE AMPLIFICATION TEST" in out
+
+
+class TestAmocOhcInteraction:
+    def test_import(self):
+        import amoc_ohc_interaction_test
+
+    def test_amoc_series_length(self):
+        from amoc_ohc_interaction_test import AMOC, YEARS
+        assert len(AMOC) == len(YEARS)
+
+    def test_build_interactions_keys(self):
+        from amoc_ohc_interaction_test import (
+            build_interactions, OHC, AMOC, AMO, PDO, NAO,
+        )
+        d = build_interactions(OHC, AMOC, AMO, PDO, NAO)
+        for k in ("OHC alone", "OHC x AMOC", "OHC x AMO",
+                  "OHC x PDO", "OHC x dPDO/dt"):
+            assert k in d
+
+    def test_run_report_runs(self, capsys):
+        from amoc_ohc_interaction_test import run_report
+        run_report()
+        out = capsys.readouterr().out
+        assert "OHC x MODULATOR INTERACTION TEST" in out
+
+
+class TestLayer0Emag:
+    """Standalone alternate L0 module — not yet wired into cascade."""
+    def test_import(self):
+        import layer_0_emag
+
+    def test_config_validates(self):
+        from layer_0_emag import DynamoResponseConfig
+        cfg = DynamoResponseConfig()
+        cfg.validate()  # default values must be in-bounds
+
+    def test_config_rejects_out_of_bounds(self):
+        from layer_0_emag import DynamoResponseConfig
+        cfg = DynamoResponseConfig(Q_factor=999.0)
+        with pytest.raises(ValueError, match="Q_factor"):
+            cfg.validate()
+
+    def test_config_rejects_unknown_method(self):
+        from layer_0_emag import DynamoResponseConfig
+        cfg = DynamoResponseConfig(method="bogus")
+        with pytest.raises(ValueError, match="method"):
+            cfg.validate()
+
+    def test_transfer_function_flat_has_no_resonance(self):
+        from layer_0_emag import DynamoResponseConfig, transfer_function
+        f = np.array([1.0/30000, 1.0/20000, 1.0/10000])
+        cfg_flat = DynamoResponseConfig(method="flat")
+        H = transfer_function(f, cfg_flat)
+        # flat has monotonically decreasing magnitude with frequency
+        mag = np.abs(H)
+        assert mag[0] > mag[1] > mag[2]
+
+    def test_dipole_drift_requires_uniform_grid(self):
+        from layer_0_emag import dipole_drift_from_rotation
+        t_nonuniform = np.array([0.0, 1.0, 3.0, 4.0, 5.0])
+        x = np.zeros_like(t_nonuniform)
+        with pytest.raises(ValueError, match="uniformly spaced"):
+            dipole_drift_from_rotation(x, t_nonuniform)
+
+    def test_compute_l0_response_returns_l0output(self):
+        from layer_0_emag import compute_l0_response, DynamoResponseConfig
+        N = 64
+        t = np.linspace(-3200.0, 3200.0, N)
+        x = 1e-12 * np.cos(2 * np.pi * t / 1000.0)
+        out = compute_l0_response(x, t)
+        assert out.M_dipole.shape == (N,)
+        assert out.dM_dt.shape == (N,)
+        assert out.B_surface_equator.shape == (N,)
+        assert out.method_used == "spectral"

@@ -12,7 +12,10 @@ import numpy as np
 from dataclasses import dataclass, field
 from typing import Any
 
-from layer_minus1_orbital     import coupling_state as orbital_state
+from layer_minus1_orbital     import (
+    coupling_state    as orbital_state,
+    OrbitalForcingConfig,
+)
 from layer_0_electromagnetics import coupling_state as em_state
 from layer_1_magnetosphere    import coupling_state as mag_state
 from layer_2_ionosphere       import coupling_state as iono_state
@@ -69,11 +72,12 @@ class CascadeResult:
 
 BASELINE = {
     # Layer -1 — Orbital (Milankovitch)
-    "t_kyr":             0.0,       # epoch (kyr from present)
-    "k_tidal_ecc":       1.0e-13,   # rad/s per eccentricity
-    "k_precession_cmb":  0.05,      # dimensionless CMB efficiency
-    "tau_dynamo_yr":     3000.0,    # dynamo response timescale (yr)
-    "dt_orbital_yr":     0.0,       # elapsed time since dipole reference
+    "t_kyr":             0.0,       # epoch (kyr from J2000 present)
+    "t_ref_kyr":         0.0,       # reference epoch for cumulative Δω
+    "k_tidal_ecc":       1.0e-22,   # rad/s² per (de/dyear); bounds [1e-23, 1e-21]
+    "k_precession_cmb":  5.0e-20,   # rad/s² per (rad/yr · prec_idx); bounds [1e-20, 1e-18]
+    "tau_dynamo_yr":     1500.0,    # dynamo response timescale (yr); bounds [100, 10000]
+    "dt_orbital_yr":     0.0,       # elapsed time since dipole reference (legacy L0 input)
 
     # Layer 0 — Electromagnetics
     "n_e":              1e12,       # F2 electron density m^-3
@@ -173,12 +177,16 @@ def run_all_layers(p):
     states = {}
 
     # Layer -1 — Orbital. Produces delta_omega_orbital_rads (->L5)
-    # and dM_dipole_per_yr_Am2 (->L0).
+    # and dM_dipole_per_yr_Am2 (->L0, backward-compat output).
+    orbital_cfg = OrbitalForcingConfig(
+        k_tide_rad_s2_per_de_dyr   = p.get("k_tidal_ecc",     1.0e-22),
+        eta_cmb_rad_s2_per_rad_yr  = p.get("k_precession_cmb", 5.0e-20),
+        tau_dynamo_yr              = p.get("tau_dynamo_yr",   1500.0),
+    )
     states[-1] = orbital_state(
-        t_kyr          = p.get("t_kyr", 0.0),
-        k_tidal        = p.get("k_tidal_ecc", 1.0e-13),
-        k_precession   = p.get("k_precession_cmb", 0.05),
-        tau_dynamo_yr  = p.get("tau_dynamo_yr", 3000.0),
+        t_kyr     = p.get("t_kyr",     0.0),
+        cfg       = orbital_cfg,
+        t_ref_kyr = p.get("t_ref_kyr", 0.0),
     )
     delta_omega_orbital = states[-1]["delta_omega_orbital_rads"]
     dM_dipole_per_yr    = states[-1]["dM_dipole_per_yr_Am2"]
