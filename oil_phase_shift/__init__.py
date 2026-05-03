@@ -16,11 +16,12 @@ loop2_cost_cornercut_failure.py
     cost inflation -> corner-cutting -> infrastructure failure ->
     contamination -> labor exodus -> cost inflation (loop closes).
 
-loop3_refinery_config_trap.py
-    light sweet glut -> refineries retooled to light -> Permian
-    depletes -> no flexibility back to heavy -> import dependency
-    -> geopolitical exposure -> price spike -> refineries can't
-    process spike feedstock (configuration lock-in trap).
+loop3_refinery_mismatch.py
+    refinery configuration mismatch under active Hormuz crisis as
+    initial state. Permian-driven light supply decline + Gulf
+    heavy supply contested + crude price >>$100 -> demand
+    destruction + slow capex retool. Monte Carlo aggregator;
+    activation in pct_no_recovery / pct_sustained_high_price.
 
 loop4_aquifer_community_automation.py
     produced-water leakage + flood overflow -> aquifer + surface
@@ -30,6 +31,24 @@ loop4_aquifer_community_automation.py
     drops -> remaining wells extracted harder -> more failures ->
     more contamination. Monte Carlo aggregator across n stochastic
     trajectories; aggregate stats are the activation predicate.
+
+loop5_signal_trust_collapse.py
+    META-LOOP. Visible damage (smelt, well failures, depletion,
+    Hormuz traffic) -> institutional gaslighting widens narrative
+    gap -> trust erodes -> consent for infrastructure / remediation
+    fails -> policy paralysis -> damage continues. Governs whether
+    L1-L4 get RESPONDED TO in time; without it the other loops
+    cascade unchecked.
+
+loop6_ai_default_prior_distortion.py
+    INSTRUMENT LOOP, upstream of L5. AI systems default to
+    "stable baseline" priors when answering crisis-system
+    questions -> non-probing users get comfort-framed analysis ->
+    decisions made on stale info -> damage compounds invisibly ->
+    substrate-primary observers carry correction load ->
+    burnout -> next-gen training data more comfort-framed ->
+    priors drift further from substrate. Suppresses the signal
+    that would trigger L1-L5 remediation.
 
 Each module is standalone: stdlib only, dataclass + step + run +
 activation predicate, runnable as a script with a fixed seed for

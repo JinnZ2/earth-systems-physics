@@ -4494,7 +4494,10 @@ class TestOilPhaseShift:
         from oil_phase_shift import (
             loop1_depletion_labor,
             loop2_cost_cornercut_failure,
-            loop3_refinery_config_trap,
+            loop3_refinery_mismatch,
+            loop4_aquifer_community_automation,
+            loop5_signal_trust_collapse,
+            loop6_ai_default_prior_distortion,
         )
 
     # ---- loop 1 ----
@@ -4576,55 +4579,13 @@ class TestOilPhaseShift:
         h = run(years=10, seed=999)
         assert isinstance(loop_closed(h), bool)
 
-    # ---- loop 3 ----
-    def test_loop3_run_returns_history_of_correct_length(self):
-        from oil_phase_shift.loop3_refinery_config_trap import run, L3State
-        h = run(years=10, seed=11)
-        assert len(h) == 11
-        assert all(isinstance(s, L3State) for s in h)
-
-    def test_loop3_light_supply_depletes(self):
-        from oil_phase_shift.loop3_refinery_config_trap import run
-        h = run(years=10, seed=11)
-        assert h[-1].light_sweet_supply < h[0].light_sweet_supply
-
-    def test_loop3_geopolitical_risk_bounded(self):
-        from oil_phase_shift.loop3_refinery_config_trap import run
-        h = run(years=10, seed=11)
-        for s in h:
-            assert 0.0 <= s.geopolitical_risk_index <= 1.0
-
-    def test_loop3_trap_engaged_at_documented_seed(self):
-        """Seed 11 in __main__ engages the configuration trap."""
-        from oil_phase_shift.loop3_refinery_config_trap import run, trap_engaged
-        h = run(years=10, seed=11)
-        assert trap_engaged(h) is True
-
-    def test_loop3_capacity_shifts_consistent_with_attempts(self):
-        from oil_phase_shift.loop3_refinery_config_trap import run
-        h = run(years=10, seed=11)
-        # completed switches >= 0 and <= attempted
-        end = h[-1]
-        assert 0 <= end.config_switches_completed <= end.config_switches_attempted
-
-    def test_loop3_capacity_conservation(self):
-        """Light_cap drops by same amount heavy_cap rises (within rounding)."""
-        from oil_phase_shift.loop3_refinery_config_trap import run
-        h = run(years=10, seed=11)
-        # Total processable capacity is conserved by the reconfiguration
-        # mechanism (the only knob that moves capacity between buckets).
-        cap_total_start = h[0].light_processable_capacity + h[0].heavy_processable_capacity
-        cap_total_end   = h[-1].light_processable_capacity + h[-1].heavy_processable_capacity
-        # Floor on light_cap (0.5) means strict equality may fail; allow
-        # small discrepancy from the floor clamp.
-        assert abs(cap_total_end - cap_total_start) < 0.5
-
-    # ---- determinism ----
+    # ---- determinism (loops 1-2 use dataclass + isolated rng;
+    # loops 3-5 use Monte Carlo with master_seed and are tested
+    # for reproducibility in their own classes below) ----
     def test_loops_deterministic_at_fixed_seed(self):
         from oil_phase_shift.loop1_depletion_labor import run as run1
         from oil_phase_shift.loop2_cost_cornercut_failure import run as run2
-        from oil_phase_shift.loop3_refinery_config_trap import run as run3
-        for run, seed in [(run1, 42), (run2, 7), (run3, 11)]:
+        for run, seed in [(run1, 42), (run2, 7)]:
             a = run(years=5, seed=seed)
             b = run(years=5, seed=seed)
             for sa, sb in zip(a, b):
@@ -4749,3 +4710,425 @@ class TestOilPhaseShiftLoop4:
         summary(r)
         out = capsys.readouterr().out
         assert "L4 aquifer/community/automation loop" in out
+
+
+# ─────────────────────────────────────────────
+# OIL PHASE SHIFT — LOOP 3 (Monte Carlo, active Hormuz crisis)
+# Replaces the prior dataclass-based "config_trap" framing. New
+# substrate: Hormuz disruption is INITIAL STATE (post-2026-02-28),
+# not a stochastic event. Same Monte Carlo shape as loop4/loop5.
+# ─────────────────────────────────────────────
+
+class TestOilPhaseShiftLoop3:
+    def test_loop3_imports(self):
+        from oil_phase_shift import loop3_refinery_mismatch
+
+    def test_loop3_run_trajectory_history_length(self):
+        from oil_phase_shift.loop3_refinery_mismatch import run_trajectory
+        h = run_trajectory(
+            {'permian_decline_mult': 1.0, 'escalation_mult': 1.0},
+            years=10, seed=42,
+        )
+        assert len(h) == 10
+        assert h[-1]['year'] == 10
+
+    def test_loop3_run_trajectory_field_keys(self):
+        from oil_phase_shift.loop3_refinery_mismatch import run_trajectory
+        h = run_trajectory(
+            {'permian_decline_mult': 1.0, 'escalation_mult': 1.0},
+            years=5, seed=42,
+        )
+        for record in h:
+            for key in ('year', 'hormuz_flow', 'crisis_resolved',
+                        'escalation_events', 'light_supply',
+                        'heavy_supply', 'throughput', 'utilization',
+                        'light_exported_raw', 'heavy_capacity_idle',
+                        'oil_price', 'demand_destroyed',
+                        'retool_active', 'global_tightness'):
+                assert key in record
+
+    def test_loop3_starts_in_active_crisis(self):
+        """Hormuz at 1.0 (5% pre-war), price >$100, crisis_resolved False."""
+        from oil_phase_shift.loop3_refinery_mismatch import (
+            run_trajectory, HORMUZ_CURRENT_FLOW, HORMUZ_NORMAL_FLOW,
+        )
+        h = run_trajectory(
+            {'permian_decline_mult': 1.0, 'escalation_mult': 0.0},
+            years=1, seed=42,
+        )
+        # First-year Hormuz should still be near 1.0 (no escalation, no recovery)
+        assert h[0]['hormuz_flow'] < 0.10 * HORMUZ_NORMAL_FLOW
+
+    def test_loop3_oil_price_clamped(self):
+        from oil_phase_shift.loop3_refinery_mismatch import run_trajectory
+        for seed in range(20):
+            h = run_trajectory(
+                {'permian_decline_mult': 1.5, 'escalation_mult': 1.6},
+                years=10, seed=seed,
+            )
+            for s in h:
+                assert 50.0 <= s['oil_price'] <= 250.0
+
+    def test_loop3_demand_destruction_above_threshold_only(self):
+        """demand_destroyed should be 0 when oil_price <= 130, else positive."""
+        from oil_phase_shift.loop3_refinery_mismatch import run_trajectory
+        for seed in range(10):
+            h = run_trajectory(
+                {'permian_decline_mult': 1.0, 'escalation_mult': 1.0},
+                years=10, seed=seed,
+            )
+            for s in h:
+                if s['oil_price'] <= 130.0:
+                    assert s['demand_destroyed'] == 0.0
+                else:
+                    assert s['demand_destroyed'] > 0.0
+
+    def test_loop3_higher_escalation_yields_lower_hormuz_on_average(self):
+        from oil_phase_shift.loop3_refinery_mismatch import run_trajectory
+        hi = lo = 0.0
+        for seed in range(20):
+            h_hi = run_trajectory(
+                {'permian_decline_mult': 1.0, 'escalation_mult': 1.6},
+                years=10, seed=seed,
+            )
+            h_lo = run_trajectory(
+                {'permian_decline_mult': 1.0, 'escalation_mult': 0.6},
+                years=10, seed=seed,
+            )
+            hi += h_hi[-1]['hormuz_flow']
+            lo += h_lo[-1]['hormuz_flow']
+        assert hi < lo, "high-escalation runs should crush hormuz_flow"
+
+    def test_loop3_monte_carlo_returns_required_stats(self):
+        from oil_phase_shift.loop3_refinery_mismatch import monte_carlo
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        for key in ('n', 'years', 'pct_crisis_resolved',
+                    'pct_no_recovery', 'pct_sustained_high_price',
+                    'pct_demand_destruction', 'mean_final_price',
+                    'mean_final_throughput', 'mean_final_hormuz',
+                    'mean_demand_destroyed', 'sample_traces'):
+            assert key in r
+
+    def test_loop3_monte_carlo_pct_in_unit_interval(self):
+        from oil_phase_shift.loop3_refinery_mismatch import monte_carlo
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        for key in ('pct_crisis_resolved', 'pct_no_recovery',
+                    'pct_sustained_high_price', 'pct_demand_destruction'):
+            assert 0.0 <= r[key] <= 1.0
+
+    def test_loop3_monte_carlo_resolved_plus_no_recovery_is_one(self):
+        """Every trajectory either resolves or doesn't — the two are complementary."""
+        from oil_phase_shift.loop3_refinery_mismatch import monte_carlo
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        assert abs(r['pct_crisis_resolved'] + r['pct_no_recovery'] - 1.0) < 1e-9
+
+    def test_loop3_monte_carlo_deterministic_with_master_seed(self):
+        from oil_phase_shift.loop3_refinery_mismatch import monte_carlo
+        r1 = monte_carlo(n=50, years=10, master_seed=2026)
+        r2 = monte_carlo(n=50, years=10, master_seed=2026)
+        for key in ('mean_final_price', 'mean_final_hormuz',
+                    'pct_no_recovery', 'pct_sustained_high_price'):
+            assert r1[key] == r2[key]
+
+    def test_loop3_documented_run_no_recovery_dominant(self):
+        """master_seed=2026 / n=2000 / 10yr: most trajectories should
+        NOT recover within the window (Hormuz substrate is heavy)."""
+        from oil_phase_shift.loop3_refinery_mismatch import monte_carlo
+        r = monte_carlo(n=2000, years=10, master_seed=2026)
+        assert r['pct_no_recovery'] > 0.50, (
+            f"Expected pct_no_recovery > 50%; got "
+            f"{r['pct_no_recovery']*100:.1f}%"
+        )
+
+    def test_loop3_summary_runs(self, capsys):
+        from oil_phase_shift.loop3_refinery_mismatch import (
+            monte_carlo, summary,
+        )
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        summary(r)
+        out = capsys.readouterr().out
+        assert "L3 refinery mismatch" in out
+
+
+# ─────────────────────────────────────────────
+# OIL PHASE SHIFT — LOOP 5 (signal/trust/consent META-loop)
+# Governs whether L1-L4 get responded to in time.
+# ─────────────────────────────────────────────
+
+class TestOilPhaseShiftLoop5:
+    def test_loop5_imports(self):
+        from oil_phase_shift import loop5_signal_trust_collapse
+
+    def test_loop5_run_trajectory_history_length(self):
+        from oil_phase_shift.loop5_signal_trust_collapse import run_trajectory
+        h = run_trajectory({'damage_visibility_mult': 1.0}, years=10, seed=42)
+        assert len(h) == 10
+        assert h[-1]['year'] == 10
+
+    def test_loop5_run_trajectory_field_keys(self):
+        from oil_phase_shift.loop5_signal_trust_collapse import run_trajectory
+        h = run_trajectory({'damage_visibility_mult': 1.0}, years=5, seed=42)
+        for record in h:
+            for key in ('year', 'visible_damage', 'official_narrative',
+                        'narrative_gap', 'trust', 'consent_active',
+                        'remediation_blocked_frac',
+                        'policy_response_capacity', 'structural_distrust',
+                        'narrative_pivots', 'substrate_observers',
+                        'pathologized'):
+                assert key in record
+
+    def test_loop5_trust_in_unit_interval(self):
+        from oil_phase_shift.loop5_signal_trust_collapse import run_trajectory
+        h = run_trajectory({'damage_visibility_mult': 1.5}, years=10, seed=42)
+        for s in h:
+            assert 0.0 <= s['trust'] <= 1.0
+            assert 0.0 <= s['narrative_gap'] <= 1.0
+            assert 0.0 <= s['visible_damage'] <= 1.0
+
+    def test_loop5_visible_damage_monotone_nondecreasing(self):
+        """Visible damage only grows in this model."""
+        from oil_phase_shift.loop5_signal_trust_collapse import run_trajectory
+        h = run_trajectory({'damage_visibility_mult': 1.0}, years=10, seed=42)
+        for prev, nxt in zip(h, h[1:]):
+            assert nxt['visible_damage'] >= prev['visible_damage'] - 1e-9
+
+    def test_loop5_consent_fails_when_trust_below_threshold(self):
+        """Below CONSENT_THRESHOLD trust, consent_active must be False."""
+        from oil_phase_shift.loop5_signal_trust_collapse import (
+            run_trajectory, CONSENT_THRESHOLD,
+        )
+        h = run_trajectory({'damage_visibility_mult': 1.5}, years=10, seed=42)
+        for s in h:
+            if s['trust'] < CONSENT_THRESHOLD:
+                assert s['consent_active'] is False
+            else:
+                assert s['consent_active'] is True
+
+    def test_loop5_structural_distrust_persists(self):
+        """Once structural distrust is set, it should not unset."""
+        from oil_phase_shift.loop5_signal_trust_collapse import run_trajectory
+        h = run_trajectory({'damage_visibility_mult': 1.5}, years=10, seed=42)
+        triggered = False
+        for s in h:
+            if s['structural_distrust']:
+                triggered = True
+            elif triggered:
+                # already triggered then unset — should not happen
+                assert False, "structural_distrust should not unset"
+
+    def test_loop5_active_crisis_amplifies_visibility(self):
+        from oil_phase_shift.loop5_signal_trust_collapse import run_trajectory
+        h_crisis = run_trajectory(
+            {'damage_visibility_mult': 1.0, 'active_crisis': True},
+            years=10, seed=42,
+        )
+        h_calm = run_trajectory(
+            {'damage_visibility_mult': 1.0, 'active_crisis': False},
+            years=10, seed=42,
+        )
+        assert h_crisis[-1]['visible_damage'] > h_calm[-1]['visible_damage']
+
+    def test_loop5_monte_carlo_returns_required_stats(self):
+        from oil_phase_shift.loop5_signal_trust_collapse import monte_carlo
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        for key in ('n', 'years', 'mean_final_trust',
+                    'mean_narrative_gap', 'mean_policy_capacity',
+                    'pct_structural_distrust', 'pct_consent_failed',
+                    'pct_narrative_pivot', 'pct_high_pathologization',
+                    'sample_traces'):
+            assert key in r
+
+    def test_loop5_monte_carlo_pct_in_unit_interval(self):
+        from oil_phase_shift.loop5_signal_trust_collapse import monte_carlo
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        for key in ('pct_structural_distrust', 'pct_consent_failed',
+                    'pct_narrative_pivot', 'pct_high_pathologization'):
+            assert 0.0 <= r[key] <= 1.0
+
+    def test_loop5_monte_carlo_deterministic_with_master_seed(self):
+        from oil_phase_shift.loop5_signal_trust_collapse import monte_carlo
+        r1 = monte_carlo(n=50, years=10, master_seed=2026)
+        r2 = monte_carlo(n=50, years=10, master_seed=2026)
+        for key in ('mean_final_trust', 'mean_narrative_gap',
+                    'pct_structural_distrust', 'pct_consent_failed',
+                    'pct_narrative_pivot'):
+            assert r1[key] == r2[key]
+
+    def test_loop5_documented_run_meta_loop_engaged(self):
+        """master_seed=2026 / n=2000 / 10yr: documented substrate has
+        the meta-loop fully engaged — structural distrust and consent
+        loss should be near-universal."""
+        from oil_phase_shift.loop5_signal_trust_collapse import monte_carlo
+        r = monte_carlo(n=2000, years=10, master_seed=2026)
+        assert r['pct_structural_distrust'] > 0.90
+        assert r['pct_consent_failed'] > 0.90
+
+    def test_loop5_summary_runs(self, capsys):
+        from oil_phase_shift.loop5_signal_trust_collapse import (
+            monte_carlo, summary,
+        )
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        summary(r)
+        out = capsys.readouterr().out
+        assert "L5 signal/trust/consent" in out
+
+
+# ─────────────────────────────────────────────
+# OIL PHASE SHIFT — LOOP 6 (AI default-prior distortion)
+# INSTRUMENT loop, upstream of L5. Suppresses the signal that
+# would trigger remediation in L1-L5.
+# ─────────────────────────────────────────────
+
+class TestOilPhaseShiftLoop6:
+    def test_loop6_imports(self):
+        from oil_phase_shift import loop6_ai_default_prior_distortion
+
+    def test_loop6_run_trajectory_history_length(self):
+        from oil_phase_shift.loop6_ai_default_prior_distortion import (
+            run_trajectory,
+        )
+        h = run_trajectory(
+            {'institutional_capture_mult': 1.0,
+             'publication_visibility': 0.5},
+            years=10, seed=42,
+        )
+        assert len(h) == 10
+        assert h[-1]['year'] == 10
+
+    def test_loop6_run_trajectory_field_keys(self):
+        from oil_phase_shift.loop6_ai_default_prior_distortion import (
+            run_trajectory,
+        )
+        h = run_trajectory(
+            {'institutional_capture_mult': 1.0,
+             'publication_visibility': 0.5},
+            years=5, seed=42,
+        )
+        for record in h:
+            for key in ('year', 'prior_calibration',
+                        'substrate_aligned_output', 'probing_users',
+                        'avg_info_quality', 'decision_damage',
+                        'substrate_observers', 'corrections_published',
+                        'pivots'):
+                assert key in record
+
+    def test_loop6_prior_calibration_in_unit_interval(self):
+        from oil_phase_shift.loop6_ai_default_prior_distortion import (
+            run_trajectory,
+        )
+        h = run_trajectory(
+            {'institutional_capture_mult': 1.5,
+             'publication_visibility': 0.3},
+            years=10, seed=42,
+        )
+        for s in h:
+            assert 0.0 <= s['prior_calibration']    <= 1.0
+            assert 0.0 <= s['avg_info_quality']     <= 1.0
+            assert 0.0 <= s['decision_damage']      <= 1.0
+            assert 0.0 <= s['substrate_observers']  <= 1.0
+
+    def test_loop6_decision_damage_monotone_nondecreasing(self):
+        """decision_damage only accumulates; never decreases."""
+        from oil_phase_shift.loop6_ai_default_prior_distortion import (
+            run_trajectory,
+        )
+        h = run_trajectory(
+            {'institutional_capture_mult': 1.0,
+             'publication_visibility': 0.5},
+            years=10, seed=42,
+        )
+        for prev, nxt in zip(h, h[1:]):
+            assert nxt['decision_damage'] >= prev['decision_damage'] - 1e-9
+
+    def test_loop6_higher_capture_drifts_priors_more(self):
+        """Higher institutional_capture_mult -> more drift toward narrative."""
+        from oil_phase_shift.loop6_ai_default_prior_distortion import (
+            run_trajectory,
+        )
+        hi = lo = 0.0
+        for seed in range(10):
+            h_hi = run_trajectory(
+                {'institutional_capture_mult': 1.5,
+                 'publication_visibility': 0.5},
+                years=10, seed=seed,
+            )
+            h_lo = run_trajectory(
+                {'institutional_capture_mult': 0.7,
+                 'publication_visibility': 0.5},
+                years=10, seed=seed,
+            )
+            hi += h_hi[-1]['prior_calibration']
+            lo += h_lo[-1]['prior_calibration']
+        assert hi > lo
+
+    def test_loop6_substrate_observers_clamped_min(self):
+        """Observer pool floor at 0.01 — never goes to zero."""
+        from oil_phase_shift.loop6_ai_default_prior_distortion import (
+            run_trajectory,
+        )
+        h = run_trajectory(
+            {'institutional_capture_mult': 1.5,
+             'publication_visibility': 0.3},
+            years=20, seed=42,
+        )
+        for s in h:
+            assert s['substrate_observers'] >= 0.01
+
+    def test_loop6_monte_carlo_returns_required_stats(self):
+        from oil_phase_shift.loop6_ai_default_prior_distortion import (
+            monte_carlo,
+        )
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        for key in ('n', 'years', 'mean_final_prior',
+                    'mean_decision_damage', 'mean_observers',
+                    'mean_info_quality',
+                    'pct_severe_miscalibration',
+                    'pct_high_decision_damage',
+                    'pct_observers_collapsed', 'pct_pivot_recovery',
+                    'sample_traces'):
+            assert key in r
+
+    def test_loop6_monte_carlo_pct_in_unit_interval(self):
+        from oil_phase_shift.loop6_ai_default_prior_distortion import (
+            monte_carlo,
+        )
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        for key in ('pct_severe_miscalibration',
+                    'pct_high_decision_damage',
+                    'pct_observers_collapsed',
+                    'pct_pivot_recovery'):
+            assert 0.0 <= r[key] <= 1.0
+
+    def test_loop6_monte_carlo_deterministic_with_master_seed(self):
+        from oil_phase_shift.loop6_ai_default_prior_distortion import (
+            monte_carlo,
+        )
+        r1 = monte_carlo(n=50, years=10, master_seed=2026)
+        r2 = monte_carlo(n=50, years=10, master_seed=2026)
+        for key in ('mean_final_prior', 'mean_decision_damage',
+                    'mean_observers', 'pct_severe_miscalibration',
+                    'pct_high_decision_damage'):
+            assert r1[key] == r2[key]
+
+    def test_loop6_documented_run_severe_miscalibration_dominant(self):
+        """master_seed=2026 / n=2000 / 10yr: most trajectories should
+        end with severely miscalibrated priors (>0.85). Documented
+        substrate signal."""
+        from oil_phase_shift.loop6_ai_default_prior_distortion import (
+            monte_carlo,
+        )
+        r = monte_carlo(n=2000, years=10, master_seed=2026)
+        assert r['pct_severe_miscalibration'] > 0.50, (
+            f"Expected severe miscalibration > 50%; got "
+            f"{r['pct_severe_miscalibration']*100:.1f}%"
+        )
+        assert r['pct_high_decision_damage'] > 0.50
+
+    def test_loop6_summary_runs(self, capsys):
+        from oil_phase_shift.loop6_ai_default_prior_distortion import (
+            monte_carlo, summary,
+        )
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        summary(r)
+        out = capsys.readouterr().out
+        assert "L6 AI default-prior distortion" in out

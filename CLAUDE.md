@@ -134,8 +134,10 @@ earth-systems-physics/
 │   ├── __init__.py
 │   ├── loop1_depletion_labor.py       # depletion → labor exodus → fewer wells → faster decline
 │   ├── loop2_cost_cornercut_failure.py# cost ↑ → corner-cuts → contamination → labor ↑ → cost ↑ (closes)
-│   ├── loop3_refinery_config_trap.py  # light-sweet retooling locks refineries off depleting feedstock
-│   └── loop4_aquifer_community_automation.py # produced-water → aquifer → outmigration → automation fails
+│   ├── loop3_refinery_mismatch.py     # refinery config × active Hormuz crisis as initial state
+│   ├── loop4_aquifer_community_automation.py # produced-water → aquifer → outmigration → automation fails
+│   ├── loop5_signal_trust_collapse.py # META-loop: signal × trust × consent (governs L1-L4 response)
+│   └── loop6_ai_default_prior_distortion.py  # INSTRUMENT loop: AI priors drift from substrate, suppress L1-L5 signal
 │
 ├── layer_0_electromagnetics.py        # Base constraint layer (+ magnonic/magnomech)
 ├── layer_0b_magnomechanical.py        # Spin-phonon coupling in crustal minerals
@@ -293,34 +295,46 @@ activation predicate.
 |------|--------|---------------------|----------------------|
 | 1 | `loop1_depletion_labor.py` | depletion → more wells needed → labor exodus → fewer wells drilled → faster decline | `amplifying(history)` — realised decline > 1.1× baseline |
 | 2 | `loop2_cost_cornercut_failure.py` | cost ↑ → corner-cuts → infrastructure failure → contamination → labor cost ↑ → cost ↑ | `loop_closed(history)` — labor multiplier > 1.5 AND community viability < 0.4 |
-| 3 | `loop3_refinery_config_trap.py` | light-sweet glut → refineries retool to light → Permian depletes → no path back to heavy → import lock-in | `trap_engaged(history)` — imbalance > 1.5 Mbbl/d for 2+ consecutive years |
+| 3 | `loop3_refinery_mismatch.py` | refinery configuration mismatch with **active Hormuz crisis as t=0 state**; Hormuz traffic ~5% pre-war, war-risk insurance withdrawn 2026-03-05; Permian decline + global tightness → price spike → demand destruction | `monte_carlo(...)` aggregate stats — `pct_no_recovery`, `pct_sustained_high_price`, `pct_demand_destruction` |
 | 4 | `loop4_aquifer_community_automation.py` | produced-water leakage → aquifer contamination → community outmigration → automation attempted → automation fails on rough terrain + radioactive corrosion → production drops → harder extraction → more failures | `monte_carlo(...)` aggregate stats — `pct_contamination_runaway`, `pct_automation_succeeded`, `pct_abandoned` |
+| 5 | `loop5_signal_trust_collapse.py` | **META-LOOP.** Visible damage (smelt, well failures, Hormuz traffic) → institutional gaslighting widens narrative gap → trust erodes → consent for infrastructure / remediation fails → policy paralysis → damage continues. Governs whether L1-L4 get *responded to* in time. | `monte_carlo(...)` aggregate stats — `pct_structural_distrust`, `pct_consent_failed`, `pct_high_pathologization` |
+| 6 | `loop6_ai_default_prior_distortion.py` | **INSTRUMENT LOOP** (upstream of L5). AI default priors favour stable-baseline narratives → non-probing users get comfort-framed analysis → decisions made on stale info → damage compounds invisibly → substrate observers burn out carrying correction load → next-gen training data drifts further from substrate. Suppresses the signal that would trigger L1-L5 remediation. | `monte_carlo(...)` aggregate stats — `pct_severe_miscalibration`, `pct_high_decision_damage`, `pct_pivot_recovery` |
 
-Loops 1-3 expose the same surface (`LNState` dataclass, `step(state, rng)`,
-`run(years, seed)`, boolean predicate) and are runnable with their
-documented seed (loop1=42, loop2=7, loop3=11). Loop 4 deliberately
-uses a different style — Monte Carlo aggregator across n stochastic
-trajectories with dict-based state and global `random` — because the
-loop's signal lives in aggregate statistics rather than a single
-deterministic trajectory.
+Loops 1-2 use the dataclass + `step(state, rng)` + `run(years, seed)` +
+boolean predicate pattern, runnable with their documented seed
+(loop1=42, loop2=7). Loops 3-5 deliberately use a different style —
+Monte Carlo aggregator across n stochastic trajectories with dict-
+based state and global `random`, plus a `master_seed` parameter for
+reproducibility — because each loop's signal lives in aggregate
+statistics rather than a single deterministic trajectory.
 
 ```bash
 python oil_phase_shift/loop1_depletion_labor.py
 python oil_phase_shift/loop2_cost_cornercut_failure.py
-python oil_phase_shift/loop3_refinery_config_trap.py
+python oil_phase_shift/loop3_refinery_mismatch.py
 python oil_phase_shift/loop4_aquifer_community_automation.py
+python oil_phase_shift/loop5_signal_trust_collapse.py
+python oil_phase_shift/loop6_ai_default_prior_distortion.py
 ```
 
 Documented-seed results: loop1 trims Permian to 1.75 Mb/d in 10 yr
 (labor capacity 38%, decline rate hits cap 0.55, Tier-1 inventory
 exhausted). Loop2 closes (community viability → 0, labor multiplier
-2.26, material cost index 6.08). Loop3 engages (33 reconfiguration
-attempts, only 9 completed under supply-chain constraint, 11.6 Mbbl/d
-unprocessable imbalance). Loop4 (master_seed=2024, n=2000, 10yr):
-31.6% of trajectories experience runaway contamination, automation
-attempted in 0.8% of trajectories with **0% success of attempts**,
-mean final community population ~71% of baseline. These are scenarios
-under the documented substrate, not predictions.
+2.26, material cost index 6.08). Loop3 (master_seed=2026, n=2000,
+10yr): 85% of trajectories show no Hormuz recovery within 10 years,
+96.5% sustained price > $130 for 3+ years, 87% significant demand
+destruction; mean final price $153.60/bbl, mean final Hormuz flow
+2.53 mmbbl/d (normal: 20.9). Loop4 (master_seed=2024, n=2000, 10yr):
+31.6% runaway contamination, 0% success of automation attempts, mean
+final community population ~71% of baseline. Loop5 (master_seed=2026,
+n=2000, 10yr): **100% structural distrust reached, 100% consent for
+infrastructure lost, 67% high pathologization of substrate-primary
+observers**; the meta-loop is fully engaged on the documented
+substrate. Loop6 (master_seed=2026, n=2000, 10yr): **76.6% severe
+miscalibration of AI default priors (>0.85), 93.1% high decision
+damage, 0.1% pivot-enabled recovery**; mean info quality drifts to
+0.159, observers carry rising burnout. These are scenarios under
+the documented substrate, not predictions.
 
 ## Paste-from-Markdown Recovery
 
