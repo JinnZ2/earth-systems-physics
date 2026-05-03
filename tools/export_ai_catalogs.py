@@ -406,6 +406,40 @@ CATALOGS = [
             "can join them."
         ),
     },
+    # ── constraint_recovery_framework ─────────────────────────
+    {
+        "name": "recovered_systems",
+        "module": "constraint_recovery_framework",
+        "symbol": "RECOVERED_SYSTEMS",
+        "primary_key": "system_id",
+        "description": (
+            "Pre-1900 engineering systems with their physical "
+            "constraints recovered into machine-readable form. Three "
+            "reference systems: mill_pond_cascade (1750-1920 Upper "
+            "Midwest, 4 constraints), anishinaabe_seasonal_burn "
+            "(pre-contact to ~1850 Great Lakes, 3 constraints), "
+            "beaver_managed_hydrology (continent-wide pre-1700, 3 "
+            "constraints). Each record carries period, region, "
+            "measurements_recorded, nested constraints array, and "
+            "cross-system notes."
+        ),
+    },
+    {
+        "name": "recovered_constraints",
+        "module": "constraint_recovery_framework",
+        "symbol": "ALL_CONSTRAINTS",
+        "primary_key": "constraint_id",
+        "description": (
+            "Flat list of every PhysicalConstraint across all "
+            "RECOVERED_SYSTEMS, with system_id + system_name "
+            "attached for traceability. Each record has "
+            "physical_trigger, problem_solved, solution_mechanism, "
+            "lag_time_weeks, failure_mode, cost_of_failure, "
+            "validation. Suitable for direct ingestion by tools "
+            "that want a constraint-level rather than system-level "
+            "view."
+        ),
+    },
     # ── calibration / architecture_mismatch ───────────────────
     {
         "name": "architecture_failure_modes",

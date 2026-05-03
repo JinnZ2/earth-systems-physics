@@ -114,7 +114,7 @@ earth-systems-physics/
 │   ├── glossary.md                    # Unified terminology across modules
 │   ├── composition_recipes.md         # Cross-module analysis patterns
 │   ├── index.json                     # Provenance + schema for every catalog
-│   └── catalogs/                      # 31 .jsonl catalogs auto-exported from sources
+│   └── catalogs/                      # 33 .jsonl catalogs auto-exported from sources
 │
 ├── experiments/
 │   ├── magnetometer_build.py          # $5 smoky-quartz + HDD-magnet magnetometer build guide
@@ -342,7 +342,7 @@ ai_reference/
 │                           cascade, layer, signal, delta, buffer, etc.)
 ├── composition_recipes.md  Cross-module analysis patterns
 ├── index.json              Provenance + schema for every catalog
-└── catalogs/               31 .jsonl catalogs (217 records total)
+└── catalogs/               33 .jsonl catalogs (242 records total)
     ├── mechanisms.jsonl                    (7 records)
     ├── epigenetic_factors.jsonl            (6)
     ├── constraint_domains.jsonl            (7)
@@ -373,7 +373,9 @@ ai_reference/
     ├── skyrmion_internal_modes.jsonl       (3)     # skyrmion_phonon_coupling
     ├── skyrmion_spinwave_params.jsonl      (5)     # skyrmion_phonon_coupling
     ├── architecture_failure_modes.jsonl    (7)     # calibration.architecture_mismatch
-    └── encoding_layer_decay_rates.jsonl    (4)     # calibration.architecture_mismatch
+    ├── encoding_layer_decay_rates.jsonl    (4)     # calibration.architecture_mismatch
+    ├── recovered_systems.jsonl             (3)     # constraint_recovery_framework
+    └── recovered_constraints.jsonl         (10)    # constraint_recovery_framework
 ```
 
 ### Regenerating the catalogs

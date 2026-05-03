@@ -368,6 +368,33 @@ RECOVERED_SYSTEMS.append(beaver_hydrology)
 
 
 # ─────────────────────────────────────────────
+# FLAT CONSTRAINT VIEW
+# Convenience: one record per PhysicalConstraint with system_id +
+# system_name attached, suitable for catalog export and downstream
+# ingestion that wants a flat constraint table rather than nested
+# RecoveredSystem records.
+# ─────────────────────────────────────────────
+
+ALL_CONSTRAINTS: List[Dict] = []
+for _system in RECOVERED_SYSTEMS:
+    for _c in _system.constraints:
+        ALL_CONSTRAINTS.append({
+            "system_id":          _system.system_id,
+            "system_name":        _system.name,
+            "constraint_id":      _c.constraint_id,
+            "name":               _c.name,
+            "physical_trigger":   _c.physical_trigger,
+            "problem_solved":     _c.problem_solved,
+            "solution_mechanism": _c.solution_mechanism,
+            "lag_time_weeks":     _c.lag_time_weeks,
+            "failure_mode":       _c.failure_mode,
+            "cost_of_failure":    _c.cost_of_failure,
+            "validation":         _c.validation,
+        })
+del _system, _c   # don't leak loop variables into module namespace
+
+
+# ─────────────────────────────────────────────
 # QUERY FUNCTIONS
 # ─────────────────────────────────────────────
 

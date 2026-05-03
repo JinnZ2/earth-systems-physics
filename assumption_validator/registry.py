@@ -650,6 +650,76 @@ REGISTRY: Dict[str, AssumptionBoundary] = {
         rate_of_change  = 0.1,
         notes           = "Interaction effects between crossed boundaries unquantified"
     ),
+
+    # ── LAYER 4 — SOUTHERN OCEAN CDW (Lanham 2026 observation) ───────
+    "hydro_cdw_migration_rate": AssumptionBoundary(
+        name            = "CDW Poleward Migration Rate",
+        parameter       = "cdw_migration_km_yr",
+        units           = "km/year",
+        green_range     = (0.0, 0.5),
+        yellow_range    = (0.5, 2.0),
+        red_threshold   = 3.0,
+        higher_is_worse = True,
+        source_layer    = 4,
+        layer_key       = "cdw_migration_km_yr",
+        couplings       = ["hydro_aabw_suppression", "hydro_cdw_aabw_loop",
+                           "bio_marine_productivity"],
+        rate_of_change  = 0.05,
+        notes           = (
+            "Lanham et al. 2026 (Comm Earth Env 7:371): circumpolar "
+            "mean 1.26 km/yr (95% CI 0.53-1.98); Weddell hot spot "
+            "2.39. Was MODEL-PROJECTED with wide uncertainty until "
+            "2026; now CONFIRMED OBSERVATION. 1.26 km/yr falls in "
+            "YELLOW (the pre-observation GREEN assumption no longer "
+            "holds). Documented regime shift, not a model artifact."
+        )
+    ),
+
+    "hydro_aabw_suppression": AssumptionBoundary(
+        name            = "AABW Formation Suppression Factor",
+        parameter       = "aabw_suppression_factor",
+        units           = "fraction (0-1)",
+        green_range     = (0.0, 0.05),
+        yellow_range    = (0.05, 0.30),
+        red_threshold   = 0.50,
+        higher_is_worse = True,
+        source_layer    = 4,
+        layer_key       = "aabw_suppression_factor",
+        couplings       = ["hydro_cdw_migration_rate",
+                           "hydro_cdw_aabw_loop",
+                           "bio_deep_ocean_ventilation"],
+        rate_of_change  = 0.01,
+        notes           = (
+            "Antarctic Bottom Water along-margin contraction is the "
+            "downstream signal of the CDW intrusion. Suppression > "
+            "0.30 puts the global thermohaline cold buffer in "
+            "decline; > 0.50 implies major contribution to ventilation "
+            "slowdown."
+        )
+    ),
+
+    "hydro_cdw_aabw_loop": AssumptionBoundary(
+        name            = "CDW-AABW Positive Feedback Index",
+        parameter       = "cdw_aabw_feedback_index",
+        units           = "dimensionless",
+        green_range     = (0.0, 0.05),
+        yellow_range    = (0.05, 0.40),
+        red_threshold   = 0.60,
+        higher_is_worse = True,
+        source_layer    = 4,
+        layer_key       = "cdw_aabw_feedback_index",
+        couplings       = ["hydro_cdw_migration_rate",
+                           "hydro_aabw_suppression"],
+        rate_of_change  = 0.02,
+        notes           = (
+            "Composite of basal-melt-attributable freshwater capping "
+            "and AABW suppression. Loop observed since 2016 Southern "
+            "Ocean sea ice collapse — exactly the nonlinear release "
+            "regime where steady-state thermohaline equations stop "
+            "applying. Holocene-stationary assumption already "
+            "violated."
+        )
+    ),
 }
 
 

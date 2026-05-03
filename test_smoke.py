@@ -4313,3 +4313,169 @@ class TestConstraintRecoveryFramework:
                     for s in RECOVERED_SYSTEMS for c in s.constraints]
         assert min(all_lags) <= 4.0       # sub-monthly response somewhere
         assert max(all_lags) >= 52.0      # multi-year response somewhere
+
+
+# ─────────────────────────────────────────────
+# SOUTHERN OCEAN CDW HEAT TRANSPORT (Lanham 2026)
+# CDW poleward migration as observed boundary condition;
+# CDW -> basal melt -> freshwater cap -> AABW suppression
+# positive feedback loop
+# ─────────────────────────────────────────────
+
+class TestSouthernOceanCDW:
+    def test_cdw_constants_present(self):
+        from layer_4_hydrosphere import (
+            CDW_POLEWARD_MIGRATION,
+            CDW_HEAT_FLUX_60_65S,
+            SOUTHERN_OCEAN_STRUCTURAL_SHIFT,
+        )
+        assert CDW_POLEWARD_MIGRATION["circumpolar_mean_km_per_yr"] == 1.26
+        assert CDW_HEAT_FLUX_60_65S["rate_terawatts"] == 2.81
+        assert (SOUTHERN_OCEAN_STRUCTURAL_SHIFT["AABW_thickness_along_margin"]
+                == "contracting")
+
+    def test_basal_melt_zero_at_baseline_flux(self):
+        """No CDW excess above pre-2000 baseline -> zero attributable melt."""
+        from layer_4_hydrosphere import cdw_basal_melt_rate_Gt_yr
+        assert cdw_basal_melt_rate_Gt_yr(
+            cdw_heat_flux_TW=1.5, baseline_TW=1.5,
+        ) == 0.0
+
+    def test_basal_melt_scales_linearly_with_excess(self):
+        from layer_4_hydrosphere import cdw_basal_melt_rate_Gt_yr
+        m1 = cdw_basal_melt_rate_Gt_yr(2.5, baseline_TW=1.5)
+        m2 = cdw_basal_melt_rate_Gt_yr(3.5, baseline_TW=1.5)
+        assert m2 == pytest.approx(2.0 * m1)
+
+    def test_freshwater_anomaly_negative(self):
+        from layer_4_hydrosphere import freshwater_cap_PSU_anomaly
+        assert freshwater_cap_PSU_anomaly(100.0) < 0.0
+        assert freshwater_cap_PSU_anomaly(0.0) == 0.0
+
+    def test_aabw_suppression_in_unit_interval(self):
+        from layer_4_hydrosphere import aabw_suppression_factor
+        assert aabw_suppression_factor(0.0) == 0.0
+        s_small = aabw_suppression_factor(-0.001)
+        s_large = aabw_suppression_factor(-1.0)
+        assert 0.0 < s_small < s_large < 1.0
+
+    def test_aabw_suppression_zero_for_positive_anomaly(self):
+        from layer_4_hydrosphere import aabw_suppression_factor
+        assert aabw_suppression_factor(+0.5) == 0.0
+
+    def test_cdw_aabw_feedback_loop_active_at_observed_baseline(self):
+        """At Lanham's observed 2.81 TW the loop should already trigger."""
+        from layer_4_hydrosphere import cdw_aabw_feedback_index
+        r = cdw_aabw_feedback_index(cdw_heat_flux_TW=2.81)
+        assert r["loop_active"] is True
+        assert r["cdw_aabw_feedback_index"] > 0.05
+
+    def test_cdw_aabw_feedback_inactive_at_baseline_flux(self):
+        from layer_4_hydrosphere import cdw_aabw_feedback_index
+        r = cdw_aabw_feedback_index(cdw_heat_flux_TW=1.5,
+                                    baseline_TW=1.5)
+        assert r["loop_active"] is False
+        assert r["cdw_aabw_feedback_index"] == 0.0
+
+    def test_layer4_coupling_state_exposes_cdw_keys(self):
+        from layer_4_hydrosphere import coupling_state
+        s = coupling_state(
+            T_ocean_C=15.0, S_ocean=35.0,
+            T_north_C=8.0, S_north=35.0,
+            T_south_C=26.0, S_south=36.0,
+            ice_fraction=0.85,
+        )
+        for k in ("cdw_heat_flux_TW", "cdw_migration_km_yr",
+                  "cdw_basal_melt_Gt_yr", "cdw_freshwater_PSU_anomaly",
+                  "aabw_suppression_factor", "cdw_aabw_feedback_index",
+                  "cdw_aabw_loop_active"):
+            assert k in s
+
+    def test_baseline_includes_cdw_parameters(self):
+        from cascade_engine import BASELINE
+        for k in ("cdw_heat_flux_TW", "cdw_baseline_TW",
+                  "cdw_sensitivity_Gt_per_TW", "cdw_aabw_shutdown_PSU",
+                  "cdw_migration_km_yr"):
+            assert k in BASELINE
+
+    def test_cdw_intrusion_acceleration_scenario_runs(self):
+        from cascade_engine import run_cascade, SCENARIOS
+        result = run_cascade(SCENARIOS["cdw_intrusion_acceleration"],
+                             verbose=False)
+        assert result.layer_states[4]["cdw_heat_flux_TW"] > 4.0
+        assert result.layer_states[4]["cdw_aabw_loop_active"] is True
+
+    def test_cdw_aabw_loop_in_known_loops(self):
+        from cascade_engine import KNOWN_LOOPS
+        names = {loop["name"] for loop in KNOWN_LOOPS}
+        assert "CDW-AABW-Cryosphere" in names
+
+    def test_cdw_aabw_loop_triggers_in_cascade_at_baseline(self):
+        from cascade_engine import (
+            run_all_layers, BASELINE, detect_amplifying_loops,
+        )
+        states = run_all_layers(BASELINE)
+        loops = detect_amplifying_loops(states)
+        cdw_loops = [l for l in loops if l["name"] == "CDW-AABW-Cryosphere"]
+        assert len(cdw_loops) == 1
+        assert cdw_loops[0]["gain"] > 1.0
+
+    def test_cdw_assumption_boundaries_registered(self):
+        from assumption_validator.registry import REGISTRY
+        for aid in ("hydro_cdw_migration_rate",
+                    "hydro_aabw_suppression",
+                    "hydro_cdw_aabw_loop"):
+            assert aid in REGISTRY
+            assert REGISTRY[aid].source_layer == 4
+
+    def test_cdw_migration_assumption_yellow_at_observed(self):
+        """1.26 km/yr (Lanham) lands in YELLOW (regime shift documented)."""
+        from assumption_validator.registry import REGISTRY, RiskLevel
+        b = REGISTRY["hydro_cdw_migration_rate"]
+        level, _, _ = b.assess(1.26)
+        assert level == RiskLevel.YELLOW
+
+
+# ─────────────────────────────────────────────
+# CONSTRAINT_RECOVERY_FRAMEWORK -> AI catalog wiring
+# ─────────────────────────────────────────────
+
+class TestConstraintRecoveryCatalogs:
+    def test_all_constraints_flat_list_complete(self):
+        from constraint_recovery_framework import (
+            ALL_CONSTRAINTS, RECOVERED_SYSTEMS,
+        )
+        expected = sum(len(s.constraints) for s in RECOVERED_SYSTEMS)
+        assert len(ALL_CONSTRAINTS) == expected
+
+    def test_all_constraints_have_system_traceability(self):
+        from constraint_recovery_framework import ALL_CONSTRAINTS
+        for c in ALL_CONSTRAINTS:
+            assert "system_id" in c
+            assert "system_name" in c
+            assert "constraint_id" in c
+
+    def test_recovered_systems_catalog_exported(self):
+        import json
+        from pathlib import Path
+        repo_root = Path(__file__).resolve().parent
+        path = repo_root / "ai_reference" / "catalogs" / "recovered_systems.jsonl"
+        assert path.exists(), "recovered_systems.jsonl not exported"
+        records = [json.loads(line) for line in
+                   path.read_text().splitlines() if line]
+        assert len(records) == 3
+        assert all("system_id" in r for r in records)
+        assert all("constraints" in r for r in records)
+
+    def test_recovered_constraints_catalog_exported(self):
+        import json
+        from pathlib import Path
+        repo_root = Path(__file__).resolve().parent
+        path = repo_root / "ai_reference" / "catalogs" / "recovered_constraints.jsonl"
+        assert path.exists(), "recovered_constraints.jsonl not exported"
+        records = [json.loads(line) for line in
+                   path.read_text().splitlines() if line]
+        # 4 mill pond + 3 anishinaabe burn + 3 beaver hydrology
+        assert len(records) == 10
+        assert all("system_id" in r for r in records)
+        assert all("lag_time_weeks" in r for r in records)
