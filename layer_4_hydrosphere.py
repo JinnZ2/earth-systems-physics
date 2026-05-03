@@ -312,6 +312,151 @@ def deep_water_ventilation_age(formation_rate_Sv, ocean_volume_m3=1.335e18):
 
 
 # ─────────────────────────────────────────────
+# SOUTHERN OCEAN HEAT TRANSPORT  (Lanham et al. 2026)
+# Circumpolar Deep Water poleward migration was a model PROJECTION
+# with wide uncertainty bands until 2026. Lanham et al. (Comm Earth
+# Env 7:371) confirmed it as observation from ship + Argo + random
+# forest over a 20-yr record.
+#
+# Three coupled changes are now well-constrained:
+#   1. CDW boundary advances poleward at 1.26 +/- 0.7 km/yr
+#      (Weddell Sea hot spot 2.39 km/yr; W Antarctica 0.80).
+#   2. CDW thickens NEAR the continent and thins offshore.
+#   3. Antarctic Bottom Water contracts along the continental margin.
+#
+# Operational consequence: 2.81 TW of poleward heat transport into
+# the 60-65 S band is now a measured boundary condition for ice-shelf
+# basal melt cascades, not a model parameter.
+#
+# This sets up the positive feedback loop encoded below:
+#   CDW heat -> ice shelf basal melt -> freshwater cap -> AABW
+#   formation suppression -> reduced cold buffer -> more CDW
+#   intrusion. Detected since the 2016 Southern Ocean sea ice
+#   collapse; nonlinear releases of this kind are exactly what the
+#   steady-state thermohaline equations do not capture.
+# ─────────────────────────────────────────────
+
+CDW_POLEWARD_MIGRATION = {
+    "circumpolar_mean_km_per_yr": 1.26,
+    "ci_95_low":                  0.53,
+    "ci_95_high":                 1.98,
+    "weddell_sea":                2.39,
+    "east_antarctica":            1.31,
+    "west_antarctica":            0.80,
+    "source":                     "Lanham et al. 2026, Comm Earth Env 7:371",
+    "method":                     "ship obs + Argo + random forest, 20yr record",
+    "observational_status":       "confirmed (was model-projected)",
+}
+
+CDW_HEAT_FLUX_60_65S = {
+    "rate_terawatts": 2.81,
+    "ci_95_low":      2.0,
+    "ci_95_high":     3.6,
+    "layer":          "Circumpolar Deep Water, upper 2000m",
+}
+
+SOUTHERN_OCEAN_STRUCTURAL_SHIFT = {
+    "CDW_thickness_near_continent":   "increasing",
+    "CDW_thickness_offshore":         "decreasing",
+    "AABW_thickness_along_margin":    "contracting",
+    "interpretation":                 "warm layer advancing, cold buffer retreating",
+}
+
+
+def cdw_basal_melt_rate_Gt_yr(cdw_heat_flux_TW=2.81,
+                              baseline_TW=1.5,
+                              sensitivity_Gt_per_TW=80.0):
+    """
+    Differential ice-shelf basal melt attributable to CDW poleward
+    heat flux excess above the pre-2000 baseline (~1.5 TW).
+    Empirical sensitivity ~50-100 Gt/yr per TW of cross-shelf flux
+    excess from intrusion-event studies (Schmidtko 2014, Naughten
+    2018). Returns the ATTRIBUTABLE component, not total Antarctic
+    basal melt (which is dominated by other heat sources too).
+    cdw_heat_flux_TW       : current poleward CDW heat flux (TW)
+    baseline_TW            : pre-2000 reference (TW)
+    sensitivity_Gt_per_TW  : empirical melt sensitivity (Gt/yr per TW)
+    returns: CDW-attributable basal melt rate (Gt/yr)
+    """
+    excess = max(0.0, cdw_heat_flux_TW - baseline_TW)
+    return excess * sensitivity_Gt_per_TW
+
+
+def freshwater_cap_PSU_anomaly(basal_melt_Gt_yr,
+                               receiving_volume_m3=2e14,
+                               S_ambient=34.7):
+    """
+    Annual surface salinity drop in the near-Antarctica freshwater
+    lens from ice-shelf basal melt input. Mass-balance form:
+        delta_S ~ - S_ambient * (V_freshwater / V_receiving)
+    Default receiving volume 2e14 m^3 corresponds to ~10 m of upper
+    Southern Ocean over the continental shelf zone (~2e13 m^2).
+    basal_melt_Gt_yr    : freshwater input (Gt/yr)
+    receiving_volume_m3 : annual mixing volume of the surface lens
+    S_ambient           : ambient salinity (PSU)
+    returns: salinity anomaly (PSU; negative = freshening)
+    """
+    freshwater_volume_m3_yr = (basal_melt_Gt_yr * 1e12) / rho_freshwater
+    return -S_ambient * (freshwater_volume_m3_yr / receiving_volume_m3)
+
+
+def aabw_suppression_factor(freshwater_PSU_anomaly,
+                            shutdown_PSU=-0.05):
+    """
+    Fractional reduction in AABW formation from freshwater capping.
+    Saturating exponential:
+        suppression = 1 - exp(- |delta_S| / |shutdown_PSU|)
+    Default shutdown scale -0.05 PSU calibrated to AABW thinning
+    observations (Purkey & Johnson 2013; Silvano 2018) — that
+    magnitude of cumulative freshening already produces measurable
+    AABW contraction.
+    freshwater_PSU_anomaly : salinity anomaly (negative = freshening)
+    shutdown_PSU           : characteristic shutdown salinity scale
+    returns: 0..1 suppression fraction
+    """
+    if freshwater_PSU_anomaly >= 0 or shutdown_PSU >= 0:
+        return 0.0
+    return float(1.0 - np.exp(-abs(freshwater_PSU_anomaly)
+                              / abs(shutdown_PSU)))
+
+
+def cdw_aabw_feedback_index(cdw_heat_flux_TW=2.81,
+                            baseline_TW=1.5,
+                            sensitivity_Gt_per_TW=80.0,
+                            shutdown_PSU=-0.05):
+    """
+    Composite index for the positive feedback loop:
+        CDW heat -> ice shelf basal melt -> freshwater cap ->
+        AABW formation suppression -> reduced cold buffer ->
+        more CDW intrusion.
+    Returns a dict capturing each step plus the combined feedback
+    index. Loop is flagged active when CDW-attributable melt is
+    non-trivial AND AABW suppression is measurable.
+    """
+    melt_Gt_yr = cdw_basal_melt_rate_Gt_yr(cdw_heat_flux_TW,
+                                           baseline_TW,
+                                           sensitivity_Gt_per_TW)
+    delta_S    = freshwater_cap_PSU_anomaly(melt_Gt_yr)
+    suppression = aabw_suppression_factor(delta_S, shutdown_PSU)
+    # Feedback gain proxy: melt scaled to a reference attributable
+    # value (50 Gt/yr) AND multiplied by AABW suppression.
+    melt_norm = min(1.0, melt_Gt_yr / 50.0)
+    feedback_index = float(melt_norm * suppression)
+    return {
+        "cdw_heat_flux_TW":          cdw_heat_flux_TW,
+        "basal_melt_Gt_yr":          melt_Gt_yr,
+        "freshwater_PSU_anomaly":    delta_S,
+        "aabw_suppression_factor":   suppression,
+        "cdw_aabw_feedback_index":   feedback_index,
+        "loop_active":               (melt_Gt_yr > 50.0
+                                       and suppression > 0.05),
+        "note": ("positive feedback observed since 2016 Southern Ocean "
+                 "sea ice collapse; steady-state thermohaline equations "
+                 "do not capture nonlinear releases of this kind"),
+    }
+
+
+# ─────────────────────────────────────────────
 # OCEAN HEAT CONTENT
 # ─────────────────────────────────────────────
 
@@ -543,20 +688,35 @@ def atlantic_multidecadal_oscillation(phase, AMOC_strength_Sv):
 def coupling_state(T_ocean_C, S_ocean, T_north_C, S_north,
                    T_south_C, S_south, ice_fraction,
                    wind_stress=0.1, delta_S_melt=0.0,
-                   SST_enso_anomaly=0.0, AMOC_Sv=17.0):
+                   SST_enso_anomaly=0.0, AMOC_Sv=17.0,
+                   cdw_heat_flux_TW=2.81,
+                   cdw_baseline_TW=1.5,
+                   cdw_sensitivity_Gt_per_TW=80.0,
+                   cdw_aabw_shutdown_PSU=-0.05,
+                   cdw_migration_km_yr=1.26):
     """
     Full hydrosphere state vector for adjacent layer consumption.
-    T_ocean_C       : mean ocean surface temperature (°C)
-    S_ocean         : mean salinity (PSU)
-    T_north_C       : North Atlantic surface T (°C)
-    S_north         : North Atlantic salinity (PSU)
-    T_south_C       : equatorial Atlantic T (°C)
-    S_south         : equatorial salinity (PSU)
-    ice_fraction    : current sea ice fraction of Arctic (0-1)
-    wind_stress     : surface wind stress (Pa)
-    delta_S_melt    : salinity reduction from meltwater (PSU)
-    SST_enso_anomaly: ENSO SST anomaly (K)
-    AMOC_Sv         : AMOC transport (Sv)
+    T_ocean_C        : mean ocean surface temperature (°C)
+    S_ocean          : mean salinity (PSU)
+    T_north_C        : North Atlantic surface T (°C)
+    S_north          : North Atlantic salinity (PSU)
+    T_south_C        : equatorial Atlantic T (°C)
+    S_south          : equatorial salinity (PSU)
+    ice_fraction     : current sea ice fraction of Arctic (0-1)
+    wind_stress      : surface wind stress (Pa)
+    delta_S_melt     : salinity reduction from meltwater (PSU)
+    SST_enso_anomaly : ENSO SST anomaly (K)
+    AMOC_Sv          : AMOC transport (Sv)
+    cdw_heat_flux_TW          : poleward CDW heat into the 60-65 S
+                                 band (TW). Default 2.81 = Lanham 2026.
+    cdw_baseline_TW           : pre-2000 reference CDW heat flux (TW).
+    cdw_sensitivity_Gt_per_TW : differential melt sensitivity to CDW
+                                 excess (Gt/yr per TW; literature 50-100).
+    cdw_aabw_shutdown_PSU     : freshwater anomaly scale for AABW
+                                 suppression (PSU; default -0.05).
+    cdw_migration_km_yr       : circumpolar mean CDW poleward migration
+                                 (default 1.26 km/yr from Lanham 2026;
+                                 95% CI 0.53-1.98).
     """
     density         = seawater_density(T_ocean_C, S_ocean)
     AMOC_gradient   = atlantic_overturning_index(T_north_C, S_north,
@@ -583,6 +743,12 @@ def coupling_state(T_ocean_C, S_ocean, T_north_C, S_north,
     # AMOC computed from bottom water formation (overrides input when formation active)
     AMOC_computed_Sv = bw["NADW_formation_Sv"] + bw["AABW_formation_Sv"] * 0.3  # AABW contributes ~30% to AMOC
 
+    # Southern Ocean CDW -> basal melt -> AABW suppression positive feedback
+    cdw_loop = cdw_aabw_feedback_index(cdw_heat_flux_TW,
+                                       cdw_baseline_TW,
+                                       cdw_sensitivity_Gt_per_TW,
+                                       cdw_aabw_shutdown_PSU)
+
     return {
         "ocean_density_kgm3":            density,
         "AMOC_density_gradient":         AMOC_gradient,
@@ -604,12 +770,21 @@ def coupling_state(T_ocean_C, S_ocean, T_north_C, S_north,
         "brine_density_flux_kgm3":       bw["brine_contribution_kgm3"],
         "meltwater_to_shutdown_PSU":     bw["meltwater_to_shutdown_PSU"],
         "deep_water_ventilation_yr":     ventilation_yrs,
+        # Southern Ocean CDW / AABW positive feedback (Lanham 2026)
+        "cdw_heat_flux_TW":              cdw_heat_flux_TW,
+        "cdw_migration_km_yr":           cdw_migration_km_yr,
+        "cdw_basal_melt_Gt_yr":          cdw_loop["basal_melt_Gt_yr"],
+        "cdw_freshwater_PSU_anomaly":    cdw_loop["freshwater_PSU_anomaly"],
+        "aabw_suppression_factor":       cdw_loop["aabw_suppression_factor"],
+        "cdw_aabw_feedback_index":       cdw_loop["cdw_aabw_feedback_index"],
+        "cdw_aabw_loop_active":          cdw_loop["loop_active"],
         # Cascade metadata
         "cascade_to_atmosphere":         "SST, evaporation, ENSO, AMO, ITCZ",
         "cascade_to_lithosphere":        "sea level loading, isostasy, pore pressure",
-        "cascade_to_biosphere":          "temperature, acidification, stratification",
+        "cascade_to_biosphere":          "temperature, acidification, stratification, deep ocean ventilation",
         "cascade_from_atmosphere":       "wind stress, heat flux, freshwater",
         "cascade_from_cryosphere":       "meltwater, albedo, freshwater pulse",
-        "hard_threshold": "AMOC collapse — irreversible; bottom water formation shutdown",
+        "cascade_internal_loop":         "CDW heat -> basal melt -> freshwater cap -> AABW suppression -> reduced cold buffer -> more CDW",
+        "hard_threshold": "AMOC collapse — irreversible; bottom water formation shutdown; CDW-AABW feedback nonlinear",
         "note": "ocean thermal inertia means current forcing is not yet fully expressed"
     }

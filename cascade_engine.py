@@ -130,6 +130,12 @@ BASELINE = {
     "delta_S_melt":     0.10,       # PSU reduction from meltwater
     "SST_enso":         0.0,        # ENSO anomaly K
     "AMOC_Sv":          16.0,       # current weakened AMOC
+    # Southern Ocean CDW (Lanham et al. 2026 observation)
+    "cdw_heat_flux_TW":               2.81,    # poleward CDW heat into 60-65 S
+    "cdw_baseline_TW":                1.5,     # pre-2000 reference flux
+    "cdw_sensitivity_Gt_per_TW":      80.0,    # melt sensitivity per TW excess
+    "cdw_aabw_shutdown_PSU":          -0.05,   # AABW suppression scale
+    "cdw_migration_km_yr":            1.26,    # circumpolar mean migration rate
 
     # Layer 5 — Lithosphere
     "ice_mass_loss_Gt": 280.0,      # cumulative Gt
@@ -248,6 +254,11 @@ def run_all_layers(p):
         delta_S_melt = p["delta_S_melt"],
         SST_enso_anomaly = p["SST_enso"],
         AMOC_Sv      = p["AMOC_Sv"],
+        cdw_heat_flux_TW          = p.get("cdw_heat_flux_TW",          2.81),
+        cdw_baseline_TW           = p.get("cdw_baseline_TW",           1.5),
+        cdw_sensitivity_Gt_per_TW = p.get("cdw_sensitivity_Gt_per_TW", 80.0),
+        cdw_aabw_shutdown_PSU     = p.get("cdw_aabw_shutdown_PSU",     -0.05),
+        cdw_migration_km_yr       = p.get("cdw_migration_km_yr",       1.26),
     )
     states[5] = litho_state(
         ice_mass_loss_Gt = p["ice_mass_loss_Gt"],
@@ -409,6 +420,10 @@ CASCADE_MAP = {
                                     (3, "gravity wave modulation", False)],
     (4, "ice_albedo_feedback_Wm2"):[(3, "additional absorbed radiation", True),
                                     (6, "habitat loss", False)],
+    (4, "cdw_aabw_loop_active"):   [(4, "CDW heat -> basal melt -> AABW suppression -> more CDW", True),
+                                    (6, "AABW shutdown -> deep ocean ventilation collapse", True)],
+    (4, "aabw_suppression_factor"):[(6, "ventilation slowdown -> O2 + carbon cycle disruption", True)],
+    (4, "cdw_basal_melt_Gt_yr"):   [(5, "ice mass loss -> isostatic rebound + LOD", True)],
     (5, "volcanic_enhancement"):   [(3, "SO2 -> aerosol cooling", False),
                                     (6, "reduced photosynthesis", False),
                                     (3, "CO2 from enhanced outgassing", True)],
@@ -519,6 +534,20 @@ KNOWN_LOOPS = [
         "timescale": "centuries",
     },
     {
+        "name":     "CDW-AABW-Cryosphere",
+        "layers":   [4, 4, 4],
+        "trigger":  lambda s: s[4].get("cdw_aabw_loop_active", False),
+        "gain_function": lambda s: 1.0 + 4.0 * s[4].get("cdw_aabw_feedback_index", 0.0),
+        "description": (
+            "CDW heat -> ice shelf basal melt -> freshwater cap -> "
+            "AABW formation suppression -> reduced cold buffer -> "
+            "more CDW intrusion. Observed since 2016 Southern Ocean "
+            "sea ice collapse; nonlinear releases not captured by "
+            "steady-state thermohaline equations."
+        ),
+        "timescale": "decades to centuries (already underway)",
+    },
+    {
         "name":     "Magnomechanical-EM",
         "layers":   [0, 5, 0],
         "trigger":  lambda s: s[0].get("magnomech_seismo_detectable", False),
@@ -599,6 +628,12 @@ FORCING_PARAM_MAP = {
     "soil_rho_ohm_m":         ["soil_rho_ohm_m"],
     "coating_defect_fraction":["coating_defect_fraction"],
     "asset_length_m":         ["asset_length_m"],
+    # Layer 4 — Southern Ocean CDW (Lanham 2026)
+    "cdw_heat_flux_TW":          ["cdw_heat_flux_TW"],
+    "cdw_baseline_TW":           ["cdw_baseline_TW"],
+    "cdw_sensitivity_Gt_per_TW": ["cdw_sensitivity_Gt_per_TW"],
+    "cdw_aabw_shutdown_PSU":     ["cdw_aabw_shutdown_PSU"],
+    "cdw_migration_km_yr":       ["cdw_migration_km_yr"],
 }
 
 
@@ -1109,6 +1144,15 @@ SCENARIOS = {
         layer=7, variable="coating_defect_fraction", magnitude=0.05,
         description="Pipeline coating defect grows from 0.1% to 5% — corrosion regime shift",
         units="fraction"
+    ),
+    "cdw_intrusion_acceleration": Forcing(
+        layer=4, variable="cdw_heat_flux_TW", magnitude=1.5,
+        description=(
+            "Southern Ocean CDW heat flux to 60-65 S accelerates "
+            "from 2.81 TW (Lanham 2026 baseline) to 4.31 TW — "
+            "drives basal melt + AABW suppression positive feedback"
+        ),
+        units="TW",
     ),
     "ocean_timber_dumping": Forcing(
         layer=6, variable="deforestation", magnitude=0.001,
