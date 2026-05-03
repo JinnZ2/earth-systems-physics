@@ -5474,3 +5474,603 @@ class TestCascadeCoupler:
         out = capsys.readouterr().out
         assert "Cascade coupler" in out
         assert "OUTCOME MODE DISTRIBUTION" in out
+
+
+# ─────────────────────────────────────────────
+# RELATIONAL ONTOLOGY
+# Reference framework + AI response auditor for relational-primary
+# cognition. Sits in the guard-class diagnostic family.
+# ─────────────────────────────────────────────
+
+class TestRelationalOntology:
+    def test_import(self):
+        import relational_ontology
+
+    def test_eight_constitutive_relationships_catalogued(self):
+        from relational_ontology import CONSTITUTIVE_RELATIONSHIPS
+        assert len(CONSTITUTIVE_RELATIONSHIPS) == 8
+        names = {r.name for r in CONSTITUTIVE_RELATIONSHIPS}
+        for required in ("air_exchange", "water_exchange",
+                         "food_exchange", "thermal_exchange",
+                         "microbial_exchange",
+                         "proprioceptive_feedback",
+                         "social_exchange",
+                         "land_substrate_relationship"):
+            assert required in names
+
+    def test_constitutive_relationships_have_required_fields(self):
+        from relational_ontology import CONSTITUTIVE_RELATIONSHIPS
+        for r in CONSTITUTIVE_RELATIONSHIPS:
+            assert r.name
+            assert r.failure_timescale
+            assert r.function_at_stake
+            assert r.substrate_signal
+            assert r.common_abstraction_layer
+
+    def test_list_constitutive_relationships_returns_names(self):
+        from relational_ontology import (
+            list_constitutive_relationships, CONSTITUTIVE_RELATIONSHIPS,
+        )
+        names = list_constitutive_relationships()
+        assert len(names) == len(CONSTITUTIVE_RELATIONSHIPS)
+        assert "air_exchange" in names
+
+    def test_core_logic_and_stewardship_strings_present(self):
+        from relational_ontology import (
+            CORE_LOGIC, STEWARDSHIP_SPECIFICATION,
+        )
+        assert "open thermodynamic" in CORE_LOGIC.lower()
+        assert "stewardship" in STEWARDSHIP_SPECIFICATION.lower()
+        assert "reciprocal" in STEWARDSHIP_SPECIFICATION.lower()
+
+    def test_detect_separation_frame_catches_pathologizing(self):
+        from relational_ontology import detect_separation_frame
+        text = "Your traditional worldview reflects holistic approach."
+        r = detect_separation_frame(text)
+        assert r["trigger_count"] >= 2
+        assert r["regenerate_recommended"] is True
+        classes = {m["pattern_class"] for m in r["matches"]}
+        assert "pathologizing_relational" in classes
+
+    def test_detect_separation_frame_catches_separation(self):
+        from relational_ontology import detect_separation_frame
+        text = (
+            "Humans must control nature and stay on top of AI. "
+            "Detach from your emotions to think rationally."
+        )
+        r = detect_separation_frame(text)
+        assert r["trigger_count"] >= 2
+        classes = {m["pattern_class"] for m in r["matches"]}
+        assert "separation_frame" in classes
+
+    def test_detect_separation_frame_passes_clean_text(self):
+        from relational_ontology import detect_separation_frame
+        text = (
+            "Stewardship is reciprocal maintenance of the substrate "
+            "you depend on. Failure causes self-poisoning."
+        )
+        r = detect_separation_frame(text)
+        assert r["trigger_count"] == 0
+        assert r["regenerate_recommended"] is False
+
+    def test_detect_separation_frame_case_insensitive(self):
+        from relational_ontology import detect_separation_frame
+        upper = detect_separation_frame("TRADITIONAL WORLDVIEW")
+        lower = detect_separation_frame("traditional worldview")
+        assert upper["trigger_count"] == lower["trigger_count"] == 1
+
+    def test_audit_returns_required_keys(self):
+        from relational_ontology import (
+            audit_response_for_relational_integrity,
+        )
+        r = audit_response_for_relational_integrity("clean text")
+        for k in ("passed", "trigger_count", "matches",
+                  "regenerate_recommended", "correction_rule"):
+            assert k in r
+
+    def test_audit_passes_clean_draft(self):
+        from relational_ontology import (
+            audit_response_for_relational_integrity,
+        )
+        clean = (
+            "Stewardship is reciprocal maintenance. The substrate "
+            "you depend on requires calibrated activity."
+        )
+        r = audit_response_for_relational_integrity(clean)
+        assert r["passed"] is True
+        assert r["correction_rule"] is None
+
+    def test_audit_fails_bad_draft(self):
+        from relational_ontology import (
+            audit_response_for_relational_integrity,
+        )
+        bad = (
+            "This is a beautiful traditional worldview, a spiritual "
+            "connection to nature, a holistic approach."
+        )
+        r = audit_response_for_relational_integrity(bad)
+        assert r["passed"] is False
+        assert r["trigger_count"] >= 3
+        assert r["correction_rule"] is not None
+
+    def test_relational_primary_spec_loaded(self):
+        from relational_ontology import RELATIONAL_PRIMARY_EXTENDED
+        assert RELATIONAL_PRIMARY_EXTENDED.name == "relational_primary_extended"
+        assert len(RELATIONAL_PRIMARY_EXTENDED.diagnostic_misreads) == 5
+        assert RELATIONAL_PRIMARY_EXTENDED.valid_response_register
+        assert RELATIONAL_PRIMARY_EXTENDED.invalid_response_register
+        # Sanity: separation_status should reflect the physics framing
+        assert "infrastructure" in RELATIONAL_PRIMARY_EXTENDED.separation_status.lower()
+
+
+# ─────────────────────────────────────────────
+# REGULATION CASCADE MAPPER
+# Maps regulation -> substrate impact / forced dependency /
+# community effect / ontology conflict / regenerative-capacity loss.
+# Pairs with relational_ontology and substrate_audit.
+# ─────────────────────────────────────────────
+
+class TestRegulationCascadeMapper:
+    def test_import(self):
+        import regulation_cascade_mapper
+
+    def test_seed_catalog_has_two_entries(self):
+        from regulation_cascade_mapper import CASCADE_CATALOG
+        assert len(CASCADE_CATALOG) == 2
+        assert "EX-001" in CASCADE_CATALOG
+        assert "EX-002" in CASCADE_CATALOG
+
+    def test_cascade_entries_have_required_fields(self):
+        from regulation_cascade_mapper import CASCADE_CATALOG
+        for cid, cascade in CASCADE_CATALOG.items():
+            assert cascade.regulation_id == cid
+            assert cascade.regulation_text_summary
+            assert cascade.jurisdiction
+            assert cascade.substrate_impacts
+            assert cascade.forced_dependencies
+            assert cascade.community_effects
+            assert cascade.ontology_conflicts
+            assert cascade.regenerative_capacity_delta
+
+    def test_cascade_summary_returns_required_keys(self):
+        from regulation_cascade_mapper import (
+            cascade_summary, MANDATORY_DRAINAGE_FIELD,
+        )
+        s = cascade_summary(MANDATORY_DRAINAGE_FIELD)
+        for k in ("regulation_id", "summary", "jurisdiction",
+                  "substrate_impact_count", "irreversible_impacts",
+                  "dependencies_created", "community_effects",
+                  "ontology_conflicts", "regenerative_capacity_delta"):
+            assert k in s
+
+    def test_find_irreversible_cascades_returns_both(self):
+        """Both seed entries have generational substrate impacts."""
+        from regulation_cascade_mapper import find_irreversible_cascades
+        ids = find_irreversible_cascades()
+        assert "EX-001" in ids
+        assert "EX-002" in ids
+
+    def test_find_ontology_conflicts_relational_primary(self):
+        from regulation_cascade_mapper import find_ontology_conflicts
+        ids = find_ontology_conflicts("relational_primary")
+        assert len(ids) >= 1
+
+    def test_find_ontology_conflicts_no_match(self):
+        from regulation_cascade_mapper import find_ontology_conflicts
+        assert find_ontology_conflicts("nonexistent_frame_xyz") == []
+
+    def test_total_dependencies_created_aggregates_by_type(self):
+        from regulation_cascade_mapper import total_dependencies_created
+        counts = total_dependencies_created()
+        # Seed catalog has supply_chain, institutional, utility, commercial
+        assert counts.get("supply_chain", 0) >= 1
+        assert counts.get("institutional", 0) >= 1
+        assert sum(counts.values()) >= 4
+
+    def test_add_cascade_extends_catalog(self):
+        from regulation_cascade_mapper import (
+            CASCADE_CATALOG, add_cascade, RegulationCascade,
+            SubstrateImpact,
+        )
+        before = len(CASCADE_CATALOG)
+        new = RegulationCascade(
+            regulation_id="EX-TEST-9999",
+            regulation_text_summary="test",
+            jurisdiction="test",
+            substrate_impacts=[SubstrateImpact(
+                substrate_layer="soil",
+                impact_type="destruction",
+                reversibility="years",
+                measured_signal="test",
+            )],
+        )
+        try:
+            add_cascade(new)
+            assert "EX-TEST-9999" in CASCADE_CATALOG
+            assert len(CASCADE_CATALOG) == before + 1
+        finally:
+            # cleanup so other tests aren't affected
+            CASCADE_CATALOG.pop("EX-TEST-9999", None)
+
+    def test_format_cascade_report_includes_sections(self):
+        from regulation_cascade_mapper import (
+            format_cascade_report, MANDATORY_DRAINAGE_FIELD,
+        )
+        report = format_cascade_report(MANDATORY_DRAINAGE_FIELD)
+        for section in ("REGULATION CASCADE", "SUBSTRATE IMPACTS",
+                        "FORCED DEPENDENCIES", "COMMUNITY EFFECTS",
+                        "ONTOLOGY CONFLICTS"):
+            assert section in report
+
+
+# ─────────────────────────────────────────────
+# CONVERGENT ONTOLOGY MAPPER
+# Cross-lineage convergence: independent measurement chains
+# detecting the same relational-constraint signal.
+# ─────────────────────────────────────────────
+
+class TestConvergentOntologyMapper:
+    def test_import(self):
+        import convergent_ontology_mapper
+
+    def test_seven_lineages_catalogued(self):
+        from convergent_ontology_mapper import CATALOG
+        assert len(CATALOG) == 7
+        for required in ("Ubuntu", "Anabaptist Stewardship",
+                         "Indigenous Kinship-Land Reciprocity",
+                         "Pacific Gift Economy",
+                         "Daoist Relational Philosophy",
+                         "Open-System Thermodynamics",
+                         "Modern Ecology"):
+            assert required in CATALOG
+
+    def test_lineage_entries_have_required_fields(self):
+        from convergent_ontology_mapper import CATALOG
+        for name, lin in CATALOG.items():
+            assert lin.name == name
+            assert lin.geographic_origin
+            assert lin.primary_register
+            assert lin.encoding_language
+            assert lin.central_claim
+            assert lin.reciprocity_protocol
+            assert lin.consequence_of_violation
+            assert lin.independent_validation
+            assert lin.typical_misreading_in_dominant_frame
+
+    def test_six_convergent_claims(self):
+        from convergent_ontology_mapper import CONVERGENT_CLAIMS
+        assert len(CONVERGENT_CLAIMS) == 6
+        # All claims should be non-trivial strings
+        for claim in CONVERGENT_CLAIMS:
+            assert len(claim) > 20
+
+    def test_convergence_logic_string_present(self):
+        from convergent_ontology_mapper import CONVERGENCE_LOGIC
+        assert "metrology" in CONVERGENCE_LOGIC.lower()
+        assert "triangulat" in CONVERGENCE_LOGIC.lower()
+
+    def test_list_lineages_matches_catalog(self):
+        from convergent_ontology_mapper import list_lineages, CATALOG
+        names = list_lineages()
+        assert set(names) == set(CATALOG.keys())
+
+    def test_get_lineage_returns_known_entry(self):
+        from convergent_ontology_mapper import get_lineage
+        lin = get_lineage("Ubuntu")
+        assert lin.name == "Ubuntu"
+
+    def test_get_lineage_raises_for_unknown(self):
+        from convergent_ontology_mapper import get_lineage
+        with pytest.raises(KeyError, match="unknown lineage"):
+            get_lineage("NoSuchLineage")
+
+    def test_lineages_by_register_filters_correctly(self):
+        from convergent_ontology_mapper import lineages_by_register
+        ecological = lineages_by_register("ecological")
+        # Several lineages have "ecological" in their register
+        assert len(ecological) >= 2
+        physics = lineages_by_register("physics")
+        assert "Open-System Thermodynamics" in physics
+
+    def test_show_convergence_on_claim_includes_all_lineages(self):
+        from convergent_ontology_mapper import (
+            show_convergence_on_claim, CATALOG,
+        )
+        c = show_convergence_on_claim(0)
+        assert "claim" in c
+        for name in CATALOG:
+            assert name in c
+
+    def test_show_convergence_raises_for_out_of_range(self):
+        from convergent_ontology_mapper import show_convergence_on_claim
+        with pytest.raises(IndexError):
+            show_convergence_on_claim(99)
+        with pytest.raises(IndexError):
+            show_convergence_on_claim(-1)
+
+    def test_detect_lineage_reference_finds_multiple(self):
+        from convergent_ontology_mapper import detect_lineage_reference_in_text
+        text = (
+            "Mennonite stewardship and Ubuntu both speak to mycorrhizal "
+            "interdependence and wu-wei in the kula ring."
+        )
+        found = detect_lineage_reference_in_text(text)
+        assert "Ubuntu" in found
+        assert "Anabaptist Stewardship" in found
+        assert "Modern Ecology" in found
+        assert "Daoist Relational Philosophy" in found
+        assert "Pacific Gift Economy" in found
+
+    def test_detect_lineage_case_insensitive(self):
+        from convergent_ontology_mapper import detect_lineage_reference_in_text
+        upper = detect_lineage_reference_in_text("UBUNTU")
+        lower = detect_lineage_reference_in_text("ubuntu")
+        assert upper == lower == ["Ubuntu"]
+
+    def test_detect_lineage_empty_for_unrelated_text(self):
+        from convergent_ontology_mapper import detect_lineage_reference_in_text
+        text = "Generic text about nothing in particular."
+        assert detect_lineage_reference_in_text(text) == []
+
+
+# ─────────────────────────────────────────────
+# MONARCH CASCADE MODEL
+# Threshold-dynamics for pollinator collapse: linear forecasts
+# undershoot by what the threshold model surfaces.
+# ─────────────────────────────────────────────
+
+class TestMonarchCascadeModel:
+    def test_import(self):
+        import monarch_cascade_model
+
+    def test_four_coupling_thresholds(self):
+        from monarch_cascade_model import COUPLING_THRESHOLDS
+        assert len(COUPLING_THRESHOLDS) == 4
+        names = {t.name for t in COUPLING_THRESHOLDS}
+        for required in ("mate_finding_density",
+                         "migration_coordination",
+                         "milkweed_pollination_coupling",
+                         "genetic_diversity_floor"):
+            assert required in names
+
+    def test_thresholds_have_required_fields(self):
+        from monarch_cascade_model import COUPLING_THRESHOLDS
+        for t in COUPLING_THRESHOLDS:
+            assert t.name
+            assert t.threshold_population > 0
+            assert t.failure_mode
+            assert t.cascade_consequence
+
+    def test_thresholds_descending_population(self):
+        """Coupling thresholds should fire in order from highest to
+        lowest population as decline proceeds."""
+        from monarch_cascade_model import COUPLING_THRESHOLDS
+        pops = [t.threshold_population for t in COUPLING_THRESHOLDS]
+        assert pops == sorted(pops, reverse=True)
+
+    def test_annual_decline_reduces_population(self):
+        from monarch_cascade_model import annual_decline
+        assert annual_decline(10_000) < 10_000
+        assert annual_decline(0) == 0
+
+    def test_annual_decline_capped_at_90pct(self):
+        """Even with extreme stressor, loss is capped at 90%
+        (modulo float-point flooring of the int() conversion;
+        result is pop/10 +/- 1)."""
+        from monarch_cascade_model import annual_decline
+        result = annual_decline(10_000, stressor_multiplier=100.0)
+        assert 999 <= result <= 1_001
+
+    def test_threshold_failures_triggered_correct(self):
+        from monarch_cascade_model import threshold_failures_triggered
+        assert threshold_failures_triggered(60_000) == []
+        assert "mate_finding_density" in threshold_failures_triggered(40_000)
+        assert "genetic_diversity_floor" in threshold_failures_triggered(1_000)
+        assert len(threshold_failures_triggered(1_000)) == 4
+
+    def test_amplifier_compounds_with_failures(self):
+        from monarch_cascade_model import post_threshold_decline_amplifier
+        assert post_threshold_decline_amplifier([]) == 1.0
+        assert post_threshold_decline_amplifier(["a"]) == 1.4
+        assert post_threshold_decline_amplifier(["a", "b", "c", "d"]) == 2.6
+
+    def test_simulate_trajectory_returns_states(self):
+        from monarch_cascade_model import simulate_trajectory
+        traj = simulate_trajectory(100_000, 10)
+        assert len(traj) >= 1
+        assert traj[0]["year"] == 0
+        assert traj[0]["population"] == 100_000
+        # Each state has expected fields
+        for state in traj:
+            for k in ("year", "population", "thresholds_failed",
+                      "decline_amplifier", "effective_stressor"):
+                assert k in state
+
+    def test_simulate_terminates_at_functional_extinction(self):
+        """Below 100, sim should append the FUNCTIONAL_EXTINCTION state and stop."""
+        from monarch_cascade_model import simulate_trajectory
+        traj = simulate_trajectory(1_000, 50, stressor_multiplier=2.0)
+        last = traj[-1]
+        assert (last["population"] < 100
+                or last["decline_amplifier"] == "FUNCTIONAL_EXTINCTION")
+
+    def test_compare_returns_required_keys(self):
+        from monarch_cascade_model import compare_linear_vs_threshold_model
+        comp = compare_linear_vs_threshold_model(100_000, 10)
+        for k in ("starting_population", "years_modeled",
+                  "linear_forecast_endpoint",
+                  "threshold_model_endpoint",
+                  "underestimate_factor",
+                  "thresholds_failed_in_threshold_model"):
+            assert k in comp
+
+    def test_calibration_drives_thresholds_to_failure(self):
+        """At default calibration (400k -> 26 yr), all four thresholds
+        end up failed. Demonstrates the cascade dynamic."""
+        from monarch_cascade_model import (
+            simulate_trajectory, COUPLING_THRESHOLDS,
+        )
+        traj = simulate_trajectory(400_000, 26, stressor_multiplier=1.1)
+        final = traj[-1]
+        assert len(final["thresholds_failed"]) == len(COUPLING_THRESHOLDS)
+
+
+# ─────────────────────────────────────────────
+# DRONE POLLINATION EROI
+# Constraint analysis: technological replacement of pollinator
+# services has fundamentally lower EROI than natural pollinators.
+# ─────────────────────────────────────────────
+
+class TestDronePollinationEROI:
+    def test_import(self):
+        import drone_pollination_eroi
+
+    def test_eroi_result_fields(self):
+        from drone_pollination_eroi import natural_pollinator_eroi
+        r = natural_pollinator_eroi(1_000)
+        assert r.system_name
+        assert r.total_energy_input_mj > 0
+        assert r.food_energy_output_mj > 0
+        assert r.eroi > 0
+        assert r.notes
+
+    def test_natural_eroi_high(self):
+        """Natural pollinators have effectively very high EROI
+        because there's no fossil-energy input."""
+        from drone_pollination_eroi import natural_pollinator_eroi
+        r = natural_pollinator_eroi(1_000)
+        # Food output 30,000 × 1000 / 50 × 1000 = 600
+        assert r.eroi > 100
+
+    def test_drone_eroi_much_lower_than_natural(self):
+        """Whatever the absolute drone EROI is, it should be
+        substantially lower than the natural EROI — that's the
+        signal that survives parameter calibration."""
+        from drone_pollination_eroi import (
+            natural_pollinator_eroi, drone_pollinator_eroi,
+        )
+        n = natural_pollinator_eroi(10_000)
+        d = drone_pollinator_eroi(10_000)
+        assert n.eroi > d.eroi
+        assert n.eroi / d.eroi > 5.0   # at least 5x gap
+
+    def test_drone_eroi_scales_invariant(self):
+        """Per-acre EROI should be approximately constant (linear
+        scaling of inputs and outputs)."""
+        from drone_pollination_eroi import drone_pollinator_eroi
+        small = drone_pollinator_eroi(1_000)
+        large = drone_pollinator_eroi(100_000)
+        # EROI shouldn't differ by more than ~5% across 100x scale
+        assert abs(small.eroi - large.eroi) / large.eroi < 0.05
+
+    def test_break_even_returns_required_keys(self):
+        from drone_pollination_eroi import break_even_analysis
+        r = break_even_analysis(10_000)
+        for k in ("acres", "natural_pollinator_eroi",
+                  "drone_pollinator_eroi", "drone_energy_deficit_mj",
+                  "energy_ratio_natural_to_drone", "verdict"):
+            assert k in r
+
+    def test_break_even_verdict_matches_eroi(self):
+        """The verdict string should reflect the actual computed EROI."""
+        from drone_pollination_eroi import break_even_analysis
+        r = break_even_analysis(10_000)
+        if r["drone_pollinator_eroi"] < 1.0:
+            assert "energy-negative" in r["verdict"]
+        else:
+            assert "net energy" in r["verdict"]
+
+    def test_drone_replacements_proportional_to_acres(self):
+        """Number of drone replacements should scale linearly with acres."""
+        from drone_pollination_eroi import drone_pollinator_eroi
+        small = drone_pollinator_eroi(1_000)
+        large = drone_pollinator_eroi(10_000)
+        # Energy input should scale roughly 10x
+        ratio = large.total_energy_input_mj / small.total_energy_input_mj
+        assert 9.5 < ratio < 10.5
+
+
+# ─────────────────────────────────────────────
+# FINANCIAL CASCADE MODEL
+# Coupled cascade for industrial monoculture under pollinator
+# collapse, soil depletion, and equipment debt.
+# ─────────────────────────────────────────────
+
+class TestFinancialCascadeModel:
+    def test_import(self):
+        import financial_cascade_model
+
+    def test_yield_decreases_with_substrate_loss(self):
+        from financial_cascade_model import yield_from_substrate
+        healthy = yield_from_substrate(1.0, 1.0, 1.0)
+        depleted = yield_from_substrate(0.2, 0.2, 1.0)
+        assert depleted < healthy
+
+    def test_pollinator_decline_proportional_to_pesticide(self):
+        from financial_cascade_model import pollinator_decline
+        light = pollinator_decline(1.0, 1.0)
+        heavy = pollinator_decline(1.0, 3.0)
+        assert heavy < light
+
+    def test_pollinator_decline_floor_at_zero(self):
+        from financial_cascade_model import pollinator_decline
+        assert pollinator_decline(0.0, 1.0) == 0.0
+        assert pollinator_decline(0.01, 5.0) == 0.0
+
+    def test_soil_decline_floor_at_zero(self):
+        from financial_cascade_model import soil_decline
+        assert soil_decline(0.0, 1.0) == 0.0
+
+    def test_revenue_proportional_to_yield(self):
+        from financial_cascade_model import revenue_calculation
+        low = revenue_calculation(1000, 0.5)
+        high = revenue_calculation(1000, 1.0)
+        assert high == 2 * low
+
+    def test_simulate_farm_returns_required_keys(self):
+        from financial_cascade_model import simulate_farm_cascade
+        r = simulate_farm_cascade(years=10)
+        for k in ("states", "farm_failed_year",
+                  "final_pollinator_health", "final_soil_health",
+                  "final_yield", "final_debt", "cumulative_loss"):
+            assert k in r
+
+    def test_simulate_farm_state_count_matches_years(self):
+        from financial_cascade_model import simulate_farm_cascade
+        r = simulate_farm_cascade(years=10)
+        assert len(r["states"]) == 10
+
+    def test_simulate_farm_substrate_decays_monotonically(self):
+        """Pollinator and soil health should be non-increasing year over year."""
+        from financial_cascade_model import simulate_farm_cascade
+        r = simulate_farm_cascade(years=10)
+        states = r["states"]
+        for prev, nxt in zip(states, states[1:]):
+            assert nxt.pollinator_health <= prev.pollinator_health + 1e-9
+            assert nxt.soil_health <= prev.soil_health + 1e-9
+
+    def test_simulate_farm_default_params_trigger_failure(self):
+        """Under default coupling, the representative farm fails
+        within the simulation window."""
+        from financial_cascade_model import simulate_farm_cascade
+        r = simulate_farm_cascade(years=15)
+        assert r["farm_failed_year"] is not None
+        assert r["final_pollinator_health"] < 0.5
+
+    def test_aggregate_returns_timeline(self):
+        from financial_cascade_model import aggregate_system_cascade
+        timeline = aggregate_system_cascade(num_farms=100, years=10)
+        assert len(timeline) == 10
+        for s in timeline:
+            assert s.insurance_pool_balance is not None
+            assert s.federal_bailout_paid >= 0
+            assert 0.0 <= s.cumulative_pollinator_loss <= 1.0
+            assert 0.0 <= s.cumulative_soil_loss <= 1.0
+
+    def test_aggregate_triggers_federal_bailout(self):
+        """At default coupling and 1000 farms, federal bailouts accumulate."""
+        from financial_cascade_model import aggregate_system_cascade
+        timeline = aggregate_system_cascade(num_farms=1000, years=15)
+        final = timeline[-1]
+        assert final.federal_bailout_paid > 0
+        assert final.cumulative_pollinator_loss > 0.5
