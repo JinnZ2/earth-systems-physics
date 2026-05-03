@@ -50,6 +50,16 @@ loop6_ai_default_prior_distortion.py
     priors drift further from substrate. Suppresses the signal
     that would trigger L1-L5 remediation.
 
+loop7_geopolitical_supply_chain.py
+    Geopolitical material flow + defense priority capture +
+    sanctions cascades. 9-material registry x multi-sector
+    mapping. Three mechanisms: direct supply restriction,
+    defense capture above tension threshold, cascade
+    reallocation. "Energy independence" claims ignore the
+    input-side dependency: even with adequate domestic energy
+    resources, the infrastructure to extract and process them
+    depends on global supply chains the US doesn't control.
+
 Each module is standalone: stdlib only, dataclass + step + run +
 activation predicate, runnable as a script with a fixed seed for
 reproducibility.

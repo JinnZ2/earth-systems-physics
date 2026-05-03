@@ -137,7 +137,8 @@ earth-systems-physics/
 │   ├── loop3_refinery_mismatch.py     # refinery config × active Hormuz crisis as initial state
 │   ├── loop4_aquifer_community_automation.py # produced-water → aquifer → outmigration → automation fails
 │   ├── loop5_signal_trust_collapse.py # META-loop: signal × trust × consent (governs L1-L4 response)
-│   └── loop6_ai_default_prior_distortion.py  # INSTRUMENT loop: AI priors drift from substrate, suppress L1-L5 signal
+│   ├── loop6_ai_default_prior_distortion.py  # INSTRUMENT loop: AI priors drift from substrate, suppress L1-L5 signal
+│   └── loop7_geopolitical_supply_chain.py    # material flow × defense capture × sanctions cascades (input-side dependency)
 │
 ├── layer_0_electromagnetics.py        # Base constraint layer (+ magnonic/magnomech)
 ├── layer_0b_magnomechanical.py        # Spin-phonon coupling in crustal minerals
@@ -299,6 +300,7 @@ activation predicate.
 | 4 | `loop4_aquifer_community_automation.py` | produced-water leakage → aquifer contamination → community outmigration → automation attempted → automation fails on rough terrain + radioactive corrosion → production drops → harder extraction → more failures | `monte_carlo(...)` aggregate stats — `pct_contamination_runaway`, `pct_automation_succeeded`, `pct_abandoned` |
 | 5 | `loop5_signal_trust_collapse.py` | **META-LOOP.** Visible damage (smelt, well failures, Hormuz traffic) → institutional gaslighting widens narrative gap → trust erodes → consent for infrastructure / remediation fails → policy paralysis → damage continues. Governs whether L1-L4 get *responded to* in time. | `monte_carlo(...)` aggregate stats — `pct_structural_distrust`, `pct_consent_failed`, `pct_high_pathologization` |
 | 6 | `loop6_ai_default_prior_distortion.py` | **INSTRUMENT LOOP** (upstream of L5). AI default priors favour stable-baseline narratives → non-probing users get comfort-framed analysis → decisions made on stale info → damage compounds invisibly → substrate observers burn out carrying correction load → next-gen training data drifts further from substrate. Suppresses the signal that would trigger L1-L5 remediation. | `monte_carlo(...)` aggregate stats — `pct_severe_miscalibration`, `pct_high_decision_damage`, `pct_pivot_recovery` |
+| 7 | `loop7_geopolitical_supply_chain.py` | Geopolitical material flow + defense priority capture + sanctions cascades. 9-material x multi-sector dependency network. Direct supply restriction + defense priority capture (above tension threshold) + cascade reallocation. "Energy independence" claims ignore the input-side dependency. | `monte_carlo(...)` aggregate stats — `pct_severe_capacity_loss`, `pct_defense_capture`, `pct_sustained_high_tension` |
 
 Loops 1-2 use the dataclass + `step(state, rng)` + `run(years, seed)` +
 boolean predicate pattern, runnable with their documented seed
@@ -315,6 +317,7 @@ python oil_phase_shift/loop3_refinery_mismatch.py
 python oil_phase_shift/loop4_aquifer_community_automation.py
 python oil_phase_shift/loop5_signal_trust_collapse.py
 python oil_phase_shift/loop6_ai_default_prior_distortion.py
+python oil_phase_shift/loop7_geopolitical_supply_chain.py
 ```
 
 Documented-seed results: loop1 trims Permian to 1.75 Mb/d in 10 yr
@@ -333,7 +336,11 @@ observers**; the meta-loop is fully engaged on the documented
 substrate. Loop6 (master_seed=2026, n=2000, 10yr): **76.6% severe
 miscalibration of AI default priors (>0.85), 93.1% high decision
 damage, 0.1% pivot-enabled recovery**; mean info quality drifts to
-0.159, observers carry rising burnout. These are scenarios under
+0.159, observers carry rising burnout. Loop7 (master_seed=2026,
+n=2000, 10yr): three-way capacity split — **32% severe capacity
+loss (<40% infra), 34% moderate (40-70%), 35% intact (>70%)** —
+with 31% of trajectories activating defense priority capture and
+mean cascade amplifier reaching 1.89x. These are scenarios under
 the documented substrate, not predictions.
 
 ## Paste-from-Markdown Recovery

@@ -4498,6 +4498,7 @@ class TestOilPhaseShift:
             loop4_aquifer_community_automation,
             loop5_signal_trust_collapse,
             loop6_ai_default_prior_distortion,
+            loop7_geopolitical_supply_chain,
         )
 
     # ---- loop 1 ----
@@ -5132,3 +5133,213 @@ class TestOilPhaseShiftLoop6:
         summary(r)
         out = capsys.readouterr().out
         assert "L6 AI default-prior distortion" in out
+
+
+# ─────────────────────────────────────────────
+# OIL PHASE SHIFT — LOOP 7 (geopolitical supply chain)
+# Multi-material × multi-sector dependency network with
+# defense capture and sanctions cascades.
+# ─────────────────────────────────────────────
+
+class TestOilPhaseShiftLoop7:
+    def test_loop7_imports(self):
+        from oil_phase_shift import loop7_geopolitical_supply_chain
+
+    def test_loop7_run_trajectory_history_length(self):
+        from oil_phase_shift.loop7_geopolitical_supply_chain import (
+            run_trajectory,
+        )
+        h = run_trajectory(
+            {'tension_pressure': 0.0, 'disruption_mult': 1.0},
+            years=10, seed=42,
+        )
+        assert len(h) == 10
+        assert h[-1]['year'] == 10
+
+    def test_loop7_run_trajectory_field_keys(self):
+        from oil_phase_shift.loop7_geopolitical_supply_chain import (
+            run_trajectory,
+        )
+        h = run_trajectory(
+            {'tension_pressure': 0.0, 'disruption_mult': 1.0},
+            years=5, seed=42,
+        )
+        for record in h:
+            for key in ('year', 'tension', 'materials_disrupted_count',
+                        'mean_material_availability',
+                        'min_material_availability', 'min_material_name',
+                        'sector_capacity_min', 'sector_capacity_min_name',
+                        'infra_capacity', 'defense_captured_cumulative',
+                        'cascade_amplifier', 'substitutions_active'):
+                assert key in record
+
+    def test_loop7_tension_in_unit_interval(self):
+        from oil_phase_shift.loop7_geopolitical_supply_chain import (
+            run_trajectory,
+        )
+        h = run_trajectory(
+            {'tension_pressure': 0.06, 'disruption_mult': 1.4},
+            years=15, seed=42,
+        )
+        for s in h:
+            assert 0.0 <= s['tension'] <= 1.0
+            assert 0.0 <= s['mean_material_availability'] <= 1.0
+            assert 0.0 <= s['min_material_availability'] <= 1.0
+
+    def test_loop7_min_material_name_is_valid(self):
+        from oil_phase_shift.loop7_geopolitical_supply_chain import (
+            run_trajectory, MATERIAL_DEPENDENCY,
+        )
+        h = run_trajectory(
+            {'tension_pressure': 0.04, 'disruption_mult': 1.2},
+            years=10, seed=42,
+        )
+        for s in h:
+            assert s['min_material_name'] in MATERIAL_DEPENDENCY
+
+    def test_loop7_sector_min_name_is_valid(self):
+        from oil_phase_shift.loop7_geopolitical_supply_chain import (
+            run_trajectory, MATERIAL_TO_SECTOR,
+        )
+        all_sectors = set()
+        for d in MATERIAL_TO_SECTOR.values():
+            all_sectors.update(d.keys())
+        h = run_trajectory(
+            {'tension_pressure': 0.04, 'disruption_mult': 1.2},
+            years=10, seed=42,
+        )
+        for s in h:
+            assert s['sector_capacity_min_name'] in all_sectors
+
+    def test_loop7_material_availability_nonnegative(self):
+        """Material availability never goes negative. The disruption /
+        recovery steps clamp at 0.05, but defense capture (step 3) runs
+        after and can drive a same-year disrupted material below that
+        floor — non-negativity is the actual hard invariant."""
+        from oil_phase_shift.loop7_geopolitical_supply_chain import (
+            run_trajectory,
+        )
+        h = run_trajectory(
+            {'tension_pressure': 0.06, 'disruption_mult': 1.4},
+            years=20, seed=42,
+        )
+        for s in h:
+            assert s['min_material_availability'] >= 0.0
+
+    def test_loop7_cascade_amplifier_bounded(self):
+        from oil_phase_shift.loop7_geopolitical_supply_chain import (
+            run_trajectory,
+        )
+        h = run_trajectory(
+            {'tension_pressure': 0.06, 'disruption_mult': 1.4},
+            years=20, seed=42,
+        )
+        for s in h:
+            assert 1.0 <= s['cascade_amplifier'] <= 3.0
+
+    def test_loop7_higher_tension_pressure_lowers_capacity(self):
+        from oil_phase_shift.loop7_geopolitical_supply_chain import (
+            run_trajectory,
+        )
+        hi = lo = 0.0
+        for seed in range(20):
+            h_hi = run_trajectory(
+                {'tension_pressure': 0.06, 'disruption_mult': 1.4},
+                years=10, seed=seed,
+            )
+            h_lo = run_trajectory(
+                {'tension_pressure': -0.02, 'disruption_mult': 0.7},
+                years=10, seed=seed,
+            )
+            hi += h_hi[-1]['infra_capacity']
+            lo += h_lo[-1]['infra_capacity']
+        assert hi < lo, (
+            "high tension/disruption should lower infra capacity on average"
+        )
+
+    def test_loop7_defense_capture_only_above_threshold(self):
+        """Defense capture should be zero in trajectories that never
+        cross the tension threshold."""
+        from oil_phase_shift.loop7_geopolitical_supply_chain import (
+            run_trajectory, DEFENSE_CAPTURE_THRESHOLD,
+        )
+        # Force tension to stay low
+        h = run_trajectory(
+            {'tension_pressure': -0.05, 'disruption_mult': 0.5},
+            years=10, seed=42,
+        )
+        max_tension = max(s['tension'] for s in h)
+        if max_tension < DEFENSE_CAPTURE_THRESHOLD:
+            assert h[-1]['defense_captured_cumulative'] == 0.0
+
+    def test_loop7_monte_carlo_returns_required_stats(self):
+        from oil_phase_shift.loop7_geopolitical_supply_chain import (
+            monte_carlo,
+        )
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        for key in ('n', 'years', 'mean_final_infra_capacity',
+                    'mean_final_tension', 'mean_cascade_amp',
+                    'pct_severe_capacity_loss',
+                    'pct_moderate_capacity_loss',
+                    'pct_capacity_intact',
+                    'pct_sustained_high_tension',
+                    'pct_defense_capture',
+                    'sample_traces'):
+            assert key in r
+
+    def test_loop7_monte_carlo_pct_in_unit_interval(self):
+        from oil_phase_shift.loop7_geopolitical_supply_chain import (
+            monte_carlo,
+        )
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        for key in ('pct_severe_capacity_loss',
+                    'pct_moderate_capacity_loss',
+                    'pct_capacity_intact',
+                    'pct_sustained_high_tension',
+                    'pct_defense_capture'):
+            assert 0.0 <= r[key] <= 1.0
+
+    def test_loop7_monte_carlo_capacity_bins_partition_unity(self):
+        """Severe + moderate + intact should sum to 1 (every trajectory
+        falls into exactly one bucket)."""
+        from oil_phase_shift.loop7_geopolitical_supply_chain import (
+            monte_carlo,
+        )
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        total = (r['pct_severe_capacity_loss']
+                 + r['pct_moderate_capacity_loss']
+                 + r['pct_capacity_intact'])
+        assert abs(total - 1.0) < 1e-9
+
+    def test_loop7_monte_carlo_deterministic_with_master_seed(self):
+        from oil_phase_shift.loop7_geopolitical_supply_chain import (
+            monte_carlo,
+        )
+        r1 = monte_carlo(n=50, years=10, master_seed=2026)
+        r2 = monte_carlo(n=50, years=10, master_seed=2026)
+        for key in ('mean_final_infra_capacity',
+                    'mean_final_tension', 'mean_cascade_amp',
+                    'pct_severe_capacity_loss',
+                    'pct_capacity_intact',
+                    'pct_defense_capture'):
+            assert r1[key] == r2[key]
+
+    def test_loop7_documented_run_capacity_distribution(self):
+        """master_seed=2026 / n=2000 / 10yr: documented substrate
+        produces a roughly three-way split (each bucket >15%)."""
+        from oil_phase_shift.loop7_geopolitical_supply_chain import (
+            monte_carlo,
+        )
+        r = monte_carlo(n=2000, years=10, master_seed=2026)
+        assert r['pct_severe_capacity_loss']   > 0.15
+        assert r['pct_moderate_capacity_loss'] > 0.15
+        assert r['pct_capacity_intact']        > 0.15
+
+    def test_loop7_summary_runs(self, capsys):
+        from oil_phase_shift.loop7_geopolitical_supply_chain import (
+            monte_carlo, summary,
+        )
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        summary(r)
+        out = capsys.readouterr().out
+        assert "L7 geopolitical supply chain" in out
