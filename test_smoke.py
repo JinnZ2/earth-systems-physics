@@ -5601,3 +5601,213 @@ class TestRelationalOntology:
         assert RELATIONAL_PRIMARY_EXTENDED.invalid_response_register
         # Sanity: separation_status should reflect the physics framing
         assert "infrastructure" in RELATIONAL_PRIMARY_EXTENDED.separation_status.lower()
+
+
+# ─────────────────────────────────────────────
+# REGULATION CASCADE MAPPER
+# Maps regulation -> substrate impact / forced dependency /
+# community effect / ontology conflict / regenerative-capacity loss.
+# Pairs with relational_ontology and substrate_audit.
+# ─────────────────────────────────────────────
+
+class TestRegulationCascadeMapper:
+    def test_import(self):
+        import regulation_cascade_mapper
+
+    def test_seed_catalog_has_two_entries(self):
+        from regulation_cascade_mapper import CASCADE_CATALOG
+        assert len(CASCADE_CATALOG) == 2
+        assert "EX-001" in CASCADE_CATALOG
+        assert "EX-002" in CASCADE_CATALOG
+
+    def test_cascade_entries_have_required_fields(self):
+        from regulation_cascade_mapper import CASCADE_CATALOG
+        for cid, cascade in CASCADE_CATALOG.items():
+            assert cascade.regulation_id == cid
+            assert cascade.regulation_text_summary
+            assert cascade.jurisdiction
+            assert cascade.substrate_impacts
+            assert cascade.forced_dependencies
+            assert cascade.community_effects
+            assert cascade.ontology_conflicts
+            assert cascade.regenerative_capacity_delta
+
+    def test_cascade_summary_returns_required_keys(self):
+        from regulation_cascade_mapper import (
+            cascade_summary, MANDATORY_DRAINAGE_FIELD,
+        )
+        s = cascade_summary(MANDATORY_DRAINAGE_FIELD)
+        for k in ("regulation_id", "summary", "jurisdiction",
+                  "substrate_impact_count", "irreversible_impacts",
+                  "dependencies_created", "community_effects",
+                  "ontology_conflicts", "regenerative_capacity_delta"):
+            assert k in s
+
+    def test_find_irreversible_cascades_returns_both(self):
+        """Both seed entries have generational substrate impacts."""
+        from regulation_cascade_mapper import find_irreversible_cascades
+        ids = find_irreversible_cascades()
+        assert "EX-001" in ids
+        assert "EX-002" in ids
+
+    def test_find_ontology_conflicts_relational_primary(self):
+        from regulation_cascade_mapper import find_ontology_conflicts
+        ids = find_ontology_conflicts("relational_primary")
+        assert len(ids) >= 1
+
+    def test_find_ontology_conflicts_no_match(self):
+        from regulation_cascade_mapper import find_ontology_conflicts
+        assert find_ontology_conflicts("nonexistent_frame_xyz") == []
+
+    def test_total_dependencies_created_aggregates_by_type(self):
+        from regulation_cascade_mapper import total_dependencies_created
+        counts = total_dependencies_created()
+        # Seed catalog has supply_chain, institutional, utility, commercial
+        assert counts.get("supply_chain", 0) >= 1
+        assert counts.get("institutional", 0) >= 1
+        assert sum(counts.values()) >= 4
+
+    def test_add_cascade_extends_catalog(self):
+        from regulation_cascade_mapper import (
+            CASCADE_CATALOG, add_cascade, RegulationCascade,
+            SubstrateImpact,
+        )
+        before = len(CASCADE_CATALOG)
+        new = RegulationCascade(
+            regulation_id="EX-TEST-9999",
+            regulation_text_summary="test",
+            jurisdiction="test",
+            substrate_impacts=[SubstrateImpact(
+                substrate_layer="soil",
+                impact_type="destruction",
+                reversibility="years",
+                measured_signal="test",
+            )],
+        )
+        try:
+            add_cascade(new)
+            assert "EX-TEST-9999" in CASCADE_CATALOG
+            assert len(CASCADE_CATALOG) == before + 1
+        finally:
+            # cleanup so other tests aren't affected
+            CASCADE_CATALOG.pop("EX-TEST-9999", None)
+
+    def test_format_cascade_report_includes_sections(self):
+        from regulation_cascade_mapper import (
+            format_cascade_report, MANDATORY_DRAINAGE_FIELD,
+        )
+        report = format_cascade_report(MANDATORY_DRAINAGE_FIELD)
+        for section in ("REGULATION CASCADE", "SUBSTRATE IMPACTS",
+                        "FORCED DEPENDENCIES", "COMMUNITY EFFECTS",
+                        "ONTOLOGY CONFLICTS"):
+            assert section in report
+
+
+# ─────────────────────────────────────────────
+# CONVERGENT ONTOLOGY MAPPER
+# Cross-lineage convergence: independent measurement chains
+# detecting the same relational-constraint signal.
+# ─────────────────────────────────────────────
+
+class TestConvergentOntologyMapper:
+    def test_import(self):
+        import convergent_ontology_mapper
+
+    def test_seven_lineages_catalogued(self):
+        from convergent_ontology_mapper import CATALOG
+        assert len(CATALOG) == 7
+        for required in ("Ubuntu", "Anabaptist Stewardship",
+                         "Indigenous Kinship-Land Reciprocity",
+                         "Pacific Gift Economy",
+                         "Daoist Relational Philosophy",
+                         "Open-System Thermodynamics",
+                         "Modern Ecology"):
+            assert required in CATALOG
+
+    def test_lineage_entries_have_required_fields(self):
+        from convergent_ontology_mapper import CATALOG
+        for name, lin in CATALOG.items():
+            assert lin.name == name
+            assert lin.geographic_origin
+            assert lin.primary_register
+            assert lin.encoding_language
+            assert lin.central_claim
+            assert lin.reciprocity_protocol
+            assert lin.consequence_of_violation
+            assert lin.independent_validation
+            assert lin.typical_misreading_in_dominant_frame
+
+    def test_six_convergent_claims(self):
+        from convergent_ontology_mapper import CONVERGENT_CLAIMS
+        assert len(CONVERGENT_CLAIMS) == 6
+        # All claims should be non-trivial strings
+        for claim in CONVERGENT_CLAIMS:
+            assert len(claim) > 20
+
+    def test_convergence_logic_string_present(self):
+        from convergent_ontology_mapper import CONVERGENCE_LOGIC
+        assert "metrology" in CONVERGENCE_LOGIC.lower()
+        assert "triangulat" in CONVERGENCE_LOGIC.lower()
+
+    def test_list_lineages_matches_catalog(self):
+        from convergent_ontology_mapper import list_lineages, CATALOG
+        names = list_lineages()
+        assert set(names) == set(CATALOG.keys())
+
+    def test_get_lineage_returns_known_entry(self):
+        from convergent_ontology_mapper import get_lineage
+        lin = get_lineage("Ubuntu")
+        assert lin.name == "Ubuntu"
+
+    def test_get_lineage_raises_for_unknown(self):
+        from convergent_ontology_mapper import get_lineage
+        with pytest.raises(KeyError, match="unknown lineage"):
+            get_lineage("NoSuchLineage")
+
+    def test_lineages_by_register_filters_correctly(self):
+        from convergent_ontology_mapper import lineages_by_register
+        ecological = lineages_by_register("ecological")
+        # Several lineages have "ecological" in their register
+        assert len(ecological) >= 2
+        physics = lineages_by_register("physics")
+        assert "Open-System Thermodynamics" in physics
+
+    def test_show_convergence_on_claim_includes_all_lineages(self):
+        from convergent_ontology_mapper import (
+            show_convergence_on_claim, CATALOG,
+        )
+        c = show_convergence_on_claim(0)
+        assert "claim" in c
+        for name in CATALOG:
+            assert name in c
+
+    def test_show_convergence_raises_for_out_of_range(self):
+        from convergent_ontology_mapper import show_convergence_on_claim
+        with pytest.raises(IndexError):
+            show_convergence_on_claim(99)
+        with pytest.raises(IndexError):
+            show_convergence_on_claim(-1)
+
+    def test_detect_lineage_reference_finds_multiple(self):
+        from convergent_ontology_mapper import detect_lineage_reference_in_text
+        text = (
+            "Mennonite stewardship and Ubuntu both speak to mycorrhizal "
+            "interdependence and wu-wei in the kula ring."
+        )
+        found = detect_lineage_reference_in_text(text)
+        assert "Ubuntu" in found
+        assert "Anabaptist Stewardship" in found
+        assert "Modern Ecology" in found
+        assert "Daoist Relational Philosophy" in found
+        assert "Pacific Gift Economy" in found
+
+    def test_detect_lineage_case_insensitive(self):
+        from convergent_ontology_mapper import detect_lineage_reference_in_text
+        upper = detect_lineage_reference_in_text("UBUNTU")
+        lower = detect_lineage_reference_in_text("ubuntu")
+        assert upper == lower == ["Ubuntu"]
+
+    def test_detect_lineage_empty_for_unrelated_text(self):
+        from convergent_ontology_mapper import detect_lineage_reference_in_text
+        text = "Generic text about nothing in particular."
+        assert detect_lineage_reference_in_text(text) == []
