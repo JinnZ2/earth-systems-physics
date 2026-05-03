@@ -60,6 +60,18 @@ loop7_geopolitical_supply_chain.py
     resources, the infrastructure to extract and process them
     depends on global supply chains the US doesn't control.
 
+cascade_coupler.py
+    Integration layer. Imports all seven loops, runs them with
+    shared CascadeState, applies the documented cross-loop
+    edges (L1->L3 supply, L2->L4 contamination, L4->L1 labor
+    floor, L3->L2 margin, L5->all response capacity, L6->L5
+    visibility, L7->L1/L3 material constraint, L7->L4
+    automation, L1+L4->L5 damage acceleration, L3->L7 tension
+    pressure), classifies each trajectory into one of four
+    outcome modes (managed_contraction, stair_step_cascade,
+    honest_pivot_recovery, hard_break), returns the path
+    distribution. See README.md for the full architecture.
+
 Each module is standalone: stdlib only, dataclass + step + run +
 activation predicate, runnable as a script with a fixed seed for
 reproducibility.

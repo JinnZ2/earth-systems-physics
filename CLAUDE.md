@@ -138,7 +138,9 @@ earth-systems-physics/
 │   ├── loop4_aquifer_community_automation.py # produced-water → aquifer → outmigration → automation fails
 │   ├── loop5_signal_trust_collapse.py # META-loop: signal × trust × consent (governs L1-L4 response)
 │   ├── loop6_ai_default_prior_distortion.py  # INSTRUMENT loop: AI priors drift from substrate, suppress L1-L5 signal
-│   └── loop7_geopolitical_supply_chain.py    # material flow × defense capture × sanctions cascades (input-side dependency)
+│   ├── loop7_geopolitical_supply_chain.py    # material flow × defense capture × sanctions cascades (input-side dependency)
+│   ├── cascade_coupler.py                     # L1-L7 integration: shared state + cross-loop edges + outcome-mode classifier
+│   └── README.md                              # sub-project README (architecture, output, honest notes)
 │
 ├── layer_0_electromagnetics.py        # Base constraint layer (+ magnonic/magnomech)
 ├── layer_0b_magnomechanical.py        # Spin-phonon coupling in crustal minerals
@@ -342,6 +344,19 @@ loss (<40% infra), 34% moderate (40-70%), 35% intact (>70%)** —
 with 31% of trajectories activating defense priority capture and
 mean cascade amplifier reaching 1.89x. These are scenarios under
 the documented substrate, not predictions.
+
+The integrated cascade `cascade_coupler.py` runs all seven loops
+with shared `CascadeState` and applies the documented cross-loop
+edges (L1→L3, L2→L4, L4→L1, L3→L2, L5→all, L6→L5, L7→L1/L3, L7→L4,
+L1+L4→L5, L3→L7), then classifies each trajectory into one of four
+outcome modes. Documented run (master_seed=2026, n=2000, 10yr):
+**81.8% stair_step_cascade, 18.1% hard_break, 0.1% managed_
+contraction, 0.0% honest_pivot_recovery** — under current 2026
+initial conditions, 99.9% of trajectories cascade; they differ only
+in whether the cascade is gradual-but-irreversible or compressed-
+acute. See `oil_phase_shift/README.md` for the full architecture
+plus the parameter-resets that populate the recovery mode (prior
+calibration 0.40, trust 0.65, Hormuz non-crisis).
 
 ## Paste-from-Markdown Recovery
 

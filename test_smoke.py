@@ -4499,6 +4499,7 @@ class TestOilPhaseShift:
             loop5_signal_trust_collapse,
             loop6_ai_default_prior_distortion,
             loop7_geopolitical_supply_chain,
+            cascade_coupler,
         )
 
     # ---- loop 1 ----
@@ -5343,3 +5344,133 @@ class TestOilPhaseShiftLoop7:
         summary(r)
         out = capsys.readouterr().out
         assert "L7 geopolitical supply chain" in out
+
+
+# ─────────────────────────────────────────────
+# OIL PHASE SHIFT — CASCADE COUPLER
+# Integration layer for L1-L7 with cross-loop edges and outcome
+# mode classification.
+# ─────────────────────────────────────────────
+
+class TestCascadeCoupler:
+    def test_coupler_imports(self):
+        from oil_phase_shift import cascade_coupler
+
+    def test_cascade_state_initial_values(self):
+        from oil_phase_shift.cascade_coupler import CascadeState
+        s = CascadeState()
+        # production baseline 13.5 mmbbl/d; Hormuz at 1.0 (crisis state)
+        assert s.production       == 13.5
+        assert s.hormuz_flow      == 1.0
+        assert s.crisis_resolved  is False
+        assert s.tension          == 0.18
+        assert s.material_avail   == 0.85
+        assert s.trust            == 0.45
+        assert s.prior_calibration == 0.65
+
+    def test_outcome_modes_constant(self):
+        from oil_phase_shift.cascade_coupler import OUTCOME_MODES
+        assert set(OUTCOME_MODES) == {
+            'managed_contraction',
+            'stair_step_cascade',
+            'honest_pivot_recovery',
+            'hard_break',
+        }
+
+    def test_run_trajectory_shape(self):
+        from oil_phase_shift.cascade_coupler import run_trajectory
+        trace = run_trajectory(years=10, seed=42)
+        assert len(trace) == 10
+        assert trace[-1]['year'] == 10
+
+    def test_run_trajectory_field_keys(self):
+        from oil_phase_shift.cascade_coupler import run_trajectory
+        trace = run_trajectory(years=5, seed=42)
+        for record in trace:
+            for key in ('year', 'production', 'oil_price',
+                        'refinery_throughput', 'aquifer_contam',
+                        'community_pop', 'trust', 'narrative_gap',
+                        'material_avail', 'tension',
+                        'prior_calibration', 'response_capacity',
+                        'structural_distrust', 'crisis_resolved',
+                        'automation_active'):
+                assert key in record
+
+    def test_classify_trajectory_returns_valid_mode(self):
+        from oil_phase_shift.cascade_coupler import (
+            run_trajectory, classify_trajectory, OUTCOME_MODES,
+        )
+        for seed in range(20):
+            trace = run_trajectory(years=10, seed=seed)
+            mode = classify_trajectory(trace)
+            assert mode in OUTCOME_MODES
+
+    def test_monte_carlo_modes_partition_unity(self):
+        from oil_phase_shift.cascade_coupler import monte_carlo
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        total = sum(r['modes'].values())
+        assert abs(total - 1.0) < 1e-9
+        # mode_counts should also sum to n
+        assert sum(r['mode_counts'].values()) == r['n']
+
+    def test_monte_carlo_returns_required_stats(self):
+        from oil_phase_shift.cascade_coupler import monte_carlo
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        for key in ('n', 'years', 'modes', 'mode_counts',
+                    'mean_final_production', 'mean_final_price',
+                    'mean_final_trust', 'mean_final_material',
+                    'sample_per_mode'):
+            assert key in r
+
+    def test_monte_carlo_pct_in_unit_interval(self):
+        from oil_phase_shift.cascade_coupler import monte_carlo
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        for mode_name, frac in r['modes'].items():
+            assert 0.0 <= frac <= 1.0
+
+    def test_monte_carlo_sample_per_mode_capped(self):
+        """Each mode samples up to 3 traces."""
+        from oil_phase_shift.cascade_coupler import monte_carlo
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        for mode, traces in r['sample_per_mode'].items():
+            assert len(traces) <= 3
+            for trace in traces:
+                assert len(trace) == 10
+
+    def test_monte_carlo_deterministic_with_master_seed(self):
+        from oil_phase_shift.cascade_coupler import monte_carlo
+        r1 = monte_carlo(n=50, years=10, master_seed=2026)
+        r2 = monte_carlo(n=50, years=10, master_seed=2026)
+        for key in ('mean_final_production', 'mean_final_price',
+                    'mean_final_trust', 'mean_final_material'):
+            assert r1[key] == r2[key]
+        for mode in r1['modes']:
+            assert r1['modes'][mode] == r2['modes'][mode]
+
+    def test_documented_run_cascade_dominates(self):
+        """master_seed=2026, n=2000, 10yr — under documented 2026
+        substrate, 99%+ of trajectories cascade (stair_step or
+        hard_break); recovery + managed_contraction together <1%."""
+        from oil_phase_shift.cascade_coupler import monte_carlo
+        r = monte_carlo(n=2000, years=10, master_seed=2026)
+        cascade = (r['modes']['stair_step_cascade']
+                   + r['modes']['hard_break'])
+        assert cascade > 0.95, (
+            f"Cascade modes (stair_step + hard_break) = "
+            f"{cascade*100:.1f}%; expected > 95%"
+        )
+
+    def test_documented_run_stair_step_dominant(self):
+        """Stair-step cascade is the dominant mode at master_seed=2026."""
+        from oil_phase_shift.cascade_coupler import monte_carlo
+        r = monte_carlo(n=2000, years=10, master_seed=2026)
+        modes_sorted = sorted(r['modes'].items(), key=lambda kv: -kv[1])
+        assert modes_sorted[0][0] == 'stair_step_cascade'
+
+    def test_summary_runs(self, capsys):
+        from oil_phase_shift.cascade_coupler import monte_carlo, summary
+        r = monte_carlo(n=50, years=10, master_seed=2026)
+        summary(r)
+        out = capsys.readouterr().out
+        assert "Cascade coupler" in out
+        assert "OUTCOME MODE DISTRIBUTION" in out
