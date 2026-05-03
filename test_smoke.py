@@ -201,25 +201,26 @@ class TestLayer6CouplingState:
 
 class TestCascadeEngine:
     def test_run_all_layers_baseline(self):
-        from cascade_engine import run_all_layers, BASELINE
+        from cascade_engine import run_all_layers, BASELINE, LAYER_INDICES
         states = run_all_layers(BASELINE)
-        assert len(states) == 7
-        for i in range(7):
+        assert set(states.keys()) == set(LAYER_INDICES)
+        for i in LAYER_INDICES:
             assert isinstance(states[i], dict)
             assert len(states[i]) > 0
 
     def test_run_cascade_co2_pulse(self):
-        from cascade_engine import run_cascade, SCENARIOS
+        from cascade_engine import run_cascade, SCENARIOS, LAYER_INDICES
         result = run_cascade(SCENARIOS["co2_pulse_100ppm"], verbose=False)
         assert result.forcing is not None
-        assert len(result.layer_states) == 7
+        assert set(result.layer_states.keys()) == set(LAYER_INDICES)
 
     def test_run_cascade_all_scenarios(self):
-        from cascade_engine import run_cascade, SCENARIOS
+        from cascade_engine import run_cascade, SCENARIOS, LAYER_INDICES
         for name, scenario in SCENARIOS.items():
             result = run_cascade(scenario, verbose=False)
             assert result.forcing is not None, f"Scenario {name} failed"
-            assert len(result.layer_states) == 7, f"Scenario {name} missing layers"
+            assert set(result.layer_states.keys()) == set(LAYER_INDICES), \
+                f"Scenario {name} missing layers"
 
     def test_cascade_result_has_summary(self):
         from cascade_engine import run_cascade, SCENARIOS
@@ -334,7 +335,9 @@ class TestAssumptionValidator:
         assert isinstance(report, dict)
 
     def test_every_layer_has_assumption(self):
-        """Every layer (0-6) has at least one registered assumption check."""
+        """Every Earth-system physics layer (0-6) has at least one
+        registered assumption check. Layer -1 (orbital) and Layer 7
+        (infrastructure) are auxiliary and not required to register."""
         from assumption_validator.registry import REGISTRY
         layers_covered = set()
         for boundary in REGISTRY.values():
@@ -461,10 +464,10 @@ class TestMagnonicSublayer:
 
     def test_geomagnetic_scenario_runs(self):
         """The geomagnetic_field_weakening scenario should run."""
-        from cascade_engine import run_cascade, SCENARIOS
+        from cascade_engine import run_cascade, SCENARIOS, LAYER_INDICES
         result = run_cascade(SCENARIOS["geomagnetic_field_weakening"], verbose=False)
         assert result.forcing is not None
-        assert len(result.layer_states) == 7
+        assert set(result.layer_states.keys()) == set(LAYER_INDICES)
 
 
 # ─────────────────────────────────────────────
@@ -554,12 +557,12 @@ class TestMagnomechanicalSublayer:
 
     def test_new_scenarios_run(self):
         """New magnomechanical scenarios should run."""
-        from cascade_engine import run_cascade, SCENARIOS
+        from cascade_engine import run_cascade, SCENARIOS, LAYER_INDICES
         for name in ["geomagnetic_storm_magnomech", "morin_transition",
                      "bif_magnonic_crystal"]:
             result = run_cascade(SCENARIOS[name], verbose=False)
             assert result.forcing is not None, f"Scenario {name} failed"
-            assert len(result.layer_states) == 7
+            assert set(result.layer_states.keys()) == set(LAYER_INDICES)
 
     def test_magnomechanical_feedback_loop_exists(self):
         """The Magnomechanical-EM loop should be in KNOWN_LOOPS."""
@@ -3500,3 +3503,813 @@ class TestEnergyAudit:
         )
         result = audit_energy(f, BASELINE, verbose=False)
         assert result["energy_leak"] is False
+
+
+# ─────────────────────────────────────────────
+# LAYER -1 — ORBITAL FORCING (Milankovitch)
+# ─────────────────────────────────────────────
+
+class TestLayerMinus1Orbital:
+    def test_import(self):
+        import layer_minus1_orbital
+
+    def test_eccentricity_present_in_range(self):
+        from layer_minus1_orbital import eccentricity
+        e = eccentricity(0.0)
+        assert 0.0 <= e <= 0.07
+
+    def test_obliquity_present_in_range(self):
+        from layer_minus1_orbital import obliquity_deg
+        eps = obliquity_deg(0.0)
+        assert 21.5 <= eps <= 24.8
+
+    def test_climatic_precession_bounded(self):
+        from layer_minus1_orbital import climatic_precession
+        for t in (-100.0, -21.0, 0.0, 50.0):
+            p = climatic_precession(t)
+            assert -0.07 <= p <= 0.07
+
+    def test_lgm_obliquity_lower_than_present(self):
+        """Obliquity at LGM (-21 kyr) is below present per Berger 1978."""
+        from layer_minus1_orbital import obliquity_deg
+        assert obliquity_deg(-21.0) < obliquity_deg(0.0)
+
+    def test_orbital_to_rotation_returns_dict(self):
+        from layer_minus1_orbital import orbital_to_rotation_perturbation
+        r = orbital_to_rotation_perturbation(0.0)
+        assert "delta_omega_orbital_rads" in r
+        assert "delta_omega_tidal_rads" in r
+        assert "delta_omega_precession_rads" in r
+
+    def test_orbital_rotation_superposes_two_channels(self):
+        """Total = tidal + precession (channel a + channel c)."""
+        from layer_minus1_orbital import orbital_to_rotation_perturbation
+        r = orbital_to_rotation_perturbation(0.0)
+        expected = r["delta_omega_tidal_rads"] + r["delta_omega_precession_rads"]
+        assert abs(r["delta_omega_orbital_rads"] - expected) < 1e-25
+
+    def test_rotation_to_dipole_drift_signs(self):
+        """Negative delta_omega -> positive dM/dt (linear response)."""
+        from layer_minus1_orbital import rotation_to_dipole_drift
+        assert rotation_to_dipole_drift(-1e-13) > 0
+        assert rotation_to_dipole_drift(+1e-13) < 0
+        assert rotation_to_dipole_drift(0.0) == 0.0
+
+    def test_coupling_state_returns_required_keys(self):
+        from layer_minus1_orbital import coupling_state
+        s = coupling_state(0.0)
+        for k in ("eccentricity", "obliquity_deg", "climatic_precession",
+                  "insolation_65N_summer_Wm2",
+                  "delta_omega_orbital_rads", "dM_dipole_per_yr_Am2"):
+            assert k in s, f"Missing key: {k}"
+
+    def test_tau_dynamo_zero_returns_zero_drift(self):
+        from layer_minus1_orbital import rotation_to_dipole_drift
+        assert rotation_to_dipole_drift(-1e-13, tau_dynamo_yr=0.0) == 0.0
+
+    def test_orbital_lgm_scenario_runs(self):
+        from cascade_engine import run_cascade, SCENARIOS
+        result = run_cascade(SCENARIOS["orbital_lgm_epoch"], verbose=False)
+        assert result.layer_states[-1]["epoch_kyr"] == -21.0
+
+
+# ─────────────────────────────────────────────
+# LAYER 5 — ORBITAL ROTATION COUPLING
+# ─────────────────────────────────────────────
+
+class TestLayer5OrbitalCoupling:
+    def test_orbital_omega_added_to_total(self):
+        """Layer 5 should superpose ice-mass omega change with orbital."""
+        from layer_5_lithosphere import coupling_state
+        s = coupling_state(ice_mass_loss_Gt=280.0, SLR_m=0.20,
+                           T_ocean_C=15.0,
+                           delta_omega_orbital_rads=-3.87e-13)
+        assert s["delta_omega_orbital_rads"] == -3.87e-13
+        expected = s["omega_change_rads"] + s["delta_omega_orbital_rads"]
+        assert abs(s["omega_change_total_rads"] - expected) < 1e-25
+
+    def test_orbital_default_zero_preserves_legacy_behaviour(self):
+        from layer_5_lithosphere import coupling_state
+        s = coupling_state(ice_mass_loss_Gt=280.0, SLR_m=0.20,
+                           T_ocean_C=15.0)
+        assert s["delta_omega_orbital_rads"] == 0.0
+        assert s["omega_change_total_rads"] == s["omega_change_rads"]
+
+
+# ─────────────────────────────────────────────
+# LAYER 0 — DIPOLE DRIFT FROM ORBITAL
+# ─────────────────────────────────────────────
+
+class TestLayer0DipoleDrift:
+    def test_M_EARTH_constant_present(self):
+        from layer_0_electromagnetics import M_EARTH
+        assert 7e22 < M_EARTH < 9e22
+
+    def test_dipole_static_when_dt_is_zero(self):
+        from layer_0_electromagnetics import coupling_state, M_EARTH
+        s = coupling_state(n_e=1e12, B_surface=5e-5, E_surface=1e-4,
+                           frequency_range=(1e3, 1e7),
+                           dM_dipole_per_yr_Am2=1e11,
+                           dt_orbital_yr=0.0)
+        assert s["M_dipole_Am2"] == M_EARTH
+        assert s["dipole_drift_fraction"] == 0.0
+
+    def test_dipole_drifts_with_time(self):
+        from layer_0_electromagnetics import coupling_state, M_EARTH
+        s = coupling_state(n_e=1e12, B_surface=5e-5, E_surface=1e-4,
+                           frequency_range=(1e3, 1e7),
+                           dM_dipole_per_yr_Am2=1e17,
+                           dt_orbital_yr=100.0)
+        assert s["M_dipole_Am2"] != M_EARTH
+        assert s["dipole_drift_fraction"] != 0.0
+
+
+# ─────────────────────────────────────────────
+# LAYER 2 — AEROSOL CONDUCTIVITY MODULATION
+# ─────────────────────────────────────────────
+
+class TestLayer2AerosolModulation:
+    def test_zero_aerosol_factor_is_one(self):
+        from layer_2_ionosphere import aerosol_conductivity_modulation
+        r = aerosol_conductivity_modulation(0.0)
+        assert r["aerosol_modulation_factor"] == 1.0
+        assert r["sigma_atm_S_m"] == r["sigma_atm_baseline_S_m"]
+
+    def test_aerosol_increases_conductivity(self):
+        from layer_2_ionosphere import aerosol_conductivity_modulation
+        r0 = aerosol_conductivity_modulation(0.0)
+        r1 = aerosol_conductivity_modulation(1e-9)
+        assert r1["sigma_atm_S_m"] > r0["sigma_atm_S_m"]
+
+    def test_negative_aerosol_clipped_to_zero(self):
+        """Negative loading should not reduce conductivity below baseline."""
+        from layer_2_ionosphere import aerosol_conductivity_modulation
+        r = aerosol_conductivity_modulation(-1e-6)
+        assert r["aerosol_modulation_factor"] == 1.0
+
+    def test_coupling_state_includes_sigma_atm(self):
+        from layer_2_ionosphere import coupling_state
+        s = coupling_state(n_e_F2=1e12, B_surface=5e-5, kp=2.0,
+                           solar_flux=1.0, metallic_aerosol_kg_m3=1e-9)
+        assert "sigma_atm_S_m" in s
+        assert s["aerosol_modulation_factor"] > 1.0
+
+
+# ─────────────────────────────────────────────
+# LAYER 7 — INFRASTRUCTURE (GIC + corrosion + transformer)
+# ─────────────────────────────────────────────
+
+class TestLayer7Infrastructure:
+    def test_import(self):
+        import layer_7_infrastructure
+
+    def test_zero_dBdt_zero_E_field(self):
+        from layer_7_infrastructure import ground_electric_field
+        assert ground_electric_field(0.0) == 0.0
+
+    def test_E_field_scales_with_dBdt(self):
+        from layer_7_infrastructure import ground_electric_field
+        e1 = ground_electric_field(1e-9)
+        e2 = ground_electric_field(2e-9)
+        assert abs(e2 / e1 - 2.0) < 1e-9
+
+    def test_E_field_scales_with_sqrt_rho(self):
+        """Plane-wave: E ~ sqrt(rho)."""
+        from layer_7_infrastructure import ground_electric_field
+        e1 = ground_electric_field(1e-9, soil_rho_ohm_m=100.0)
+        e2 = ground_electric_field(1e-9, soil_rho_ohm_m=400.0)
+        # 4x rho -> 2x E
+        assert abs(e2 / e1 - 2.0) < 1e-6
+
+    def test_gic_increases_with_E(self):
+        from layer_7_infrastructure import gic_current
+        assert gic_current(2.0) > gic_current(1.0)
+
+    def test_corrosion_zero_when_no_defects(self):
+        from layer_7_infrastructure import corrosion_mass_rate
+        assert corrosion_mass_rate(100.0, coating_defect_fraction=0.0) == 0.0
+
+    def test_damage_index_three_factors(self):
+        """damage = (I/I_ref) * (defect/defect_ref) * (rho_ref/rho_soil)."""
+        from layer_7_infrastructure import damage_rate_index
+        # Reference conditions -> 1.0
+        d_ref = damage_rate_index(50.0, 1e-3, 100.0)
+        assert abs(d_ref - 1.0) < 1e-9
+        # Doubling current doubles damage
+        assert abs(damage_rate_index(100.0, 1e-3, 100.0) - 2.0) < 1e-9
+        # Halving soil rho doubles damage (more current to ground)
+        assert abs(damage_rate_index(50.0, 1e-3, 50.0) - 2.0) < 1e-9
+        # Doubling defect doubles damage
+        assert abs(damage_rate_index(50.0, 2e-3, 100.0) - 2.0) < 1e-9
+
+    def test_transformer_risk_bounded(self):
+        from layer_7_infrastructure import transformer_half_cycle_saturation_risk
+        assert transformer_half_cycle_saturation_risk(0.0) == 0.0
+        assert transformer_half_cycle_saturation_risk(1e6) > 0.999
+
+    def test_coupling_state_quiet_day(self):
+        """Quiet day (dB/dt ~ 0.01 nT/s) should give negligible damage."""
+        from layer_7_infrastructure import coupling_state
+        s = coupling_state(dB_dt_Ts=1e-11)
+        assert s["damage_rate_index"] < 0.1
+        assert s["transformer_at_risk"] is False
+
+    def test_coupling_state_carrington_class(self):
+        """Carrington-class storm should drive damage above unity."""
+        from layer_7_infrastructure import coupling_state
+        s = coupling_state(dB_dt_Ts=8e-8, soil_rho_ohm_m=1000.0,
+                           coating_defect_fraction=1e-3)
+        assert s["damage_rate_index"] > 1.0
+        assert s["transformer_at_risk"] is True
+
+    def test_carrington_scenario_runs(self):
+        from cascade_engine import run_cascade, SCENARIOS
+        result = run_cascade(SCENARIOS["carrington_class_storm"], verbose=False)
+        assert result.layer_states[7]["damage_rate_index"] > 1.0
+
+
+# ─────────────────────────────────────────────
+# CASCADE WIRING — ORBITAL + INFRASTRUCTURE
+# ─────────────────────────────────────────────
+
+class TestOrbitalInfrastructureWiring:
+    def test_layer_indices_extended(self):
+        from cascade_engine import LAYER_INDICES
+        assert -1 in LAYER_INDICES
+        assert 7 in LAYER_INDICES
+
+    def test_layer_names_extended(self):
+        from cascade_engine import LAYER_NAMES
+        assert LAYER_NAMES[-1] == "Orbital"
+        assert LAYER_NAMES[7] == "Infrastructure"
+
+    def test_baseline_has_orbital_keys(self):
+        from cascade_engine import BASELINE
+        for k in ("t_kyr", "k_tidal_ecc", "k_precession_cmb",
+                  "tau_dynamo_yr"):
+            assert k in BASELINE
+
+    def test_baseline_has_infrastructure_keys(self):
+        from cascade_engine import BASELINE
+        for k in ("dB_dt_Ts", "soil_rho_ohm_m",
+                  "coating_defect_fraction", "asset_length_m"):
+            assert k in BASELINE
+
+    def test_orbital_propagates_to_layer_5(self):
+        """Layer -1 delta_omega_orbital_rads should appear in Layer 5 state."""
+        from cascade_engine import run_all_layers, BASELINE
+        states = run_all_layers(BASELINE)
+        l_minus1 = states[-1]["delta_omega_orbital_rads"]
+        l5       = states[5]["delta_omega_orbital_rads"]
+        assert l_minus1 == l5
+
+    def test_orbital_dipole_drift_propagates_to_layer_0(self):
+        from cascade_engine import run_all_layers, BASELINE
+        states = run_all_layers(BASELINE)
+        dM_minus1 = states[-1]["dM_dipole_per_yr_Am2"]
+        dM_0      = states[0]["dM_dipole_per_yr_Am2"]
+        assert dM_minus1 == dM_0
+
+    def test_new_scenarios_registered(self):
+        from cascade_engine import SCENARIOS
+        for name in ("orbital_lgm_epoch", "orbital_obliquity_max",
+                     "metallic_aerosol_injection",
+                     "carrington_class_storm",
+                     "pipeline_coating_failure"):
+            assert name in SCENARIOS, f"Scenario {name} missing"
+
+    def test_metallic_aerosol_changes_sigma_atm(self):
+        from cascade_engine import run_cascade, SCENARIOS
+        result = run_cascade(SCENARIOS["metallic_aerosol_injection"],
+                             verbose=False)
+        assert result.layer_states[2]["aerosol_modulation_factor"] > 1.0
+
+    def test_pipeline_coating_failure_increases_corrosion(self):
+        from cascade_engine import run_cascade, SCENARIOS, BASELINE, run_all_layers
+        baseline_states = run_all_layers(BASELINE)
+        result = run_cascade(SCENARIOS["pipeline_coating_failure"],
+                             verbose=False)
+        assert result.layer_states[7]["corrosion_mass_rate_kg_s"] \
+            > baseline_states[7]["corrosion_mass_rate_kg_s"]
+
+
+# ─────────────────────────────────────────────
+# METROLOGY-AWARE EXTREME EVENT MODULES
+# Companions, hooked to https://github.com/JinnZ2/thermodynamic-accountability-framework/tree/main/metrology
+# ─────────────────────────────────────────────
+
+class TestPhaseLockDetector:
+    def test_import(self):
+        import phase_lock_detector
+
+    def test_lunar_nodal_phase_monotonic(self):
+        from phase_lock_detector import lunar_nodal_phase
+        years = np.arange(1990, 2025, dtype=float)
+        phase = lunar_nodal_phase(years)
+        assert np.all(np.diff(phase) > 0)
+
+    def test_hilbert_returns_complex_with_correct_length(self):
+        from phase_lock_detector import hilbert_transform
+        x = np.sin(np.linspace(0, 8 * np.pi, 64))
+        h = hilbert_transform(x)
+        assert h.shape == x.shape
+        assert np.iscomplexobj(h)
+
+    def test_instantaneous_phase_unwrapped(self):
+        from phase_lock_detector import instantaneous_phase
+        x = np.sin(np.linspace(0, 8 * np.pi, 256))
+        phase = instantaneous_phase(x)
+        # No 2-pi jumps after unwrap
+        assert np.max(np.abs(np.diff(phase))) < 1.0
+
+    def test_detect_returns_required_keys(self):
+        from phase_lock_detector import detect
+        r = detect()
+        for k in ("locked", "windows", "cohens_d",
+                  "n_clusters_in_lock", "expected_clusters_in_lock"):
+            assert k in r
+
+    def test_detect_locked_mask_length_matches_years(self):
+        from phase_lock_detector import detect, YEARS
+        r = detect()
+        assert len(r["locked"]) == len(YEARS)
+
+
+class TestPhysicsOnlyExtremes:
+    def test_import(self):
+        import physics_only_extremes
+
+    def test_series_lengths_match(self):
+        from physics_only_extremes import (
+            YEARS, MAJOR_HURRICANES, STRONG_TORNADOES, ACRES_BURNED,
+            EQ_M6, EQ_M7, NAMED_STORMS,
+            TORNADO_TOTAL, BILLION_DOLLAR, OHC,
+        )
+        n = len(YEARS)
+        for arr in (MAJOR_HURRICANES, STRONG_TORNADOES, ACRES_BURNED,
+                    EQ_M6, EQ_M7, NAMED_STORMS,
+                    TORNADO_TOTAL, BILLION_DOLLAR, OHC):
+            assert len(arr) == n
+
+    def test_helpers_dimensional(self):
+        from physics_only_extremes import (
+            zscore, detrend_linear, pearson, trend_slope_per_decade,
+            bandpass_fft,
+        )
+        x = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 4.0, 3.0, 2.0])
+        assert abs(zscore(x).mean()) < 1e-9
+        assert abs(detrend_linear(x).mean()) < 1e-9
+        assert pearson(x, x) == pytest.approx(1.0)
+        assert trend_slope_per_decade(x) == pytest.approx(
+            np.polyfit(np.arange(len(x), dtype=float), x, 1)[0] * 10.0
+        )
+        bp = bandpass_fft(x, 2.0, 8.0)
+        assert bp.shape == x.shape
+
+    def test_run_report_runs(self, capsys):
+        from physics_only_extremes import run_report
+        run_report()
+        out = capsys.readouterr().out
+        assert "PHYSICS-ONLY EXTREME ANALYSIS" in out
+
+
+class TestCleanEraAnalysis:
+    def test_import(self):
+        import clean_era_analysis
+
+    def test_window_is_eighteen_years(self):
+        from clean_era_analysis import YEARS
+        assert YEARS[0] == 2007 and YEARS[-1] == 2024 and len(YEARS) == 18
+
+    def test_tornado_decomposition_consistent(self):
+        from clean_era_analysis import (
+            EF0, EF1, EF2, EF3, EF4, EF5,
+            TORNADO_TOTAL, TORNADO_STRONG, TORNADO_VIOLENT,
+        )
+        np.testing.assert_array_equal(TORNADO_TOTAL, EF0 + EF1 + EF2 + EF3 + EF4 + EF5)
+        np.testing.assert_array_equal(TORNADO_STRONG, EF2 + EF3 + EF4 + EF5)
+        np.testing.assert_array_equal(TORNADO_VIOLENT, EF3 + EF4 + EF5)
+
+    def test_no_ef5_after_2013(self):
+        """Documented falsifier: no EF5 since May 2013."""
+        from clean_era_analysis import EF5, YEARS
+        post_2013_idx = YEARS > 2013
+        assert int(EF5[post_2013_idx].sum()) == 0
+
+    def test_fisher_p_bounds(self):
+        from clean_era_analysis import fisher_p
+        assert fisher_p(0.0, 18) == pytest.approx(1.0, abs=1e-6)
+        assert fisher_p(0.99, 18) < 0.001
+
+    def test_run_report_runs(self, capsys):
+        from clean_era_analysis import run_report
+        run_report()
+        out = capsys.readouterr().out
+        assert "CLEAN-ERA ANALYSIS" in out
+
+
+# ─────────────────────────────────────────────
+# RESONANCE / DRIVER / METROLOGY ANALYSIS BATCH
+# Standalone analysis modules, all tied to the metrology audit at
+# https://github.com/JinnZ2/thermodynamic-accountability-framework/tree/main/metrology
+# ─────────────────────────────────────────────
+
+class TestExtremesCorrelation:
+    def test_import(self):
+        import extremes_correlation
+
+    def test_series_lengths(self):
+        from extremes_correlation import (
+            YEARS, ACRES_BURNED, FIRE_COUNT, NAMED_STORMS, HURRICANES,
+            MAJOR_HURRICANES, TORNADO_COUNT, BILLION_DOLLAR_DISASTERS,
+        )
+        n = len(YEARS)
+        for arr in (ACRES_BURNED, FIRE_COUNT, NAMED_STORMS, HURRICANES,
+                    MAJOR_HURRICANES, TORNADO_COUNT,
+                    BILLION_DOLLAR_DISASTERS):
+            assert len(arr) == n
+
+    def test_cross_corr_lag_self_is_one(self):
+        from extremes_correlation import cross_corr_lag, NAMED_STORMS
+        _, _, lag, r = cross_corr_lag(NAMED_STORMS, NAMED_STORMS)
+        assert lag == 0
+        assert abs(r - 1.0) < 1e-9
+
+    def test_run_report_runs(self, capsys):
+        from extremes_correlation import run_report
+        run_report()
+        out = capsys.readouterr().out
+        assert "PEARSON CORRELATION MATRIX" in out
+
+
+class TestDriversAnalysis:
+    def test_import(self):
+        import drivers_analysis
+
+    def test_run_report_runs(self, capsys):
+        from drivers_analysis import run_report
+        run_report()
+        out = capsys.readouterr().out
+        assert "DRIVER ANALYSIS" in out
+
+    def test_fisher_p_extremes(self):
+        from drivers_analysis import fisher_p
+        assert fisher_p(0.0, 35) == pytest.approx(1.0, abs=1e-6)
+        assert fisher_p(0.99, 35) < 0.001
+
+
+class TestSpectralCoherence:
+    def test_import(self):
+        import spectral_coherence
+
+    def test_periodogram_self_consistent(self):
+        from spectral_coherence import periodogram
+        x = np.sin(np.linspace(0, 8 * np.pi, 64))
+        f, psd = periodogram(x)
+        assert len(f) == len(psd)
+        assert (psd >= 0).all()
+
+    def test_coherence_self_is_one(self):
+        from spectral_coherence import coherence
+        x = np.sin(np.linspace(0, 8 * np.pi, 64))
+        _, c = coherence(x, x, smooth=2)
+        assert (c[1:] > 0.99).all()
+
+    def test_run_report_runs(self, capsys):
+        from spectral_coherence import run_report
+        run_report()
+        out = capsys.readouterr().out
+        assert "SPECTRAL COHERENCE" in out
+
+
+class TestResonanceAmplification:
+    def test_import(self):
+        import resonance_amplification_test
+
+    def test_bandpass_zero_for_dc_input(self):
+        from resonance_amplification_test import bandpass_fft
+        x = np.ones(40)
+        bp = bandpass_fft(x, 12.0, 24.0)
+        assert np.allclose(bp, 0, atol=1e-9)
+
+    def test_bootstrap_ci_brackets_self_correlation(self):
+        from resonance_amplification_test import bootstrap_corr_ci
+        rng = np.random.default_rng(0)
+        x = rng.standard_normal(50)
+        lo, hi = bootstrap_corr_ci(x, x, n_boot=200)
+        assert lo > 0.9 and hi >= 1.0 - 1e-6
+
+    def test_run_report_runs(self, capsys):
+        from resonance_amplification_test import run_report
+        run_report()
+        out = capsys.readouterr().out
+        assert "RESONANCE AMPLIFICATION TEST" in out
+
+
+class TestAmocOhcInteraction:
+    def test_import(self):
+        import amoc_ohc_interaction_test
+
+    def test_amoc_series_length(self):
+        from amoc_ohc_interaction_test import AMOC, YEARS
+        assert len(AMOC) == len(YEARS)
+
+    def test_build_interactions_keys(self):
+        from amoc_ohc_interaction_test import (
+            build_interactions, OHC, AMOC, AMO, PDO, NAO,
+        )
+        d = build_interactions(OHC, AMOC, AMO, PDO, NAO)
+        for k in ("OHC alone", "OHC x AMOC", "OHC x AMO",
+                  "OHC x PDO", "OHC x dPDO/dt"):
+            assert k in d
+
+    def test_run_report_runs(self, capsys):
+        from amoc_ohc_interaction_test import run_report
+        run_report()
+        out = capsys.readouterr().out
+        assert "OHC x MODULATOR INTERACTION TEST" in out
+
+
+class TestLayer0Emag:
+    """Standalone alternate L0 module — not yet wired into cascade."""
+    def test_import(self):
+        import layer_0_emag
+
+    def test_config_validates(self):
+        from layer_0_emag import DynamoResponseConfig
+        cfg = DynamoResponseConfig()
+        cfg.validate()  # default values must be in-bounds
+
+    def test_config_rejects_out_of_bounds(self):
+        from layer_0_emag import DynamoResponseConfig
+        cfg = DynamoResponseConfig(Q_factor=999.0)
+        with pytest.raises(ValueError, match="Q_factor"):
+            cfg.validate()
+
+    def test_config_rejects_unknown_method(self):
+        from layer_0_emag import DynamoResponseConfig
+        cfg = DynamoResponseConfig(method="bogus")
+        with pytest.raises(ValueError, match="method"):
+            cfg.validate()
+
+    def test_transfer_function_flat_has_no_resonance(self):
+        from layer_0_emag import DynamoResponseConfig, transfer_function
+        f = np.array([1.0/30000, 1.0/20000, 1.0/10000])
+        cfg_flat = DynamoResponseConfig(method="flat")
+        H = transfer_function(f, cfg_flat)
+        # flat has monotonically decreasing magnitude with frequency
+        mag = np.abs(H)
+        assert mag[0] > mag[1] > mag[2]
+
+    def test_dipole_drift_requires_uniform_grid(self):
+        from layer_0_emag import dipole_drift_from_rotation
+        t_nonuniform = np.array([0.0, 1.0, 3.0, 4.0, 5.0])
+        x = np.zeros_like(t_nonuniform)
+        with pytest.raises(ValueError, match="uniformly spaced"):
+            dipole_drift_from_rotation(x, t_nonuniform)
+
+    def test_compute_l0_response_returns_l0output(self):
+        from layer_0_emag import compute_l0_response, DynamoResponseConfig
+        N = 64
+        t = np.linspace(-3200.0, 3200.0, N)
+        x = 1e-12 * np.cos(2 * np.pi * t / 1000.0)
+        out = compute_l0_response(x, t)
+        assert out.M_dipole.shape == (N,)
+        assert out.dM_dt.shape == (N,)
+        assert out.B_surface_equator.shape == (N,)
+        assert out.method_used == "spectral"
+
+
+# ─────────────────────────────────────────────
+# CASCADE HISTORY MODE — time-series cascade with
+# layer_0_emag spectral / flat dynamo response
+# ─────────────────────────────────────────────
+
+class TestCascadeHistory:
+    def test_imports_and_presets(self):
+        from cascade_engine import (
+            run_cascade_history, CascadeHistoryResult,
+            HISTORY_PRESETS, history_preset_paleo_lgm,
+            history_preset_full_pleistocene,
+        )
+        assert "paleo_lgm" in HISTORY_PRESETS
+        assert "full_pleistocene" in HISTORY_PRESETS
+
+    def test_paleo_preset_shape(self):
+        from cascade_engine import history_preset_paleo_lgm
+        t = history_preset_paleo_lgm(n_samples=121)
+        assert t.shape == (121,)
+        assert t[0]  == -60_000.0
+        assert t[-1] == 0.0
+
+    def test_history_runs_lgm(self):
+        from cascade_engine import (
+            run_cascade_history, history_preset_paleo_lgm,
+            CascadeHistoryResult,
+        )
+        t = history_preset_paleo_lgm(n_samples=121)
+        result = run_cascade_history(t, verbose=False)
+        assert isinstance(result, CascadeHistoryResult)
+        assert result.t_years.shape == (121,)
+        assert result.delta_omega_orbital_rads_history.shape == (121,)
+        assert result.delta_omega_total_rads_history.shape == (121,)
+        assert result.l0_spectral.M_dipole.shape == (121,)
+        assert result.l0_flat.M_dipole.shape == (121,)
+
+    def test_history_orbital_delta_omega_nonzero(self):
+        """Orbital Δω varies across the LGM-to-present window."""
+        from cascade_engine import (
+            run_cascade_history, history_preset_paleo_lgm,
+        )
+        t = history_preset_paleo_lgm(n_samples=121)
+        r = run_cascade_history(t, verbose=False)
+        domega = r.delta_omega_orbital_rads_history
+        assert domega.std() > 0
+        assert (domega.max() - domega.min()) > 1e-15
+
+    def test_history_anchor_at_reference_epoch(self):
+        """Δω should be ~0 at the reference epoch (default t=0)."""
+        from cascade_engine import (
+            run_cascade_history, history_preset_paleo_lgm,
+        )
+        t = history_preset_paleo_lgm(n_samples=121)
+        r = run_cascade_history(t, verbose=False)
+        # t_years[-1] is the reference epoch (0); Δω there should be 0
+        assert abs(r.delta_omega_orbital_rads_history[-1]) < 1e-18
+
+    def test_history_spectral_differs_from_flat(self):
+        """The whole point: spectral and flat dynamo responses differ."""
+        from cascade_engine import (
+            run_cascade_history, history_preset_paleo_lgm,
+        )
+        import numpy as np
+        t = history_preset_paleo_lgm(n_samples=121)
+        r = run_cascade_history(t, verbose=False)
+        spec_rms = float(np.sqrt(np.mean(r.l0_spectral.dM_dt**2)))
+        flat_rms = float(np.sqrt(np.mean(r.l0_flat.dM_dt**2)))
+        # Spectral amplifies near f_res, so RMS should differ by > 5%.
+        assert abs(spec_rms - flat_rms) / max(flat_rms, 1e-30) > 0.05
+
+    def test_history_spectral_peak_in_precession_band(self):
+        """SPECTRAL dM/dt PSD should peak in 18-25 kyr (precession band)."""
+        from cascade_engine import (
+            run_cascade_history, history_preset_paleo_lgm,
+        )
+        from layer_0_emag import spectral_power
+        import numpy as np
+        t = history_preset_paleo_lgm(n_samples=121)
+        r = run_cascade_history(t, verbose=False)
+        f, psd = spectral_power(r.l0_spectral.dM_dt, t)
+        # Skip f=0
+        idx = np.argmax(psd[1:]) + 1
+        peak_period_yr = 1.0 / f[idx]
+        assert 18_000 <= peak_period_yr <= 25_000, (
+            f"SPECTRAL peak at {peak_period_yr:.0f} yr — "
+            f"expected DRESDYN/precession band 18-25 kyr"
+        )
+
+    def test_history_final_states_all_layers(self):
+        """Final-state snapshot includes all nine cascade layers."""
+        from cascade_engine import (
+            run_cascade_history, history_preset_paleo_lgm,
+            LAYER_INDICES,
+        )
+        t = history_preset_paleo_lgm(n_samples=121)
+        r = run_cascade_history(t, verbose=False)
+        assert set(r.final_states.keys()) == set(LAYER_INDICES)
+
+    def test_history_rejects_nonuniform_grid(self):
+        from cascade_engine import run_cascade_history
+        import numpy as np
+        t_nonuniform = np.array([0.0, 1000.0, 3000.0, 4000.0, 5000.0])
+        with pytest.raises(ValueError, match="uniformly spaced"):
+            run_cascade_history(t_nonuniform, verbose=False)
+
+    def test_history_rejects_too_few_samples(self):
+        from cascade_engine import run_cascade_history
+        import numpy as np
+        with pytest.raises(ValueError, match="at least 4 samples"):
+            run_cascade_history(np.array([0.0, 1.0, 2.0]), verbose=False)
+
+    def test_history_offset_when_t_ref_outside_window(self):
+        """If t_ref is outside the t_years window, the integral should
+        be offset accordingly (non-zero at the window boundary)."""
+        from cascade_engine import run_cascade_history
+        import numpy as np
+        # Window entirely in the past, ref at 0 (present)
+        t = np.linspace(-30_000.0, -10_000.0, 41)
+        r = run_cascade_history(t, t_ref_year=0.0, verbose=False)
+        # Δω at t_years[-1] (which is -10000) should be the
+        # cumulative integral from 0 to -10000, NOT zero.
+        assert abs(r.delta_omega_orbital_rads_history[-1]) > 1e-18
+
+    def test_history_dynamo_method_flat_only(self):
+        """Disable flat null and confirm result.l0_flat is None."""
+        from cascade_engine import (
+            run_cascade_history, history_preset_paleo_lgm,
+        )
+        t = history_preset_paleo_lgm(n_samples=121)
+        r = run_cascade_history(t, include_flat_null=False, verbose=False)
+        assert r.l0_flat is None
+        assert r.l0_spectral is not None
+
+
+# ─────────────────────────────────────────────
+# CONSTRAINT RECOVERY FRAMEWORK
+# Pre-1900 engineering systems with physical constraints
+# extracted into machine-readable form.
+# ─────────────────────────────────────────────
+
+class TestConstraintRecoveryFramework:
+    def test_import(self):
+        import constraint_recovery_framework
+
+    def test_three_systems_registered(self):
+        from constraint_recovery_framework import RECOVERED_SYSTEMS
+        ids = {s.system_id for s in RECOVERED_SYSTEMS}
+        assert "mill_pond_cascade"        in ids
+        assert "anishinaabe_seasonal_burn" in ids
+        assert "beaver_managed_hydrology"  in ids
+
+    def test_find_system_returns_none_for_missing(self):
+        from constraint_recovery_framework import find_system
+        assert find_system("nonexistent_system") is None
+
+    def test_find_system_returns_system(self):
+        from constraint_recovery_framework import find_system
+        s = find_system("mill_pond_cascade")
+        assert s is not None
+        assert s.name == "Mill Pond Cascade Hydrology"
+        assert len(s.constraints) == 4
+
+    def test_constraints_have_required_fields(self):
+        from constraint_recovery_framework import RECOVERED_SYSTEMS
+        for system in RECOVERED_SYSTEMS:
+            for c in system.constraints:
+                assert c.constraint_id
+                assert c.name
+                assert c.physical_trigger
+                assert c.problem_solved
+                assert c.solution_mechanism
+                assert c.lag_time_weeks > 0
+                assert c.failure_mode
+                assert c.cost_of_failure
+                assert c.validation
+
+    def test_find_constraints_by_problem_finds_flood(self):
+        from constraint_recovery_framework import find_constraints_by_problem
+        matches = find_constraints_by_problem("flood")
+        assert len(matches) >= 2  # mill pond + beaver hydrology
+        for m in matches:
+            assert "system" in m and "constraint" in m
+            assert "problem" in m and "mechanism" in m
+
+    def test_find_constraints_case_insensitive(self):
+        from constraint_recovery_framework import find_constraints_by_problem
+        lower = find_constraints_by_problem("flood")
+        upper = find_constraints_by_problem("FLOOD")
+        assert len(lower) == len(upper)
+
+    def test_coupled_failure_analysis_known(self):
+        from constraint_recovery_framework import coupled_failure_analysis
+        r = coupled_failure_analysis("beaver_managed_hydrology")
+        assert r["constraint_count"] == 3
+        assert r["cascade_risk"] == "high"
+        assert "system" in r
+        assert "constraints" in r
+
+    def test_coupled_failure_analysis_unknown(self):
+        from constraint_recovery_framework import coupled_failure_analysis
+        r = coupled_failure_analysis("nonexistent")
+        assert "error" in r
+
+    def test_export_recovered_system_round_trips(self):
+        import json
+        from constraint_recovery_framework import export_recovered_system
+        raw = export_recovered_system("mill_pond_cascade")
+        d = json.loads(raw)
+        assert d["system_id"] == "mill_pond_cascade"
+        assert len(d["constraints"]) == 4
+
+    def test_export_recovered_system_unknown(self):
+        import json
+        from constraint_recovery_framework import export_recovered_system
+        raw = export_recovered_system("nonexistent")
+        d = json.loads(raw)
+        assert "error" in d
+
+    def test_export_all_round_trips(self):
+        import json
+        from constraint_recovery_framework import export_all
+        raw = export_all()
+        d = json.loads(raw)
+        assert isinstance(d, list)
+        assert len(d) >= 3
+
+    def test_lag_times_span_seasonal_to_multiyear(self):
+        """Recovered constraints span weeks (sediment) to years (fuel cycles)."""
+        from constraint_recovery_framework import RECOVERED_SYSTEMS
+        all_lags = [c.lag_time_weeks
+                    for s in RECOVERED_SYSTEMS for c in s.constraints]
+        assert min(all_lags) <= 4.0       # sub-monthly response somewhere
+        assert max(all_lags) >= 52.0      # multi-year response somewhere

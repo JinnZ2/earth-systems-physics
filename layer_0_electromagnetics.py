@@ -172,6 +172,41 @@ def lorentz_force(q, E_field, v, B_field):
 
 
 # ─────────────────────────────────────────────
+# GEOMAGNETIC DIPOLE
+# Present-epoch reference and orbital-driven secular drift.
+# Coupling to Layer -1 routed THROUGH Layer 5: orbital forcing
+# perturbs rotation rate (Layer 5), rotation perturbation drives
+# dynamo response, dynamo response drifts the dipole moment.
+# ─────────────────────────────────────────────
+
+M_EARTH = 8.0e22   # A·m^2  present-epoch geomagnetic dipole moment
+
+
+def dipole_drift_response(M0, dM_dipole_per_yr_Am2, dt_yr):
+    """
+    Apply a secular dipole-moment drift to the reference moment.
+    First-order linear update — adequate at orbital cadence where
+    dt_yr * dM/dt is small compared to M0.
+    M0                     : reference dipole moment (A·m^2)
+    dM_dipole_per_yr_Am2   : secular drift rate (A·m^2/yr) from Layer -1
+    dt_yr                  : elapsed years over which to apply drift
+    returns: updated dipole moment (A·m^2)
+    """
+    return M0 + dM_dipole_per_yr_Am2 * dt_yr
+
+
+def surface_field_from_dipole(M_dipole, R_planet=6.371e6):
+    """
+    Equatorial surface magnetic field from dipole moment.
+    B_eq = mu_0 * M / (4 pi R^3)
+    M_dipole : magnetic dipole moment (A·m^2)
+    R_planet : planetary radius (m)
+    returns: equatorial surface B (T)
+    """
+    return mu_0 * M_dipole / (4 * np.pi * R_planet**3)
+
+
+# ─────────────────────────────────────────────
 # COUPLING INTERFACES
 # Outputs consumed by Layer 1 (Magnetosphere) and Layer 2 (Ionosphere)
 # ─────────────────────────────────────────────
@@ -182,23 +217,35 @@ def coupling_state(n_e, B_surface, E_surface, frequency_range,
                    magnomech_grain_size=50e-6,
                    magnomech_rock_volume=1000.0,
                    magnomech_mineral_fraction=0.02,
-                   magnomech_T=290.0):
+                   magnomech_T=290.0,
+                   dM_dipole_per_yr_Am2=0.0,
+                   dt_orbital_yr=0.0):
     """
     State vector exported to adjacent layers.
-    n_e               : electron density at interface (m^-3)
-    B_surface         : magnetic field at Earth surface (T)
-    E_surface         : electric field at Earth surface (V/m)
-    frequency_range   : tuple (f_min, f_max) Hz — active EM band
-    magnonic_material : optional material name from magnonic_sublayer.MATERIALS
-    magnomech_mineral : crustal mineral for magnomechanical coupling
+    n_e                  : electron density at interface (m^-3)
+    B_surface            : magnetic field at Earth surface (T)
+    E_surface            : electric field at Earth surface (V/m)
+    frequency_range      : tuple (f_min, f_max) Hz — active EM band
+    magnonic_material    : optional material name from magnonic_sublayer.MATERIALS
+    magnomech_mineral    : crustal mineral for magnomechanical coupling
     magnomech_grain_size : grain diameter (m)
     magnomech_rock_volume: formation volume (m3)
     magnomech_mineral_fraction: volume fraction of magnetic mineral
-    magnomech_T       : temperature (K)
+    magnomech_T          : temperature (K)
+    dM_dipole_per_yr_Am2 : secular dipole drift rate from Layer -1
+                            orbital forcing (A·m^2/yr), routed via L5.
+    dt_orbital_yr        : elapsed time since reference epoch (yr).
+                            Multiplies dM/dt to update the dipole.
     returns: dict of coupling parameters
     """
     from magnonic_sublayer import magnonic_coupling_state, MATERIALS
     from layer_0b_magnomechanical import coupling_state as magnomech_state
+
+    # Apply orbital-driven dipole drift before any field-dependent
+    # quantity is computed. dt_orbital_yr=0 reproduces the previous
+    # stationary-dipole behaviour exactly.
+    M_dipole_now = dipole_drift_response(M_EARTH, dM_dipole_per_yr_Am2,
+                                         dt_orbital_yr)
 
     f_plasma = plasma_frequency(n_e)
     delta = skin_depth(frequency_range[0], 1e-4)  # upper atmosphere conductivity ~1e-4 S/m
@@ -214,6 +261,13 @@ def coupling_state(n_e, B_surface, E_surface, frequency_range,
         "poynting_flux_wm2":         poynting_vector(E_surface, B_surface),
         "reflection_threshold_hz":   f_plasma,  # EM below this reflects off ionosphere
         "transmission_threshold_hz": f_plasma,  # EM above this passes through
+        "M_dipole_Am2":              M_dipole_now,
+        "M_dipole_reference_Am2":    M_EARTH,
+        "dM_dipole_per_yr_Am2":      dM_dipole_per_yr_Am2,
+        "dipole_drift_fraction":     (
+            (M_dipole_now - M_EARTH) / M_EARTH if M_EARTH else 0.0
+        ),
+        "B_surface_dipole_eq_T":     surface_field_from_dipole(M_dipole_now),
         "constraint": gauss_magnetic(),
     }
 

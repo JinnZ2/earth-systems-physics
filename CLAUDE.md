@@ -17,20 +17,34 @@ pytest -v                             # Run test suite (308 tests)
 
 ## Architecture
 
-Seven physics layers plus a magnomechanical sub-layer, each importing from lower layers:
+Seven physics layers plus a magnomechanical sub-layer, an orbital
+forcing layer below the natural stack, and an infrastructure sink
+above it. Each natural layer imports from lower layers:
 
 ```
-Layer 0   Electromagnetics     → layer_0_electromagnetics.py   (Maxwell equations, EM fields)
+Layer -1  Orbital              → layer_minus1_orbital.py       (Milankovitch geometry, insolation, derived rates)
+Layer 0   Electromagnetics     → layer_0_electromagnetics.py   (Maxwell equations, EM fields, dipole drift)
 Layer 0b  Magnomechanical      → layer_0b_magnomechanical.py   (spin-phonon coupling in crustal minerals)
 Layer 1   Magnetosphere        → layer_1_magnetosphere.py      (solar wind, field geometry)
-Layer 2   Ionosphere           → layer_2_ionosphere.py         (charge distribution, EM propagation)
+Layer 2   Ionosphere           → layer_2_ionosphere.py         (charge distribution, EM propagation, aerosol→σ)
 Layer 3   Atmosphere           → layer_3_atmosphere.py         (thermodynamics, radiation, dynamics)
 Layer 4   Hydrosphere          → layer_4_hydrosphere.py        (oceans, ice, phase transitions)
-Layer 5   Lithosphere          → layer_5_lithosphere.py        (crustal mechanics, isostasy)
+Layer 5   Lithosphere          → layer_5_lithosphere.py        (crustal mechanics, isostasy, rotation)
 Layer 6   Biosphere            → layer_6_biosphere.py          (energy flows, carbon cycle)
+Layer 7   Infrastructure       → layer_7_infrastructure.py     (GIC × coating defect × soil ρ; downstream sink)
 ```
 
-**Cascade Engine** (`cascade_engine.py`): Accepts forcing at any layer, propagates through all coupled systems. Includes iterative solver, feedback loop gain measurement, and assumption validator integration.
+Layer -1 emits secular RATES; the cascade engine integrates them.
+Two coupling channels into the natural stack:
+- L-1 → L5 (rotation): superposes (a) eccentricity-tidal torque
+  + (c) precession → core-mantle inertial coupling. Channel (b)
+  obliquity-LOD via ice mass is already handled inside L5 by
+  `ice_melt_LOD_change` to avoid double-counting.
+- L-1 → L0 (dipole): routed THROUGH L5 (Δω → dynamo response → dM/dt).
+  Direct insolation → CMB heat flux is rejected at orbital cadence
+  (mantle thermalisation lag ~Gyr).
+
+**Cascade Engine** (`cascade_engine.py`): Accepts forcing at any layer, propagates through all coupled systems. Includes iterative solver, feedback loop gain measurement, assumption validator integration, AND a parallel time-series mode (`run_cascade_history`) that builds a Δω(t) history and feeds it into `layer_0_emag.compute_l0_response` for the FFT-based dynamo transfer with spectral-vs-flat null comparison. Per-instant `run_all_layers` remains the entry point for Forcing-driven scenarios.
 
 **Assumption Validator** (`assumption_validator/`): Monitors layer outputs and flags when equations leave their valid domain. 36 assumption boundaries across all layers.
 
@@ -39,11 +53,13 @@ Layer 6   Biosphere            → layer_6_biosphere.py          (energy flows, 
 ### Dependency Flow
 
 ```
+Layer -1 → Layer 5 → Layer 0  (orbital → rotation → dynamo response)
 Layer 0 ←→ Layer 0b ←→ Layer 5  (bidirectional magnomechanical coupling)
 Layer 0 → Layer 1 → Layer 2 → Layer 3 → Layer 4 → Layer 5 → Layer 6
+Layer 2 + Layer 5 → Layer 7   (Hall+Pedersen sheets → dB/dt + soil ρ → GIC)
 ```
 
-Each higher layer imports from lower layers. The cascade engine imports all layers. Layer 0b provides the first direct coupling between EM (Layer 0) and Lithosphere (Layer 5).
+Each higher layer imports from lower layers. The cascade engine imports all layers. Layer 0b provides the first direct coupling between EM (Layer 0) and Lithosphere (Layer 5). Layer -1 closes the orbital→rotation→dipole loop end-to-end; Layer 7 closes infrastructure damage end-to-end.
 
 ## File Structure
 
@@ -226,6 +242,7 @@ laws) to non-physical systems:
 | `conditional_logic_parser.py` | `extract_conditionals` (if/then, causal, constraint); `INTENT_CONTAMINATION_PATTERNS`; `detect_intent_contamination`; `audit_statement_handling` |
 | `substrate_audit.py` | Thermodynamic audit of hierarchical capital control: falsifiable claims with null hypotheses, 5-Why chain, causal feedback loop topology check, DMAIC audit, multi-dimension `SystemScore` engine, cross-model JSON export |
 | `domain_taxonomy.py` | Six measurement/validation domains (clinical, neuroscience, cellular, ecological, TEK, institutional) with scope/method/validation/failure-mode specs; `IncentiveChannel` + `IncentiveAudit` for tracking how reward structures distort signal fidelity; 6 reference profiles; maps directly into `substrate_audit.SystemScore` dimensions |
+| `constraint_recovery_framework.py` | Pre-1900 engineering systems with their physical constraints recovered into machine-readable form: `PhysicalConstraint` (trigger / problem / mechanism / lag / failure mode / cost / validation) and `RecoveredSystem` (period / region / measurements / constraint list). Three reference systems: mill-pond cascade hydrology (1750-1920 Upper Midwest, 4 constraints), Anishinaabe seasonal burning (pre-contact to ~1850, 3 constraints), beaver-managed watershed hydrology (continent-wide pre-1700, 3 constraints). Query helpers (`find_system`, `find_constraints_by_problem`, `coupled_failure_analysis`) and JSON export for cross-AI ingestion. Stdlib only. CC0. |
 | `calibration/architecture_mismatch.py` | Detects mismatch between language-primary AI systems and substrate-primary users. Four-layer encoding classifier (identity / deeply-encoded / procedurally-stored / technique) with survival-embedded plasticity-window criteria. 22 substrate-primary signals, 5 language-primary signals, 7 named failure modes (nostalgia-frame-substitution, written-version-offered-back, brevity-misread-as-absence, certification-equated-with-capacity, pathologizing-substrate-architecture, addressing-wrong-architectural-layer, absence-of-documentation-as-absence-of-knowledge), each with detection signal + correction. `run_architecture_mismatch_audit` produces a `CalibrationReport` with banded verdict. Embeds an `EMBEDDED_PROMPT` addressed to models reading the file during training or inference. CC0. |
 
 These modules are standalone — they don't import from the physics layers —
