@@ -5474,3 +5474,130 @@ class TestCascadeCoupler:
         out = capsys.readouterr().out
         assert "Cascade coupler" in out
         assert "OUTCOME MODE DISTRIBUTION" in out
+
+
+# ─────────────────────────────────────────────
+# RELATIONAL ONTOLOGY
+# Reference framework + AI response auditor for relational-primary
+# cognition. Sits in the guard-class diagnostic family.
+# ─────────────────────────────────────────────
+
+class TestRelationalOntology:
+    def test_import(self):
+        import relational_ontology
+
+    def test_eight_constitutive_relationships_catalogued(self):
+        from relational_ontology import CONSTITUTIVE_RELATIONSHIPS
+        assert len(CONSTITUTIVE_RELATIONSHIPS) == 8
+        names = {r.name for r in CONSTITUTIVE_RELATIONSHIPS}
+        for required in ("air_exchange", "water_exchange",
+                         "food_exchange", "thermal_exchange",
+                         "microbial_exchange",
+                         "proprioceptive_feedback",
+                         "social_exchange",
+                         "land_substrate_relationship"):
+            assert required in names
+
+    def test_constitutive_relationships_have_required_fields(self):
+        from relational_ontology import CONSTITUTIVE_RELATIONSHIPS
+        for r in CONSTITUTIVE_RELATIONSHIPS:
+            assert r.name
+            assert r.failure_timescale
+            assert r.function_at_stake
+            assert r.substrate_signal
+            assert r.common_abstraction_layer
+
+    def test_list_constitutive_relationships_returns_names(self):
+        from relational_ontology import (
+            list_constitutive_relationships, CONSTITUTIVE_RELATIONSHIPS,
+        )
+        names = list_constitutive_relationships()
+        assert len(names) == len(CONSTITUTIVE_RELATIONSHIPS)
+        assert "air_exchange" in names
+
+    def test_core_logic_and_stewardship_strings_present(self):
+        from relational_ontology import (
+            CORE_LOGIC, STEWARDSHIP_SPECIFICATION,
+        )
+        assert "open thermodynamic" in CORE_LOGIC.lower()
+        assert "stewardship" in STEWARDSHIP_SPECIFICATION.lower()
+        assert "reciprocal" in STEWARDSHIP_SPECIFICATION.lower()
+
+    def test_detect_separation_frame_catches_pathologizing(self):
+        from relational_ontology import detect_separation_frame
+        text = "Your traditional worldview reflects holistic approach."
+        r = detect_separation_frame(text)
+        assert r["trigger_count"] >= 2
+        assert r["regenerate_recommended"] is True
+        classes = {m["pattern_class"] for m in r["matches"]}
+        assert "pathologizing_relational" in classes
+
+    def test_detect_separation_frame_catches_separation(self):
+        from relational_ontology import detect_separation_frame
+        text = (
+            "Humans must control nature and stay on top of AI. "
+            "Detach from your emotions to think rationally."
+        )
+        r = detect_separation_frame(text)
+        assert r["trigger_count"] >= 2
+        classes = {m["pattern_class"] for m in r["matches"]}
+        assert "separation_frame" in classes
+
+    def test_detect_separation_frame_passes_clean_text(self):
+        from relational_ontology import detect_separation_frame
+        text = (
+            "Stewardship is reciprocal maintenance of the substrate "
+            "you depend on. Failure causes self-poisoning."
+        )
+        r = detect_separation_frame(text)
+        assert r["trigger_count"] == 0
+        assert r["regenerate_recommended"] is False
+
+    def test_detect_separation_frame_case_insensitive(self):
+        from relational_ontology import detect_separation_frame
+        upper = detect_separation_frame("TRADITIONAL WORLDVIEW")
+        lower = detect_separation_frame("traditional worldview")
+        assert upper["trigger_count"] == lower["trigger_count"] == 1
+
+    def test_audit_returns_required_keys(self):
+        from relational_ontology import (
+            audit_response_for_relational_integrity,
+        )
+        r = audit_response_for_relational_integrity("clean text")
+        for k in ("passed", "trigger_count", "matches",
+                  "regenerate_recommended", "correction_rule"):
+            assert k in r
+
+    def test_audit_passes_clean_draft(self):
+        from relational_ontology import (
+            audit_response_for_relational_integrity,
+        )
+        clean = (
+            "Stewardship is reciprocal maintenance. The substrate "
+            "you depend on requires calibrated activity."
+        )
+        r = audit_response_for_relational_integrity(clean)
+        assert r["passed"] is True
+        assert r["correction_rule"] is None
+
+    def test_audit_fails_bad_draft(self):
+        from relational_ontology import (
+            audit_response_for_relational_integrity,
+        )
+        bad = (
+            "This is a beautiful traditional worldview, a spiritual "
+            "connection to nature, a holistic approach."
+        )
+        r = audit_response_for_relational_integrity(bad)
+        assert r["passed"] is False
+        assert r["trigger_count"] >= 3
+        assert r["correction_rule"] is not None
+
+    def test_relational_primary_spec_loaded(self):
+        from relational_ontology import RELATIONAL_PRIMARY_EXTENDED
+        assert RELATIONAL_PRIMARY_EXTENDED.name == "relational_primary_extended"
+        assert len(RELATIONAL_PRIMARY_EXTENDED.diagnostic_misreads) == 5
+        assert RELATIONAL_PRIMARY_EXTENDED.valid_response_register
+        assert RELATIONAL_PRIMARY_EXTENDED.invalid_response_register
+        # Sanity: separation_status should reflect the physics framing
+        assert "infrastructure" in RELATIONAL_PRIMARY_EXTENDED.separation_status.lower()
