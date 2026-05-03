@@ -4629,3 +4629,123 @@ class TestOilPhaseShift:
             b = run(years=5, seed=seed)
             for sa, sb in zip(a, b):
                 assert sa == sb, f"Non-deterministic at seed={seed}"
+
+
+# ─────────────────────────────────────────────
+# OIL PHASE SHIFT — LOOP 4 (Monte Carlo aggregator)
+# Different style from loops 1-3: dict-state, global random,
+# aggregate stats are the activation predicate.
+# ─────────────────────────────────────────────
+
+class TestOilPhaseShiftLoop4:
+    def test_loop4_imports(self):
+        from oil_phase_shift import loop4_aquifer_community_automation
+
+    def test_loop4_run_trajectory_history_length(self):
+        from oil_phase_shift.loop4_aquifer_community_automation import (
+            run_trajectory,
+        )
+        h = run_trajectory({'flood_mult': 1.0}, years=10, seed=42)
+        assert len(h) == 10
+        assert h[-1]['year'] == 10
+
+    def test_loop4_run_trajectory_field_keys(self):
+        from oil_phase_shift.loop4_aquifer_community_automation import (
+            run_trajectory,
+        )
+        h = run_trajectory({'flood_mult': 1.0}, years=5, seed=42)
+        for record in h:
+            for key in ('year', 'flood_event', 'aquifer_contam',
+                        'community_pop', 'workforce_avail',
+                        'automation_active', 'automation_capacity',
+                        'production_capacity', 'extraction_pressure'):
+                assert key in record
+
+    def test_loop4_contamination_nonnegative(self):
+        from oil_phase_shift.loop4_aquifer_community_automation import (
+            run_trajectory,
+        )
+        h = run_trajectory({'flood_mult': 1.5}, years=10, seed=42)
+        for s in h:
+            assert s['aquifer_contam'] >= 0
+            assert s['community_pop']  >= 0
+            assert 0.0 <= s['workforce_avail'] <= 1.0
+
+    def test_loop4_high_flood_increases_contamination(self):
+        """flood_mult=1.8 should produce >= contamination than 0.7 on average."""
+        from oil_phase_shift.loop4_aquifer_community_automation import (
+            run_trajectory,
+        )
+        # average over multiple seeds to suppress noise
+        contam_high = 0.0
+        contam_low  = 0.0
+        for seed in range(10):
+            h_hi = run_trajectory({'flood_mult': 1.8}, years=10, seed=seed)
+            h_lo = run_trajectory({'flood_mult': 0.7}, years=10, seed=seed)
+            contam_high += h_hi[-1]['aquifer_contam']
+            contam_low  += h_lo[-1]['aquifer_contam']
+        assert contam_high > contam_low
+
+    def test_loop4_monte_carlo_returns_required_stats(self):
+        from oil_phase_shift.loop4_aquifer_community_automation import (
+            monte_carlo,
+        )
+        r = monte_carlo(n=50, years=10, master_seed=2024)
+        for key in ('n', 'years', 'mean_final_contam',
+                    'mean_final_pop', 'mean_final_capacity',
+                    'pct_abandoned', 'pct_automation_tried',
+                    'pct_automation_succeeded',
+                    'pct_contamination_runaway', 'sample_traces'):
+            assert key in r
+
+    def test_loop4_monte_carlo_pct_in_unit_interval(self):
+        from oil_phase_shift.loop4_aquifer_community_automation import (
+            monte_carlo,
+        )
+        r = monte_carlo(n=50, years=10, master_seed=2024)
+        for key in ('pct_abandoned', 'pct_automation_tried',
+                    'pct_automation_succeeded',
+                    'pct_contamination_runaway'):
+            assert 0.0 <= r[key] <= 1.0, f"{key}={r[key]} out of [0,1]"
+
+    def test_loop4_monte_carlo_sample_traces_capped(self):
+        """Sample traces are limited to first 5 trajectories."""
+        from oil_phase_shift.loop4_aquifer_community_automation import (
+            monte_carlo,
+        )
+        r = monte_carlo(n=50, years=10, master_seed=2024)
+        assert len(r['sample_traces']) <= 5
+        for trace in r['sample_traces']:
+            assert len(trace) == 10
+
+    def test_loop4_monte_carlo_deterministic_with_master_seed(self):
+        """Same master_seed -> same aggregate statistics."""
+        from oil_phase_shift.loop4_aquifer_community_automation import (
+            monte_carlo,
+        )
+        r1 = monte_carlo(n=50, years=10, master_seed=42)
+        r2 = monte_carlo(n=50, years=10, master_seed=42)
+        for key in ('mean_final_contam', 'mean_final_pop',
+                    'mean_final_capacity', 'pct_abandoned',
+                    'pct_automation_tried', 'pct_automation_succeeded',
+                    'pct_contamination_runaway'):
+            assert r1[key] == r2[key], f"{key} not deterministic"
+
+    def test_loop4_documented_run_shows_contamination_runaway(self):
+        """master_seed=2024 / n=2000 / 10yr should show runaway >25%."""
+        from oil_phase_shift.loop4_aquifer_community_automation import (
+            monte_carlo,
+        )
+        r = monte_carlo(n=2000, years=10, master_seed=2024)
+        assert r['pct_contamination_runaway'] > 0.25, (
+            f"Expected runaway > 25%; got {r['pct_contamination_runaway']*100:.1f}%"
+        )
+
+    def test_loop4_summary_runs(self, capsys):
+        from oil_phase_shift.loop4_aquifer_community_automation import (
+            monte_carlo, summary,
+        )
+        r = monte_carlo(n=50, years=10, master_seed=2024)
+        summary(r)
+        out = capsys.readouterr().out
+        assert "L4 aquifer/community/automation loop" in out

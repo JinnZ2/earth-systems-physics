@@ -134,7 +134,8 @@ earth-systems-physics/
 │   ├── __init__.py
 │   ├── loop1_depletion_labor.py       # depletion → labor exodus → fewer wells → faster decline
 │   ├── loop2_cost_cornercut_failure.py# cost ↑ → corner-cuts → contamination → labor ↑ → cost ↑ (closes)
-│   └── loop3_refinery_config_trap.py  # light-sweet retooling locks refineries off depleting feedstock
+│   ├── loop3_refinery_config_trap.py  # light-sweet retooling locks refineries off depleting feedstock
+│   └── loop4_aquifer_community_automation.py # produced-water → aquifer → outmigration → automation fails
 │
 ├── layer_0_electromagnetics.py        # Base constraint layer (+ magnonic/magnomech)
 ├── layer_0b_magnomechanical.py        # Spin-phonon coupling in crustal minerals
@@ -293,17 +294,21 @@ activation predicate.
 | 1 | `loop1_depletion_labor.py` | depletion → more wells needed → labor exodus → fewer wells drilled → faster decline | `amplifying(history)` — realised decline > 1.1× baseline |
 | 2 | `loop2_cost_cornercut_failure.py` | cost ↑ → corner-cuts → infrastructure failure → contamination → labor cost ↑ → cost ↑ | `loop_closed(history)` — labor multiplier > 1.5 AND community viability < 0.4 |
 | 3 | `loop3_refinery_config_trap.py` | light-sweet glut → refineries retool to light → Permian depletes → no path back to heavy → import lock-in | `trap_engaged(history)` — imbalance > 1.5 Mbbl/d for 2+ consecutive years |
+| 4 | `loop4_aquifer_community_automation.py` | produced-water leakage → aquifer contamination → community outmigration → automation attempted → automation fails on rough terrain + radioactive corrosion → production drops → harder extraction → more failures | `monte_carlo(...)` aggregate stats — `pct_contamination_runaway`, `pct_automation_succeeded`, `pct_abandoned` |
 
-Each module exposes the same surface: a `LNState` dataclass, a
-`step(state, rng)` function, a `run(years, seed)` driver returning a
-history list, and a boolean predicate that flips when the loop has
-clearly engaged. All three are runnable standalone with the seed used
-in their `__main__` block (loop1 seed=42, loop2 seed=7, loop3 seed=11).
+Loops 1-3 expose the same surface (`LNState` dataclass, `step(state, rng)`,
+`run(years, seed)`, boolean predicate) and are runnable with their
+documented seed (loop1=42, loop2=7, loop3=11). Loop 4 deliberately
+uses a different style — Monte Carlo aggregator across n stochastic
+trajectories with dict-based state and global `random` — because the
+loop's signal lives in aggregate statistics rather than a single
+deterministic trajectory.
 
 ```bash
 python oil_phase_shift/loop1_depletion_labor.py
 python oil_phase_shift/loop2_cost_cornercut_failure.py
 python oil_phase_shift/loop3_refinery_config_trap.py
+python oil_phase_shift/loop4_aquifer_community_automation.py
 ```
 
 Documented-seed results: loop1 trims Permian to 1.75 Mb/d in 10 yr
@@ -311,8 +316,11 @@ Documented-seed results: loop1 trims Permian to 1.75 Mb/d in 10 yr
 exhausted). Loop2 closes (community viability → 0, labor multiplier
 2.26, material cost index 6.08). Loop3 engages (33 reconfiguration
 attempts, only 9 completed under supply-chain constraint, 11.6 Mbbl/d
-unprocessable imbalance). These are scenarios under the documented
-substrate, not predictions.
+unprocessable imbalance). Loop4 (master_seed=2024, n=2000, 10yr):
+31.6% of trajectories experience runaway contamination, automation
+attempted in 0.8% of trajectories with **0% success of attempts**,
+mean final community population ~71% of baseline. These are scenarios
+under the documented substrate, not predictions.
 
 ## Paste-from-Markdown Recovery
 

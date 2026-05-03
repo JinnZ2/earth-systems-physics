@@ -22,6 +22,15 @@ loop3_refinery_config_trap.py
     -> geopolitical exposure -> price spike -> refineries can't
     process spike feedstock (configuration lock-in trap).
 
+loop4_aquifer_community_automation.py
+    produced-water leakage + flood overflow -> aquifer + surface
+    water contamination -> community outmigration -> workforce
+    gone -> automation attempted -> automation fails on rough
+    terrain + sensor drift + radioactive corrosion -> production
+    drops -> remaining wells extracted harder -> more failures ->
+    more contamination. Monte Carlo aggregator across n stochastic
+    trajectories; aggregate stats are the activation predicate.
+
 Each module is standalone: stdlib only, dataclass + step + run +
 activation predicate, runnable as a script with a fixed seed for
 reproducibility.
