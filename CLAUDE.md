@@ -130,6 +130,12 @@ earth-systems-physics/
 │   ├── output_protected.csv           # 500-year simulation output — 20-yr withdrawal holds
 │   └── output_tailings_failure.csv    # 500-year simulation output — Mount Polley-class dam failure
 │
+├── oil_phase_shift/                   # Shale-oil regime-change feedback loops (CC0 sub-project)
+│   ├── __init__.py
+│   ├── loop1_depletion_labor.py       # depletion → labor exodus → fewer wells → faster decline
+│   ├── loop2_cost_cornercut_failure.py# cost ↑ → corner-cuts → contamination → labor ↑ → cost ↑ (closes)
+│   └── loop3_refinery_config_trap.py  # light-sweet retooling locks refineries off depleting feedstock
+│
 ├── layer_0_electromagnetics.py        # Base constraint layer (+ magnonic/magnomech)
 ├── layer_0b_magnomechanical.py        # Spin-phonon coupling in crustal minerals
 ├── layer_1_magnetosphere.py
@@ -272,6 +278,41 @@ cd boundary_waters && python export.py     # Write CSV outputs
 ```
 
 Key results (seed=42): proceed scenario peaks at 11.8 mg/L sulfate (above 10 mg/L manoomin threshold), 3,107 forced migrants, net −13,440 jobs. Tailings failure: 58.8 mg/L sulfate (past 50 mg/L lethal threshold, sustained 300+ years), $1.08T treaty liability NPV, net −17,616 jobs. Protected scenario: zero impact across all metrics.
+
+## Oil Phase Shift — Shale Regime Feedback Loops
+
+`oil_phase_shift/` is a standalone sub-project (separate domain from
+the Earth-system physics stack — energy / labor / depletion economics)
+modelling the closed-feedback dynamics of US shale oil regime change.
+Stdlib only, pure Python, CC0. Each `loopN_*.py` is one closed loop
+rendered as a stochastic time-stepping simulation with a documented
+activation predicate.
+
+| Loop | Module | Closed-loop dynamic | Activation predicate |
+|------|--------|---------------------|----------------------|
+| 1 | `loop1_depletion_labor.py` | depletion → more wells needed → labor exodus → fewer wells drilled → faster decline | `amplifying(history)` — realised decline > 1.1× baseline |
+| 2 | `loop2_cost_cornercut_failure.py` | cost ↑ → corner-cuts → infrastructure failure → contamination → labor cost ↑ → cost ↑ | `loop_closed(history)` — labor multiplier > 1.5 AND community viability < 0.4 |
+| 3 | `loop3_refinery_config_trap.py` | light-sweet glut → refineries retool to light → Permian depletes → no path back to heavy → import lock-in | `trap_engaged(history)` — imbalance > 1.5 Mbbl/d for 2+ consecutive years |
+
+Each module exposes the same surface: a `LNState` dataclass, a
+`step(state, rng)` function, a `run(years, seed)` driver returning a
+history list, and a boolean predicate that flips when the loop has
+clearly engaged. All three are runnable standalone with the seed used
+in their `__main__` block (loop1 seed=42, loop2 seed=7, loop3 seed=11).
+
+```bash
+python oil_phase_shift/loop1_depletion_labor.py
+python oil_phase_shift/loop2_cost_cornercut_failure.py
+python oil_phase_shift/loop3_refinery_config_trap.py
+```
+
+Documented-seed results: loop1 trims Permian to 1.75 Mb/d in 10 yr
+(labor capacity 38%, decline rate hits cap 0.55, Tier-1 inventory
+exhausted). Loop2 closes (community viability → 0, labor multiplier
+2.26, material cost index 6.08). Loop3 engages (33 reconfiguration
+attempts, only 9 completed under supply-chain constraint, 11.6 Mbbl/d
+unprocessable imbalance). These are scenarios under the documented
+substrate, not predictions.
 
 ## Paste-from-Markdown Recovery
 

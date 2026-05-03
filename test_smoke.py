@@ -4479,3 +4479,153 @@ class TestConstraintRecoveryCatalogs:
         assert len(records) == 10
         assert all("system_id" in r for r in records)
         assert all("lag_time_weeks" in r for r in records)
+
+
+# ─────────────────────────────────────────────
+# OIL PHASE SHIFT — feedback-loop simulations
+# Sub-project: oil_phase_shift/loopN_*.py modelling shale-oil
+# regime change (depletion+labor, cost+contamination, refinery
+# configuration lock-in).
+# ─────────────────────────────────────────────
+
+class TestOilPhaseShift:
+    def test_package_imports(self):
+        import oil_phase_shift
+        from oil_phase_shift import (
+            loop1_depletion_labor,
+            loop2_cost_cornercut_failure,
+            loop3_refinery_config_trap,
+        )
+
+    # ---- loop 1 ----
+    def test_loop1_run_returns_history_of_correct_length(self):
+        from oil_phase_shift.loop1_depletion_labor import run, L1State
+        h = run(years=10, seed=42)
+        assert len(h) == 11   # initial + 10 steps
+        assert all(isinstance(s, L1State) for s in h)
+        assert h[-1].year == 10
+
+    def test_loop1_production_monotone_nonincreasing_at_seed(self):
+        """Seeded run should produce a generally declining trajectory."""
+        from oil_phase_shift.loop1_depletion_labor import run
+        h = run(years=10, seed=42)
+        assert h[-1].production_bbl_per_day < h[0].production_bbl_per_day
+
+    def test_loop1_labor_capacity_decreases(self):
+        from oil_phase_shift.loop1_depletion_labor import run
+        h = run(years=10, seed=42)
+        assert h[-1].labor_capacity < h[0].labor_capacity
+
+    def test_loop1_tier1_inventory_depletes(self):
+        from oil_phase_shift.loop1_depletion_labor import run
+        h = run(years=10, seed=42)
+        assert h[-1].tier1_remaining_yr < h[0].tier1_remaining_yr
+
+    def test_loop1_decline_capped(self):
+        from oil_phase_shift.loop1_depletion_labor import run
+        h = run(years=10, seed=42)
+        for s in h:
+            assert s.base_decline_rate <= 0.55
+
+    def test_loop1_amplifying_returns_bool(self):
+        from oil_phase_shift.loop1_depletion_labor import run, amplifying
+        h = run(years=10, seed=42)
+        assert isinstance(amplifying(h), bool)
+
+    def test_loop1_amplifying_short_history_false(self):
+        from oil_phase_shift.loop1_depletion_labor import amplifying, L1State
+        h = [L1State(0.4, 3.7, 1.0, 5500, 13_500_000.0)]
+        assert amplifying(h) is False
+
+    # ---- loop 2 ----
+    def test_loop2_run_returns_history_of_correct_length(self):
+        from oil_phase_shift.loop2_cost_cornercut_failure import run, L2State
+        h = run(years=10, seed=7)
+        assert len(h) == 11
+        assert all(isinstance(s, L2State) for s in h)
+
+    def test_loop2_material_cost_grows(self):
+        from oil_phase_shift.loop2_cost_cornercut_failure import run
+        h = run(years=10, seed=7)
+        assert h[-1].material_cost_index > h[0].material_cost_index
+
+    def test_loop2_corner_cuts_bounded(self):
+        from oil_phase_shift.loop2_cost_cornercut_failure import run
+        h = run(years=10, seed=7)
+        for s in h:
+            assert 0.0 <= s.corner_cut_intensity <= 0.85
+
+    def test_loop2_infrastructure_decays(self):
+        from oil_phase_shift.loop2_cost_cornercut_failure import run
+        h = run(years=10, seed=7)
+        assert h[-1].infrastructure_integrity < h[0].infrastructure_integrity
+
+    def test_loop2_contamination_accumulates(self):
+        from oil_phase_shift.loop2_cost_cornercut_failure import run
+        h = run(years=10, seed=7)
+        assert h[-1].contamination_load > h[0].contamination_load
+
+    def test_loop2_loop_closed_at_documented_seed(self):
+        """Seed 7 in __main__ produces a closed loop — preserve that signal."""
+        from oil_phase_shift.loop2_cost_cornercut_failure import run, loop_closed
+        h = run(years=10, seed=7)
+        assert loop_closed(h) is True
+
+    def test_loop2_loop_closed_returns_bool(self):
+        from oil_phase_shift.loop2_cost_cornercut_failure import run, loop_closed
+        h = run(years=10, seed=999)
+        assert isinstance(loop_closed(h), bool)
+
+    # ---- loop 3 ----
+    def test_loop3_run_returns_history_of_correct_length(self):
+        from oil_phase_shift.loop3_refinery_config_trap import run, L3State
+        h = run(years=10, seed=11)
+        assert len(h) == 11
+        assert all(isinstance(s, L3State) for s in h)
+
+    def test_loop3_light_supply_depletes(self):
+        from oil_phase_shift.loop3_refinery_config_trap import run
+        h = run(years=10, seed=11)
+        assert h[-1].light_sweet_supply < h[0].light_sweet_supply
+
+    def test_loop3_geopolitical_risk_bounded(self):
+        from oil_phase_shift.loop3_refinery_config_trap import run
+        h = run(years=10, seed=11)
+        for s in h:
+            assert 0.0 <= s.geopolitical_risk_index <= 1.0
+
+    def test_loop3_trap_engaged_at_documented_seed(self):
+        """Seed 11 in __main__ engages the configuration trap."""
+        from oil_phase_shift.loop3_refinery_config_trap import run, trap_engaged
+        h = run(years=10, seed=11)
+        assert trap_engaged(h) is True
+
+    def test_loop3_capacity_shifts_consistent_with_attempts(self):
+        from oil_phase_shift.loop3_refinery_config_trap import run
+        h = run(years=10, seed=11)
+        # completed switches >= 0 and <= attempted
+        end = h[-1]
+        assert 0 <= end.config_switches_completed <= end.config_switches_attempted
+
+    def test_loop3_capacity_conservation(self):
+        """Light_cap drops by same amount heavy_cap rises (within rounding)."""
+        from oil_phase_shift.loop3_refinery_config_trap import run
+        h = run(years=10, seed=11)
+        # Total processable capacity is conserved by the reconfiguration
+        # mechanism (the only knob that moves capacity between buckets).
+        cap_total_start = h[0].light_processable_capacity + h[0].heavy_processable_capacity
+        cap_total_end   = h[-1].light_processable_capacity + h[-1].heavy_processable_capacity
+        # Floor on light_cap (0.5) means strict equality may fail; allow
+        # small discrepancy from the floor clamp.
+        assert abs(cap_total_end - cap_total_start) < 0.5
+
+    # ---- determinism ----
+    def test_loops_deterministic_at_fixed_seed(self):
+        from oil_phase_shift.loop1_depletion_labor import run as run1
+        from oil_phase_shift.loop2_cost_cornercut_failure import run as run2
+        from oil_phase_shift.loop3_refinery_config_trap import run as run3
+        for run, seed in [(run1, 42), (run2, 7), (run3, 11)]:
+            a = run(years=5, seed=seed)
+            b = run(years=5, seed=seed)
+            for sa, sb in zip(a, b):
+                assert sa == sb, f"Non-deterministic at seed={seed}"
