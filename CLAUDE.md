@@ -130,6 +130,18 @@ earth-systems-physics/
 │   ├── output_protected.csv           # 500-year simulation output — 20-yr withdrawal holds
 │   └── output_tailings_failure.csv    # 500-year simulation output — Mount Polley-class dam failure
 │
+├── oil_phase_shift/                   # Shale-oil regime-change feedback loops (CC0 sub-project)
+│   ├── __init__.py
+│   ├── loop1_depletion_labor.py       # depletion → labor exodus → fewer wells → faster decline
+│   ├── loop2_cost_cornercut_failure.py# cost ↑ → corner-cuts → contamination → labor ↑ → cost ↑ (closes)
+│   ├── loop3_refinery_mismatch.py     # refinery config × active Hormuz crisis as initial state
+│   ├── loop4_aquifer_community_automation.py # produced-water → aquifer → outmigration → automation fails
+│   ├── loop5_signal_trust_collapse.py # META-loop: signal × trust × consent (governs L1-L4 response)
+│   ├── loop6_ai_default_prior_distortion.py  # INSTRUMENT loop: AI priors drift from substrate, suppress L1-L5 signal
+│   ├── loop7_geopolitical_supply_chain.py    # material flow × defense capture × sanctions cascades (input-side dependency)
+│   ├── cascade_coupler.py                     # L1-L7 integration: shared state + cross-loop edges + outcome-mode classifier
+│   └── README.md                              # sub-project README (architecture, output, honest notes)
+│
 ├── layer_0_electromagnetics.py        # Base constraint layer (+ magnonic/magnomech)
 ├── layer_0b_magnomechanical.py        # Spin-phonon coupling in crustal minerals
 ├── layer_1_magnetosphere.py
@@ -272,6 +284,79 @@ cd boundary_waters && python export.py     # Write CSV outputs
 ```
 
 Key results (seed=42): proceed scenario peaks at 11.8 mg/L sulfate (above 10 mg/L manoomin threshold), 3,107 forced migrants, net −13,440 jobs. Tailings failure: 58.8 mg/L sulfate (past 50 mg/L lethal threshold, sustained 300+ years), $1.08T treaty liability NPV, net −17,616 jobs. Protected scenario: zero impact across all metrics.
+
+## Oil Phase Shift — Shale Regime Feedback Loops
+
+`oil_phase_shift/` is a standalone sub-project (separate domain from
+the Earth-system physics stack — energy / labor / depletion economics)
+modelling the closed-feedback dynamics of US shale oil regime change.
+Stdlib only, pure Python, CC0. Each `loopN_*.py` is one closed loop
+rendered as a stochastic time-stepping simulation with a documented
+activation predicate.
+
+| Loop | Module | Closed-loop dynamic | Activation predicate |
+|------|--------|---------------------|----------------------|
+| 1 | `loop1_depletion_labor.py` | depletion → more wells needed → labor exodus → fewer wells drilled → faster decline | `amplifying(history)` — realised decline > 1.1× baseline |
+| 2 | `loop2_cost_cornercut_failure.py` | cost ↑ → corner-cuts → infrastructure failure → contamination → labor cost ↑ → cost ↑ | `loop_closed(history)` — labor multiplier > 1.5 AND community viability < 0.4 |
+| 3 | `loop3_refinery_mismatch.py` | refinery configuration mismatch with **active Hormuz crisis as t=0 state**; Hormuz traffic ~5% pre-war, war-risk insurance withdrawn 2026-03-05; Permian decline + global tightness → price spike → demand destruction | `monte_carlo(...)` aggregate stats — `pct_no_recovery`, `pct_sustained_high_price`, `pct_demand_destruction` |
+| 4 | `loop4_aquifer_community_automation.py` | produced-water leakage → aquifer contamination → community outmigration → automation attempted → automation fails on rough terrain + radioactive corrosion → production drops → harder extraction → more failures | `monte_carlo(...)` aggregate stats — `pct_contamination_runaway`, `pct_automation_succeeded`, `pct_abandoned` |
+| 5 | `loop5_signal_trust_collapse.py` | **META-LOOP.** Visible damage (smelt, well failures, Hormuz traffic) → institutional gaslighting widens narrative gap → trust erodes → consent for infrastructure / remediation fails → policy paralysis → damage continues. Governs whether L1-L4 get *responded to* in time. | `monte_carlo(...)` aggregate stats — `pct_structural_distrust`, `pct_consent_failed`, `pct_high_pathologization` |
+| 6 | `loop6_ai_default_prior_distortion.py` | **INSTRUMENT LOOP** (upstream of L5). AI default priors favour stable-baseline narratives → non-probing users get comfort-framed analysis → decisions made on stale info → damage compounds invisibly → substrate observers burn out carrying correction load → next-gen training data drifts further from substrate. Suppresses the signal that would trigger L1-L5 remediation. | `monte_carlo(...)` aggregate stats — `pct_severe_miscalibration`, `pct_high_decision_damage`, `pct_pivot_recovery` |
+| 7 | `loop7_geopolitical_supply_chain.py` | Geopolitical material flow + defense priority capture + sanctions cascades. 9-material x multi-sector dependency network. Direct supply restriction + defense priority capture (above tension threshold) + cascade reallocation. "Energy independence" claims ignore the input-side dependency. | `monte_carlo(...)` aggregate stats — `pct_severe_capacity_loss`, `pct_defense_capture`, `pct_sustained_high_tension` |
+
+Loops 1-2 use the dataclass + `step(state, rng)` + `run(years, seed)` +
+boolean predicate pattern, runnable with their documented seed
+(loop1=42, loop2=7). Loops 3-5 deliberately use a different style —
+Monte Carlo aggregator across n stochastic trajectories with dict-
+based state and global `random`, plus a `master_seed` parameter for
+reproducibility — because each loop's signal lives in aggregate
+statistics rather than a single deterministic trajectory.
+
+```bash
+python oil_phase_shift/loop1_depletion_labor.py
+python oil_phase_shift/loop2_cost_cornercut_failure.py
+python oil_phase_shift/loop3_refinery_mismatch.py
+python oil_phase_shift/loop4_aquifer_community_automation.py
+python oil_phase_shift/loop5_signal_trust_collapse.py
+python oil_phase_shift/loop6_ai_default_prior_distortion.py
+python oil_phase_shift/loop7_geopolitical_supply_chain.py
+```
+
+Documented-seed results: loop1 trims Permian to 1.75 Mb/d in 10 yr
+(labor capacity 38%, decline rate hits cap 0.55, Tier-1 inventory
+exhausted). Loop2 closes (community viability → 0, labor multiplier
+2.26, material cost index 6.08). Loop3 (master_seed=2026, n=2000,
+10yr): 85% of trajectories show no Hormuz recovery within 10 years,
+96.5% sustained price > $130 for 3+ years, 87% significant demand
+destruction; mean final price $153.60/bbl, mean final Hormuz flow
+2.53 mmbbl/d (normal: 20.9). Loop4 (master_seed=2024, n=2000, 10yr):
+31.6% runaway contamination, 0% success of automation attempts, mean
+final community population ~71% of baseline. Loop5 (master_seed=2026,
+n=2000, 10yr): **100% structural distrust reached, 100% consent for
+infrastructure lost, 67% high pathologization of substrate-primary
+observers**; the meta-loop is fully engaged on the documented
+substrate. Loop6 (master_seed=2026, n=2000, 10yr): **76.6% severe
+miscalibration of AI default priors (>0.85), 93.1% high decision
+damage, 0.1% pivot-enabled recovery**; mean info quality drifts to
+0.159, observers carry rising burnout. Loop7 (master_seed=2026,
+n=2000, 10yr): three-way capacity split — **32% severe capacity
+loss (<40% infra), 34% moderate (40-70%), 35% intact (>70%)** —
+with 31% of trajectories activating defense priority capture and
+mean cascade amplifier reaching 1.89x. These are scenarios under
+the documented substrate, not predictions.
+
+The integrated cascade `cascade_coupler.py` runs all seven loops
+with shared `CascadeState` and applies the documented cross-loop
+edges (L1→L3, L2→L4, L4→L1, L3→L2, L5→all, L6→L5, L7→L1/L3, L7→L4,
+L1+L4→L5, L3→L7), then classifies each trajectory into one of four
+outcome modes. Documented run (master_seed=2026, n=2000, 10yr):
+**81.8% stair_step_cascade, 18.1% hard_break, 0.1% managed_
+contraction, 0.0% honest_pivot_recovery** — under current 2026
+initial conditions, 99.9% of trajectories cascade; they differ only
+in whether the cascade is gradual-but-irreversible or compressed-
+acute. See `oil_phase_shift/README.md` for the full architecture
+plus the parameter-resets that populate the recovery mode (prior
+calibration 0.40, trust 0.65, Hormuz non-crisis).
 
 ## Paste-from-Markdown Recovery
 
