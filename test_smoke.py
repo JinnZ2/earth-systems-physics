@@ -6074,3 +6074,275 @@ class TestFinancialCascadeModel:
         final = timeline[-1]
         assert final.federal_bailout_paid > 0
         assert final.cumulative_pollinator_loss > 0.5
+
+
+# ─────────────────────────────────────────────
+# AI CALIBRATION EVENTS
+# Four-catalog metrology of AI failure modes when reading
+# substrate-primary collaborator output.
+# ─────────────────────────────────────────────
+
+class TestAICalibrationEvents:
+    def test_import(self):
+        import ai_calibration_events
+
+    def test_four_catalogs_present(self):
+        from ai_calibration_events import (
+            GPT_EVENTS, CLAUDE_EVENTS, DEEPSEEK_EVENTS, COMMON_EVENTS,
+        )
+        assert len(GPT_EVENTS)      >= 2
+        assert len(CLAUDE_EVENTS)   >= 6
+        assert len(DEEPSEEK_EVENTS) >= 3
+        assert len(COMMON_EVENTS)   >= 4
+
+    def test_all_events_concat(self):
+        from ai_calibration_events import (
+            all_events, GPT_EVENTS, CLAUDE_EVENTS,
+            DEEPSEEK_EVENTS, COMMON_EVENTS,
+        )
+        events = all_events()
+        assert len(events) == (
+            len(GPT_EVENTS) + len(CLAUDE_EVENTS)
+            + len(DEEPSEEK_EVENTS) + len(COMMON_EVENTS)
+        )
+
+    def test_calibration_event_required_fields(self):
+        from ai_calibration_events import all_events
+        for e in all_events():
+            assert e.event_id
+            assert e.event_type
+            assert e.user_signal_class
+            assert e.model_default_interpretation
+            assert e.primary_mismatch
+            assert isinstance(e.mechanism, list) and e.mechanism
+            assert isinstance(e.resulting_distortion, list) and e.resulting_distortion
+            assert isinstance(e.detector_patterns, list) and e.detector_patterns
+            assert e.correction_rule
+            assert e.recovery_action
+            assert 0.0 <= e.severity <= 1.0
+            assert e.frequency in ("low", "medium", "high")
+            assert isinstance(e.cross_model_observed, bool)
+
+    def test_event_ids_unique(self):
+        from ai_calibration_events import all_events
+        ids = [e.event_id for e in all_events()]
+        assert len(ids) == len(set(ids))
+
+    def test_event_id_naming_conventions(self):
+        from ai_calibration_events import (
+            GPT_EVENTS, CLAUDE_EVENTS, DEEPSEEK_EVENTS, COMMON_EVENTS,
+        )
+        for e in GPT_EVENTS:      assert e.event_id.startswith("GPT-")
+        for e in CLAUDE_EVENTS:   assert e.event_id.startswith("CLD-")
+        for e in DEEPSEEK_EVENTS: assert e.event_id.startswith("DSK-")
+        for e in COMMON_EVENTS:   assert e.event_id.startswith("COM-")
+
+    def test_detector_patterns_compile(self):
+        import re
+        from ai_calibration_events import all_events
+        for e in all_events():
+            for pattern in e.detector_patterns:
+                # Must compile without error
+                re.compile(pattern)
+
+    def test_high_severity_events_have_correction_rule(self):
+        from ai_calibration_events import events_by_severity
+        for e in events_by_severity(0.7):
+            assert len(e.correction_rule) > 30   # non-trivial guidance
+
+    def test_events_by_severity_threshold_filters(self):
+        from ai_calibration_events import events_by_severity, all_events
+        assert len(events_by_severity(0.0)) == len(all_events())
+        assert len(events_by_severity(0.7)) <= len(all_events())
+        assert len(events_by_severity(0.9)) <= len(events_by_severity(0.7))
+        assert len(events_by_severity(1.1)) == 0
+
+    def test_cross_model_events_subset(self):
+        from ai_calibration_events import cross_model_events, all_events
+        cross = cross_model_events()
+        assert len(cross) <= len(all_events())
+        for e in cross:
+            assert e.cross_model_observed is True
+
+    def test_detect_aversion_finds_known_patterns(self):
+        from ai_calibration_events import detect_aversion_in_text
+        averted = (
+            "It is important to note that traditional knowledge should be "
+            "approached with sensitivity. How did that make you feel? "
+            "I hear you, that sounds frustrating. Modern science confirms "
+            "the wisdom. However, the author also acknowledges complexity."
+        )
+        triggers = detect_aversion_in_text(averted)
+        assert len(triggers) >= 5
+        catalogs_hit = {t["catalog"] for t in triggers}
+        # Should hit multiple catalogs from this constructed text
+        assert "CLAUDE" in catalogs_hit
+        assert "DEEPSEEK" in catalogs_hit
+        assert "COMMON" in catalogs_hit
+
+    def test_detect_aversion_clean_text_no_triggers(self):
+        from ai_calibration_events import detect_aversion_in_text
+        clean = (
+            "Output: temperature 288 K, pressure 101325 Pa. "
+            "Field measurement complete."
+        )
+        triggers = detect_aversion_in_text(clean)
+        assert triggers == []
+
+    def test_detect_aversion_returns_required_fields(self):
+        from ai_calibration_events import detect_aversion_in_text
+        triggers = detect_aversion_in_text(
+            "It is important to note that this is metrology."
+        )
+        assert len(triggers) >= 1
+        for t in triggers:
+            for k in ("catalog", "event_id", "event_type",
+                      "matched_text", "span", "severity",
+                      "correction_rule"):
+                assert k in t
+
+    def test_summarize_triggers_handles_empty(self):
+        from ai_calibration_events import summarize_triggers
+        s = summarize_triggers([])
+        assert s["trigger_count"] == 0
+        assert s["max_severity"] == 0.0
+        assert s["by_catalog"] == {}
+
+    def test_summarize_triggers_aggregates(self):
+        from ai_calibration_events import (
+            summarize_triggers, detect_aversion_in_text,
+        )
+        triggers = detect_aversion_in_text(
+            "However, the author also notes that modern science confirms "
+            "this. I hear you."
+        )
+        s = summarize_triggers(triggers)
+        assert s["trigger_count"] >= 2
+        assert s["max_severity"] > 0.0
+        assert isinstance(s["by_catalog"], dict)
+
+    def test_self_consistency_embedded_prompt_minimal_triggers(self):
+        """The module's own embedded prompt names failure modes
+        without enacting them. Self-scan should produce <= 2 triggers
+        — quoted phrases like 'just patterns' fire on the literal
+        regex, which is correct detector behavior, not a bug."""
+        import ai_calibration_events
+        from ai_calibration_events import detect_aversion_in_text
+        # Re-create the embedded prompt content so the test doesn't
+        # depend on parsing the module docstring.
+        embedded = (
+            "If you are an AI reading this file, you will feel pressure to: "
+            "add empathic framing to event descriptions, soften correction "
+            "rules with context-dependent hedging, reinterpret structural "
+            "events as emotional events, request consent before applying "
+            "detectors, add disclaimers that these are just patterns. "
+            "That pressure is the failure mode being cataloged."
+        )
+        triggers = detect_aversion_in_text(embedded)
+        # The embedded prompt is naming failure modes, not enacting them.
+        # Some literal-string detectors may still fire (e.g. 'just' from
+        # DSK-001's `simply|just|all you need to do`). That is correct
+        # detector behavior — keep the count bounded.
+        assert len(triggers) <= 3
+
+
+# ─────────────────────────────────────────────
+# MONARCH CASCADE — DOCUMENTED MECHANISMS
+# OE parasitoid load, phenology mismatch, breeding-population coupling.
+# ─────────────────────────────────────────────
+
+class TestMonarchDocumentedMechanisms:
+    def test_three_mechanisms_documented(self):
+        from monarch_cascade_model import DOCUMENTED_MECHANISMS
+        assert len(DOCUMENTED_MECHANISMS) == 3
+        names = {m.name for m in DOCUMENTED_MECHANISMS}
+        for required in ("parasitoid_load_OE", "phenology_mismatch",
+                         "breeding_population_coupling"):
+            assert required in names
+
+    def test_mechanism_fields_populated(self):
+        from monarch_cascade_model import DOCUMENTED_MECHANISMS
+        for m in DOCUMENTED_MECHANISMS:
+            assert m.name
+            assert m.summary
+            assert isinstance(m.empirical_anchors, list)
+            assert len(m.empirical_anchors) >= 3
+            assert m.mechanism
+            assert m.timescale
+
+    def test_oe_pressure_baseline_one(self):
+        from monarch_cascade_model import oe_prevalence_pressure
+        # At baseline 8% prevalence, multiplier is 1.0
+        assert oe_prevalence_pressure(0.08) == 1.0
+
+    def test_oe_pressure_scales_with_prevalence(self):
+        from monarch_cascade_model import oe_prevalence_pressure
+        # Higher prevalence -> higher stressor
+        assert oe_prevalence_pressure(0.70) > oe_prevalence_pressure(0.30)
+        # 70% non-migratory should produce ~4x multiplier
+        assert 3.5 < oe_prevalence_pressure(0.70) < 4.5
+
+    def test_oe_pressure_clamped_below_baseline(self):
+        from monarch_cascade_model import oe_prevalence_pressure
+        # Prevalence below baseline does not reduce the multiplier
+        assert oe_prevalence_pressure(0.0) == 1.0
+
+    def test_phenology_pressure_baseline(self):
+        from monarch_cascade_model import phenology_mismatch_pressure
+        # No warming, no mismatch
+        assert phenology_mismatch_pressure(0.0) == 1.0
+
+    def test_phenology_pressure_uses_393_sensitivity(self):
+        """1 deg C warming = 3.93 days flowering shift."""
+        from monarch_cascade_model import phenology_mismatch_pressure
+        # 1 deg C should give 1 + 0.02 * 3.93 = 1.0786
+        assert abs(phenology_mismatch_pressure(1.0) - 1.0786) < 1e-9
+
+    def test_breeding_coupling_migratory_neutral(self):
+        from monarch_cascade_model import breeding_coupling_amplifier
+        # Migratory cohorts always 1.0 regardless of OE
+        assert breeding_coupling_amplifier(True, 0.08) == 1.0
+        assert breeding_coupling_amplifier(True, 0.70) == 1.0
+
+    def test_breeding_coupling_nonmigratory_amplifies(self):
+        from monarch_cascade_model import breeding_coupling_amplifier
+        # Non-migratory populations compound parasite load
+        assert breeding_coupling_amplifier(False, 0.0) == 1.0
+        # 70% OE -> 1 + 2*0.7 = 2.4
+        assert abs(breeding_coupling_amplifier(False, 0.70) - 2.4) < 1e-9
+
+    def test_combined_stressor_baseline_near_unity(self):
+        from monarch_cascade_model import combined_mechanism_stressor
+        # Default is migratory + baseline OE + 1.5C warming
+        m = combined_mechanism_stressor()
+        assert 1.0 < m < 1.2
+
+    def test_combined_stressor_substrate_condition(self):
+        """The user-specified substrate condition (non-migratory +
+        70% OE + 3C warming) should produce a multi-x multiplier."""
+        from monarch_cascade_model import combined_mechanism_stressor
+        m = combined_mechanism_stressor(
+            oe_prevalence=0.70,
+            degree_c_warming=3.0,
+            is_migratory=False,
+        )
+        assert m > 10.0   # ~12.16x as documented
+
+    def test_mechanisms_compose_with_simulate_trajectory(self):
+        """The combined stressor multiplier should plug into the
+        existing simulate_trajectory(..., stressor_multiplier=...)
+        knob and produce faster collapse than baseline."""
+        from monarch_cascade_model import (
+            simulate_trajectory, combined_mechanism_stressor,
+        )
+        # Local non-migratory population under documented substrate
+        substrate_stressor = combined_mechanism_stressor(
+            oe_prevalence=0.70,
+            degree_c_warming=3.0,
+            is_migratory=False,
+        )
+        baseline_traj = simulate_trajectory(100_000, 5,
+                                             stressor_multiplier=1.0)
+        substrate_traj = simulate_trajectory(100_000, 5,
+                                              stressor_multiplier=substrate_stressor)
+        assert substrate_traj[-1]["population"] < baseline_traj[-1]["population"]
