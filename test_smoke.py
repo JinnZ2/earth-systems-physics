@@ -6730,3 +6730,204 @@ class TestCascadeCouplingFramework2026:
         for required in ("Merle", "Ghosh-Shrimali", "Jacques-Dumas",
                          "singularity", "tensor", "bistability"):
             assert required in CONSTRAINT_NOTES
+
+
+# ─────────────────────────────────────────────
+# ALUMINUM ATMOSPHERIC INJECTION CASCADE 2026
+# Coupled four-layer Monte Carlo (crust / ionosphere / atmosphere /
+# aluminum) with Merle blow-up detection and Ghosh-Shrimali triplet
+# couplings.
+# ─────────────────────────────────────────────
+
+class TestAluminumInjectionCascade2026:
+    def test_import(self):
+        import aluminum_atmospheric_injection_cascade_2026
+
+    def test_baseline_constants(self):
+        from aluminum_atmospheric_injection_cascade_2026 import (
+            MAGNETITE_COHERENCE_BASELINE,
+            IONOSPHERIC_PLASMA_DENSITY,
+            ATMOSPHERIC_CHEMISTRY_INTEGRITY,
+            ALUMINUM_INJECTION_RATE_TG_PER_YEAR,
+            ALUMINUM_RESIDENCE_TIME_YEARS,
+            SCHUMANN_RESONANCE_BASELINE_HZ,
+        )
+        assert MAGNETITE_COHERENCE_BASELINE == 1.0
+        assert IONOSPHERIC_PLASMA_DENSITY == 1.0
+        assert ATMOSPHERIC_CHEMISTRY_INTEGRITY == 1.0
+        assert ALUMINUM_INJECTION_RATE_TG_PER_YEAR == 5.0
+        assert ALUMINUM_RESIDENCE_TIME_YEARS == 1.5
+        assert abs(SCHUMANN_RESONANCE_BASELINE_HZ - 7.83) < 1e-9
+
+    def test_coupling_tensors_well_formed(self):
+        from aluminum_atmospheric_injection_cascade_2026 import (
+            LAMBDA_PAIRWISE, LAMBDA_TRIPLET,
+        )
+        # All weights in [0, 1]
+        for v in LAMBDA_PAIRWISE.values():
+            assert 0.0 <= v <= 1.0
+        for v in LAMBDA_TRIPLET.values():
+            assert 0.0 <= v <= 1.0
+        # All keys are valid layer indices 0-3
+        for (i, j) in LAMBDA_PAIRWISE.keys():
+            assert 0 <= i <= 3 and 0 <= j <= 3
+        for (i, j, k) in LAMBDA_TRIPLET.keys():
+            assert 0 <= i <= 3 and 0 <= j <= 3 and 0 <= k <= 3
+
+    def test_energy_concentration_baseline(self):
+        from aluminum_atmospheric_injection_cascade_2026 import (
+            energy_concentration,
+        )
+        baseline = {
+            "crust_coherence": 1.0,
+            "iono_density":    1.0,
+            "atmo_integrity":  1.0,
+            "aluminum_load":   0.0,
+        }
+        # Baseline state with no aluminum -> zero energy concentration
+        assert energy_concentration(baseline) == 0.0
+
+    def test_energy_concentration_grows_with_aluminum(self):
+        from aluminum_atmospheric_injection_cascade_2026 import (
+            energy_concentration,
+        )
+        low = {"crust_coherence": 1.0, "iono_density": 1.0,
+               "atmo_integrity": 1.0, "aluminum_load": 1.0}
+        high = {"crust_coherence": 1.0, "iono_density": 1.0,
+                "atmo_integrity": 1.0, "aluminum_load": 5.0}
+        assert energy_concentration(high) > energy_concentration(low)
+
+    def test_blow_up_rate_short_history(self):
+        from aluminum_atmospheric_injection_cascade_2026 import blow_up_rate
+        assert blow_up_rate([]) == 0.0
+        assert blow_up_rate([1.0]) == 0.0
+        assert blow_up_rate([1.0, 2.0]) == 0.0
+
+    def test_blow_up_rate_handles_zero_energy(self):
+        """Zero in history -> 0 (avoid log(0))."""
+        from aluminum_atmospheric_injection_cascade_2026 import blow_up_rate
+        assert blow_up_rate([0.0, 1.0, 2.0]) == 0.0
+
+    def test_evolve_step_returns_required_keys(self):
+        from aluminum_atmospheric_injection_cascade_2026 import evolve_step
+        state = {
+            "crust_coherence": 1.0,
+            "iono_density":    1.0,
+            "atmo_integrity":  1.0,
+            "aluminum_load":   0.0,
+        }
+        new = evolve_step(state, 0.5, 5.0)
+        for k in ("crust_coherence", "iono_density",
+                  "atmo_integrity", "aluminum_load"):
+            assert k in new
+
+    def test_evolve_step_clamps_atmo_to_unit_interval(self):
+        from aluminum_atmospheric_injection_cascade_2026 import evolve_step
+        state = {
+            "crust_coherence": 1.0,
+            "iono_density":    1.0,
+            "atmo_integrity":  1.0,
+            "aluminum_load":   100.0,    # extreme load
+        }
+        for _ in range(20):
+            state = evolve_step(state, 1.0, 100.0)
+            assert 0.0 <= state["atmo_integrity"] <= 1.0
+            assert state["crust_coherence"] >= 0.0
+            assert state["iono_density"]    >= 0.0
+            assert state["aluminum_load"]   >= 0.0
+
+    def test_detect_cascade_modes(self):
+        from aluminum_atmospheric_injection_cascade_2026 import detect_cascade
+        # Stable
+        stable = {"crust_coherence": 1.0, "iono_density": 1.0,
+                  "atmo_integrity": 1.0, "aluminum_load": 0.0}
+        triggered, mode = detect_cascade(stable, 0.0)
+        assert triggered is False
+        assert mode == "STABLE"
+
+        # Atmospheric destabilization
+        atmo_bad = {"crust_coherence": 1.0, "iono_density": 1.0,
+                    "atmo_integrity": 0.3, "aluminum_load": 5.0}
+        triggered, mode = detect_cascade(atmo_bad, 0.0)
+        assert triggered is True
+        assert mode == "ATMOSPHERIC_DESTABILIZATION"
+
+        # Ionospheric collapse
+        iono_bad = {"crust_coherence": 1.0, "iono_density": 0.3,
+                    "atmo_integrity": 1.0, "aluminum_load": 5.0}
+        triggered, mode = detect_cascade(iono_bad, 0.0)
+        assert triggered is True
+        assert mode == "IONOSPHERIC_COLLAPSE"
+
+        # Substrate decoherence
+        crust_bad = {"crust_coherence": 0.5, "iono_density": 1.0,
+                     "atmo_integrity": 1.0, "aluminum_load": 5.0}
+        triggered, mode = detect_cascade(crust_bad, 0.0)
+        assert triggered is True
+        assert mode == "SUBSTRATE_DECOHERENCE"
+
+        # Full cascade
+        full = {"crust_coherence": 0.4, "iono_density": 0.3,
+                "atmo_integrity": 0.2, "aluminum_load": 10.0}
+        triggered, mode = detect_cascade(full, 0.0)
+        assert triggered is True
+        assert mode == "FULL_CASCADE"
+
+        # Singularity approach via blow-up rate (atmo still ok)
+        ok_state = {"crust_coherence": 1.0, "iono_density": 1.0,
+                    "atmo_integrity": 0.9, "aluminum_load": 1.0}
+        triggered, mode = detect_cascade(ok_state, 1.0)
+        assert triggered is True
+        assert mode == "SINGULARITY_APPROACH"
+
+    def test_run_simulation_returns_required_fields(self):
+        from aluminum_atmospheric_injection_cascade_2026 import run_simulation
+        r = run_simulation(years=10, dt=0.5, al_rate=0.1)
+        for k in ("final_state", "cascade_year", "cascade_mode",
+                  "max_energy", "final_energy"):
+            assert k in r
+
+    def test_monte_carlo_summary_shape(self):
+        from aluminum_atmospheric_injection_cascade_2026 import monte_carlo
+        s = monte_carlo(n_runs=20, years=10, master_seed=42)
+        for k in ("n_runs", "mode_distribution", "p_any_cascade",
+                  "cascade_year_median", "cascade_year_min",
+                  "cascade_year_max"):
+            assert k in s
+        assert s["n_runs"] == 20
+        assert 0.0 <= s["p_any_cascade"] <= 1.0
+
+    def test_monte_carlo_mode_distribution_sums_to_one(self):
+        from aluminum_atmospheric_injection_cascade_2026 import monte_carlo
+        s = monte_carlo(n_runs=20, years=10, master_seed=42)
+        total = sum(s["mode_distribution"].values())
+        assert abs(total - 1.0) < 1e-9
+
+    def test_monte_carlo_deterministic_with_master_seed(self):
+        from aluminum_atmospheric_injection_cascade_2026 import monte_carlo
+        a = monte_carlo(n_runs=20, years=10, master_seed=2026)
+        b = monte_carlo(n_runs=20, years=10, master_seed=2026)
+        assert a["p_any_cascade"]       == b["p_any_cascade"]
+        assert a["cascade_year_median"] == b["cascade_year_median"]
+        assert a["mode_distribution"]   == b["mode_distribution"]
+
+    def test_higher_aluminum_rate_increases_cascade_probability(self):
+        """5 Tg/yr injection should yield more cascades than 0 Tg/yr."""
+        from aluminum_atmospheric_injection_cascade_2026 import monte_carlo
+        none = monte_carlo(n_runs=20, years=10, al_rate=0.0,
+                           master_seed=42)
+        full = monte_carlo(n_runs=20, years=10, al_rate=5.0,
+                           master_seed=42)
+        assert full["p_any_cascade"] >= none["p_any_cascade"]
+
+    def test_documented_run_atmospheric_dominant(self):
+        """Documented run (n=1000, 50yr, master_seed=2026, 5 Tg/yr):
+        atmospheric destabilization is the dominant cascade mode."""
+        from aluminum_atmospheric_injection_cascade_2026 import monte_carlo
+        s = monte_carlo(n_runs=1000, years=50, master_seed=2026)
+        # At least 90% of trajectories should reach cascade
+        assert s["p_any_cascade"] > 0.9
+        # ATMOSPHERIC_DESTABILIZATION should be the most common mode
+        modes = sorted(s["mode_distribution"].items(),
+                       key=lambda x: -x[1])
+        assert modes[0][0] == "ATMOSPHERIC_DESTABILIZATION"
