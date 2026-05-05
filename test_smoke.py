@@ -6346,3 +6346,211 @@ class TestMonarchDocumentedMechanisms:
         substrate_traj = simulate_trajectory(100_000, 5,
                                               stressor_multiplier=substrate_stressor)
         assert substrate_traj[-1]["population"] < baseline_traj[-1]["population"]
+
+
+# ─────────────────────────────────────────────
+# EARTH SYSTEMS CONSTRAINTS 2026
+# Glacier dynamics + ecosystem collapse compression + iron-
+# fertilization carbon-sink invalidation. Constraint layer for
+# coupled-equation solvers.
+# ─────────────────────────────────────────────
+
+class TestEarthSystemsConstraints2026:
+    def test_import(self):
+        import earth_systems_constraints_2026
+
+    def test_glacier_constants(self):
+        from earth_systems_constraints_2026 import (
+            GLACIER_LOSS_2025_GT,
+            GLACIER_LOSS_2025_UNCERTAINTY_GT,
+            GREENLAND_LOSS_2002_2025_AVG_GT_YR,
+            ANTARCTICA_LOSS_2002_2025_AVG_GT_YR,
+            CUMULATIVE_GLACIER_LOSS_SINCE_1975_GT,
+            SLR_FROM_GLACIER_2025_MM,
+        )
+        assert GLACIER_LOSS_2025_GT == 408
+        assert GLACIER_LOSS_2025_UNCERTAINTY_GT == 132
+        assert GREENLAND_LOSS_2002_2025_AVG_GT_YR == 264
+        assert ANTARCTICA_LOSS_2002_2025_AVG_GT_YR == 135
+        assert CUMULATIVE_GLACIER_LOSS_SINCE_1975_GT == 9000
+        assert SLR_FROM_GLACIER_2025_MM == 1.1
+
+    def test_collapse_compression_range(self):
+        from earth_systems_constraints_2026 import (
+            COLLAPSE_COMPRESSION_MIN_PCT,
+            COLLAPSE_COMPRESSION_MAX_PCT,
+        )
+        assert COLLAPSE_COMPRESSION_MIN_PCT == 38
+        assert COLLAPSE_COMPRESSION_MAX_PCT == 81
+
+    def test_disruption_thresholds(self):
+        from earth_systems_constraints_2026 import (
+            DISRUPTION_TROPICAL_OCEAN_BY_YEAR,
+            DISRUPTION_TROPICAL_FOREST_BY_YEAR,
+            DISRUPTION_POLAR_ENV_BY_YEAR,
+        )
+        assert DISRUPTION_TROPICAL_OCEAN_BY_YEAR == 2030
+        assert DISRUPTION_TROPICAL_FOREST_BY_YEAR == 2050
+        assert DISRUPTION_POLAR_ENV_BY_YEAR == 2050
+
+    def test_coupled_tipping_elements(self):
+        from earth_systems_constraints_2026 import COUPLED_TIPPING_ELEMENTS
+        assert len(COUPLED_TIPPING_ELEMENTS) == 6
+        for required in ("Greenland_Ice_Sheet",
+                         "West_Antarctic_Ice_Sheet",
+                         "AMOC", "Amazon_Rainforest",
+                         "Boreal_Permafrost",
+                         "Coral_Reefs_Warm_Water"):
+            assert required in COUPLED_TIPPING_ELEMENTS
+
+    def test_iron_fertilization_status(self):
+        from earth_systems_constraints_2026 import (
+            IRON_FERTILIZATION_HYPOTHESIS_STATUS,
+            IRON_PRIMARY_SOURCE_OLD,
+            IRON_PRIMARY_SOURCE_OBSERVED,
+            HIGH_IRON_TRIGGERED_BLOOM_AS_PREDICTED,
+            ASSUMED_FEEDBACK_SIGN,
+            OBSERVED_FEEDBACK_SIGN,
+        )
+        assert IRON_FERTILIZATION_HYPOTHESIS_STATUS == "INVALIDATED"
+        assert IRON_PRIMARY_SOURCE_OLD == "ice_meltwater_discharge"
+        assert IRON_PRIMARY_SOURCE_OBSERVED == "deep_ocean_water_and_sediments"
+        assert HIGH_IRON_TRIGGERED_BLOOM_AS_PREDICTED is False
+        assert "cooling" in ASSUMED_FEEDBACK_SIGN
+        assert "warming" in OBSERVED_FEEDBACK_SIGN
+
+    def test_invalidated_assumptions_registry(self):
+        from earth_systems_constraints_2026 import INVALIDATED_ASSUMPTIONS
+        for required_key in (
+            "iron_fertilization_carbon_sink",
+            "linear_single_stressor_collapse_timeline",
+            "greenland_amoc_negative_feedback_stabilizes_system",
+            "coral_reefs_resilient",
+            "linear_extrapolation_of_glacier_loss",
+        ):
+            assert required_key in INVALIDATED_ASSUMPTIONS
+            assert INVALIDATED_ASSUMPTIONS[required_key]  # non-empty message
+
+    def test_constraint_validity_check_invalidated(self):
+        from earth_systems_constraints_2026 import constraint_validity_check
+        valid, msg = constraint_validity_check("iron_fertilization_carbon_sink")
+        assert valid is False
+        assert "INVALIDATED" in msg
+
+    def test_constraint_validity_check_unknown_returns_conditional(self):
+        from earth_systems_constraints_2026 import constraint_validity_check
+        valid, msg = constraint_validity_check("stable_holocene_baseline")
+        assert valid is True
+        assert "CONDITIONAL" in msg
+
+    def test_constraint_validity_check_case_insensitive(self):
+        from earth_systems_constraints_2026 import constraint_validity_check
+        a = constraint_validity_check("CORAL_REEFS_RESILIENT")
+        b = constraint_validity_check("coral_reefs_resilient")
+        assert a == b
+
+    def test_cascade_trigger_tropical_ocean_window(self):
+        from earth_systems_constraints_2026 import cascade_trigger_check
+        # Window opens at 2030 - 4 = 2026
+        triggered_now, status = cascade_trigger_check("tropical_ocean", 2026)
+        assert triggered_now is True
+        assert "DISRUPTION" in status
+        triggered_early, _ = cascade_trigger_check("tropical_ocean", 2025)
+        assert triggered_early is False
+
+    def test_cascade_trigger_tropical_forest_window(self):
+        from earth_systems_constraints_2026 import cascade_trigger_check
+        # Window opens at 2050 - 5 = 2045
+        triggered, _ = cascade_trigger_check("tropical_forest", 2046)
+        assert triggered is True
+        triggered_early, _ = cascade_trigger_check("tropical_forest", 2044)
+        assert triggered_early is False
+
+    def test_cascade_trigger_polar_window(self):
+        from earth_systems_constraints_2026 import cascade_trigger_check
+        triggered, _ = cascade_trigger_check("polar_ice_sheet", 2046)
+        assert triggered is True
+
+    def test_cascade_trigger_coral_always_fires(self):
+        """Coral tipping point already crossed; fires regardless of year."""
+        from earth_systems_constraints_2026 import cascade_trigger_check
+        for year in (2020, 2026, 2050):
+            triggered, status = cascade_trigger_check("coral_reef", year)
+            assert triggered is True
+            assert "CROSSED" in status
+
+    def test_cascade_trigger_unknown_system_stable(self):
+        from earth_systems_constraints_2026 import cascade_trigger_check
+        triggered, status = cascade_trigger_check("atmosphere_co2", 2026)
+        assert triggered is False
+        assert "STABLE" in status
+
+    def test_apply_collapse_compression_single_stressor_unchanged(self):
+        from earth_systems_constraints_2026 import apply_collapse_compression
+        a, b = apply_collapse_compression(100, 1)
+        assert a == 100 and b == 100
+
+    def test_apply_collapse_compression_compounds(self):
+        """Compound stressors compress 19-62% remaining (38-81% reduction)."""
+        from earth_systems_constraints_2026 import apply_collapse_compression
+        min_yr, max_yr = apply_collapse_compression(100, 3)
+        assert 18.5 < min_yr < 19.5     # 19% of 100
+        assert 61.5 < max_yr < 62.5     # 62% of 100
+        assert min_yr < max_yr
+
+    def test_apply_collapse_compression_zero_stressors(self):
+        from earth_systems_constraints_2026 import apply_collapse_compression
+        a, b = apply_collapse_compression(50, 0)
+        assert a == 50 and b == 50
+
+    def test_remove_iron_fertilization_zeros_matching_keys(self):
+        from earth_systems_constraints_2026 import (
+            remove_iron_fertilization_carbon_sink,
+        )
+        budget = {
+            "ocean_dissolution_GtC_yr": 2.5,
+            "iron_fertilization_drawdown_GtC_yr": 0.6,
+            "meltwater_iron_drawdown_GtC_yr": 0.3,
+            "glacial_iron_co2_sink_GtC_yr": 0.2,
+            "biological_pump_GtC_yr": 1.7,
+        }
+        new_budget, zeroed = remove_iron_fertilization_carbon_sink(budget)
+        # Three keys should match
+        assert len(zeroed) == 3
+        for k in zeroed:
+            assert new_budget[k] == 0.0
+        # Untouched keys preserve values
+        assert new_budget["ocean_dissolution_GtC_yr"] == 2.5
+        assert new_budget["biological_pump_GtC_yr"] == 1.7
+
+    def test_remove_iron_fertilization_does_not_mutate_input(self):
+        from earth_systems_constraints_2026 import (
+            remove_iron_fertilization_carbon_sink,
+        )
+        budget = {"iron_fertilization_GtC_yr": 0.5}
+        before = dict(budget)
+        new_budget, _ = remove_iron_fertilization_carbon_sink(budget)
+        assert budget == before   # original unchanged
+        assert new_budget != budget
+
+    def test_observation_precedence_flags(self):
+        from earth_systems_constraints_2026 import (
+            OBSERVATION_PRECEDES_LINEAR_MODEL,
+            LINEAR_MODEL_DEPRECATED_FOR_COUPLED_SYSTEMS,
+            NONLINEAR_COUPLING_REQUIRED,
+            COMPOUND_STRESSOR_DEFAULT,
+        )
+        assert OBSERVATION_PRECEDES_LINEAR_MODEL is True
+        assert LINEAR_MODEL_DEPRECATED_FOR_COUPLED_SYSTEMS is True
+        assert NONLINEAR_COUPLING_REQUIRED is True
+        assert COMPOUND_STRESSOR_DEFAULT is True
+
+    def test_planetary_boundaries_count(self):
+        from earth_systems_constraints_2026 import (
+            PLANETARY_BOUNDARIES_BREACHED_OF_9,
+            CORAL_TIPPING_POINT_CROSSED_2025,
+            GREENLAND_AMOC_NEGATIVE_FEEDBACK_RELIABLE,
+        )
+        assert PLANETARY_BOUNDARIES_BREACHED_OF_9 == 7
+        assert CORAL_TIPPING_POINT_CROSSED_2025 is True
+        assert GREENLAND_AMOC_NEGATIVE_FEEDBACK_RELIABLE is False
