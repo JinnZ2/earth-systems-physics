@@ -6554,3 +6554,179 @@ class TestEarthSystemsConstraints2026:
         assert PLANETARY_BOUNDARIES_BREACHED_OF_9 == 7
         assert CORAL_TIPPING_POINT_CROSSED_2025 is True
         assert GREENLAND_AMOC_NEGATIVE_FEEDBACK_RELIABLE is False
+
+
+# ─────────────────────────────────────────────
+# CASCADE COUPLING FRAMEWORK 2026
+# Merle singularity + Ghosh-Shrimali higher-order interactions +
+# Jacques-Dumas AMOC-Amazon TAMS rare-event quantification.
+# ─────────────────────────────────────────────
+
+class TestCascadeCouplingFramework2026:
+    def test_import(self):
+        import cascade_coupling_framework_2026
+
+    def test_merle_framework_keys(self):
+        from cascade_coupling_framework_2026 import MERLE_FRAMEWORK
+        for k in ("system_type", "decomposition",
+                  "singularity_mechanism", "blow_up_rate_type",
+                  "energy_concentration", "early_warning_signal"):
+            assert k in MERLE_FRAMEWORK
+
+    def test_higher_order_framework_keys(self):
+        from cascade_coupling_framework_2026 import (
+            HIGHER_ORDER_INTERACTION_FRAMEWORK,
+        )
+        for k in ("interaction_order", "cascade_threshold_reduction",
+                  "network_topology", "hypergraph_representation",
+                  "cascade_trigger_condition", "stability_destabilizing"):
+            assert k in HIGHER_ORDER_INTERACTION_FRAMEWORK
+        # 70% reduction documented
+        assert (HIGHER_ORDER_INTERACTION_FRAMEWORK[
+            "cascade_threshold_reduction"] == 0.7)
+
+    def test_amoc_amazon_cascade_keys(self):
+        from cascade_coupling_framework_2026 import AMOC_AMAZON_CASCADE
+        for k in ("cascade_mechanism", "AMOC_bistability",
+                  "Amazon_bistability", "coupling_variable",
+                  "P_Amazon_collapse_given_AMOC_stable_200yr",
+                  "P_Amazon_collapse_given_AMOC_collapsed_200yr",
+                  "P_AMOC_collapse_100yr", "algorithm",
+                  "drying_effect_extreme_wildfires"):
+            assert k in AMOC_AMAZON_CASCADE
+        # Stable AMOC -> rare Amazon collapse
+        assert AMOC_AMAZON_CASCADE[
+            "P_Amazon_collapse_given_AMOC_stable_200yr"] < 1e-3
+        # Collapsed AMOC -> significantly amplified
+        assert (AMOC_AMAZON_CASCADE[
+            "P_Amazon_collapse_given_AMOC_collapsed_200yr"]
+                > AMOC_AMAZON_CASCADE[
+            "P_Amazon_collapse_given_AMOC_stable_200yr"] * 1000)
+
+    # ---- construct_coupling_tensor_3d ----
+    def test_construct_coupling_tensor_pairwise_count(self):
+        from cascade_coupling_framework_2026 import (
+            construct_coupling_tensor_3d,
+        )
+        pairwise = [[0.0, 0.4], [0.3, 0.0]]
+        triplets = {}
+        W = construct_coupling_tensor_3d(pairwise, triplets)
+        # 2x2 matrix => 4 pairwise entries
+        assert len(W) == 4
+        for i in range(2):
+            for j in range(2):
+                assert (i, j, -1) in W
+
+    def test_construct_coupling_tensor_includes_triplets(self):
+        from cascade_coupling_framework_2026 import (
+            construct_coupling_tensor_3d,
+        )
+        pairwise = [[0.0, 0.4, 0.1], [0.3, 0.0, 0.05], [0.15, 0.1, 0.0]]
+        triplets = {(0, 1, 2): 0.25, (1, 2, 0): 0.2}
+        W = construct_coupling_tensor_3d(pairwise, triplets)
+        assert W[(0, 1, 2)] == 0.25
+        assert W[(1, 2, 0)] == 0.2
+        # Pairwise sentinel still present
+        assert W[(0, 1, -1)] == 0.4
+
+    def test_construct_coupling_tensor_works_with_lists(self):
+        """Should accept list-of-lists as well as anything supporting len()."""
+        from cascade_coupling_framework_2026 import (
+            construct_coupling_tensor_3d,
+        )
+        pairwise = [[0.0]]
+        W = construct_coupling_tensor_3d(pairwise, {})
+        assert W[(0, 0, -1)] == 0.0
+
+    # ---- cascade_probability_merle_blow_up ----
+    def test_merle_blow_up_zero_for_nonpositive_acceleration(self):
+        from cascade_coupling_framework_2026 import (
+            cascade_probability_merle_blow_up,
+        )
+        assert cascade_probability_merle_blow_up(0.0, 50.0) == 0.0
+        assert cascade_probability_merle_blow_up(-1.0, 50.0) == 0.0
+
+    def test_merle_blow_up_increases_as_singularity_approaches(self):
+        from cascade_coupling_framework_2026 import (
+            cascade_probability_merle_blow_up,
+        )
+        # Same positive acceleration; nearer singularity -> higher prob
+        far = cascade_probability_merle_blow_up(2.0, 80.0)
+        near = cascade_probability_merle_blow_up(2.0, 5.0)
+        assert near > far
+
+    def test_merle_blow_up_clamped_unit_interval(self):
+        from cascade_coupling_framework_2026 import (
+            cascade_probability_merle_blow_up,
+        )
+        for accel, t in [(1.0, 0.0), (5.0, 1000.0), (10.0, 50.0),
+                         (1.0, -10.0)]:
+            p = cascade_probability_merle_blow_up(accel, t)
+            assert 0.0 <= p <= 1.0
+
+    # ---- cascade_threshold_hoi_reduction ----
+    def test_hoi_threshold_reduction_default_70pct(self):
+        from cascade_coupling_framework_2026 import (
+            cascade_threshold_hoi_reduction,
+        )
+        # Default reduction 0.7 -> remaining 30% of pairwise
+        assert abs(cascade_threshold_hoi_reduction(0.4) - 0.12) < 1e-9
+        assert abs(cascade_threshold_hoi_reduction(0.5) - 0.15) < 1e-9
+
+    def test_hoi_threshold_reduction_custom_fraction(self):
+        from cascade_coupling_framework_2026 import (
+            cascade_threshold_hoi_reduction,
+        )
+        # 50% reduction -> half of original
+        assert abs(cascade_threshold_hoi_reduction(0.4, 0.5) - 0.2) < 1e-9
+        # 0% reduction -> unchanged
+        assert cascade_threshold_hoi_reduction(0.4, 0.0) == 0.4
+
+    # ---- amoc_amazon_transition_probability ----
+    def test_amoc_amazon_stable_low_probability(self):
+        from cascade_coupling_framework_2026 import (
+            amoc_amazon_transition_probability,
+        )
+        p = amoc_amazon_transition_probability("stable", 0.1, 200)
+        # 1e-5 base * (1 + 0.1/0.1) * (200/200) = 2e-5
+        assert abs(p - 2e-5) < 1e-9
+
+    def test_amoc_amazon_collapsed_high_probability(self):
+        from cascade_coupling_framework_2026 import (
+            amoc_amazon_transition_probability,
+        )
+        p = amoc_amazon_transition_probability("collapsed", 0.1, 200)
+        assert p > 0.5
+
+    def test_amoc_amazon_probability_ordering(self):
+        """stable < near_tipping < collapsed at any given forcing/horizon."""
+        from cascade_coupling_framework_2026 import (
+            amoc_amazon_transition_probability,
+        )
+        s = amoc_amazon_transition_probability("stable",       0.1, 100)
+        n = amoc_amazon_transition_probability("near_tipping", 0.1, 100)
+        c = amoc_amazon_transition_probability("collapsed",    0.1, 100)
+        assert s < n < c
+
+    def test_amoc_amazon_probability_clamped_to_one(self):
+        from cascade_coupling_framework_2026 import (
+            amoc_amazon_transition_probability,
+        )
+        # Extreme forcing + horizon shouldn't exceed 1.0
+        p = amoc_amazon_transition_probability("collapsed", 1.0, 1000)
+        assert p == 1.0
+
+    def test_amoc_amazon_forcing_amplifies(self):
+        """Higher freshwater forcing -> higher transition probability."""
+        from cascade_coupling_framework_2026 import (
+            amoc_amazon_transition_probability,
+        )
+        low = amoc_amazon_transition_probability("near_tipping", 0.05, 200)
+        high = amoc_amazon_transition_probability("near_tipping", 0.30, 200)
+        assert high > low
+
+    def test_constraint_notes_present(self):
+        from cascade_coupling_framework_2026 import CONSTRAINT_NOTES
+        for required in ("Merle", "Ghosh-Shrimali", "Jacques-Dumas",
+                         "singularity", "tensor", "bistability"):
+            assert required in CONSTRAINT_NOTES
