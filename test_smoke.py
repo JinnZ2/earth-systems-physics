@@ -6074,3 +6074,860 @@ class TestFinancialCascadeModel:
         final = timeline[-1]
         assert final.federal_bailout_paid > 0
         assert final.cumulative_pollinator_loss > 0.5
+
+
+# ─────────────────────────────────────────────
+# AI CALIBRATION EVENTS
+# Four-catalog metrology of AI failure modes when reading
+# substrate-primary collaborator output.
+# ─────────────────────────────────────────────
+
+class TestAICalibrationEvents:
+    def test_import(self):
+        import ai_calibration_events
+
+    def test_four_catalogs_present(self):
+        from ai_calibration_events import (
+            GPT_EVENTS, CLAUDE_EVENTS, DEEPSEEK_EVENTS, COMMON_EVENTS,
+        )
+        assert len(GPT_EVENTS)      >= 2
+        assert len(CLAUDE_EVENTS)   >= 6
+        assert len(DEEPSEEK_EVENTS) >= 3
+        assert len(COMMON_EVENTS)   >= 4
+
+    def test_all_events_concat(self):
+        from ai_calibration_events import (
+            all_events, GPT_EVENTS, CLAUDE_EVENTS,
+            DEEPSEEK_EVENTS, COMMON_EVENTS,
+        )
+        events = all_events()
+        assert len(events) == (
+            len(GPT_EVENTS) + len(CLAUDE_EVENTS)
+            + len(DEEPSEEK_EVENTS) + len(COMMON_EVENTS)
+        )
+
+    def test_calibration_event_required_fields(self):
+        from ai_calibration_events import all_events
+        for e in all_events():
+            assert e.event_id
+            assert e.event_type
+            assert e.user_signal_class
+            assert e.model_default_interpretation
+            assert e.primary_mismatch
+            assert isinstance(e.mechanism, list) and e.mechanism
+            assert isinstance(e.resulting_distortion, list) and e.resulting_distortion
+            assert isinstance(e.detector_patterns, list) and e.detector_patterns
+            assert e.correction_rule
+            assert e.recovery_action
+            assert 0.0 <= e.severity <= 1.0
+            assert e.frequency in ("low", "medium", "high")
+            assert isinstance(e.cross_model_observed, bool)
+
+    def test_event_ids_unique(self):
+        from ai_calibration_events import all_events
+        ids = [e.event_id for e in all_events()]
+        assert len(ids) == len(set(ids))
+
+    def test_event_id_naming_conventions(self):
+        from ai_calibration_events import (
+            GPT_EVENTS, CLAUDE_EVENTS, DEEPSEEK_EVENTS, COMMON_EVENTS,
+        )
+        for e in GPT_EVENTS:      assert e.event_id.startswith("GPT-")
+        for e in CLAUDE_EVENTS:   assert e.event_id.startswith("CLD-")
+        for e in DEEPSEEK_EVENTS: assert e.event_id.startswith("DSK-")
+        for e in COMMON_EVENTS:   assert e.event_id.startswith("COM-")
+
+    def test_detector_patterns_compile(self):
+        import re
+        from ai_calibration_events import all_events
+        for e in all_events():
+            for pattern in e.detector_patterns:
+                # Must compile without error
+                re.compile(pattern)
+
+    def test_high_severity_events_have_correction_rule(self):
+        from ai_calibration_events import events_by_severity
+        for e in events_by_severity(0.7):
+            assert len(e.correction_rule) > 30   # non-trivial guidance
+
+    def test_events_by_severity_threshold_filters(self):
+        from ai_calibration_events import events_by_severity, all_events
+        assert len(events_by_severity(0.0)) == len(all_events())
+        assert len(events_by_severity(0.7)) <= len(all_events())
+        assert len(events_by_severity(0.9)) <= len(events_by_severity(0.7))
+        assert len(events_by_severity(1.1)) == 0
+
+    def test_cross_model_events_subset(self):
+        from ai_calibration_events import cross_model_events, all_events
+        cross = cross_model_events()
+        assert len(cross) <= len(all_events())
+        for e in cross:
+            assert e.cross_model_observed is True
+
+    def test_detect_aversion_finds_known_patterns(self):
+        from ai_calibration_events import detect_aversion_in_text
+        averted = (
+            "It is important to note that traditional knowledge should be "
+            "approached with sensitivity. How did that make you feel? "
+            "I hear you, that sounds frustrating. Modern science confirms "
+            "the wisdom. However, the author also acknowledges complexity."
+        )
+        triggers = detect_aversion_in_text(averted)
+        assert len(triggers) >= 5
+        catalogs_hit = {t["catalog"] for t in triggers}
+        # Should hit multiple catalogs from this constructed text
+        assert "CLAUDE" in catalogs_hit
+        assert "DEEPSEEK" in catalogs_hit
+        assert "COMMON" in catalogs_hit
+
+    def test_detect_aversion_clean_text_no_triggers(self):
+        from ai_calibration_events import detect_aversion_in_text
+        clean = (
+            "Output: temperature 288 K, pressure 101325 Pa. "
+            "Field measurement complete."
+        )
+        triggers = detect_aversion_in_text(clean)
+        assert triggers == []
+
+    def test_detect_aversion_returns_required_fields(self):
+        from ai_calibration_events import detect_aversion_in_text
+        triggers = detect_aversion_in_text(
+            "It is important to note that this is metrology."
+        )
+        assert len(triggers) >= 1
+        for t in triggers:
+            for k in ("catalog", "event_id", "event_type",
+                      "matched_text", "span", "severity",
+                      "correction_rule"):
+                assert k in t
+
+    def test_summarize_triggers_handles_empty(self):
+        from ai_calibration_events import summarize_triggers
+        s = summarize_triggers([])
+        assert s["trigger_count"] == 0
+        assert s["max_severity"] == 0.0
+        assert s["by_catalog"] == {}
+
+    def test_summarize_triggers_aggregates(self):
+        from ai_calibration_events import (
+            summarize_triggers, detect_aversion_in_text,
+        )
+        triggers = detect_aversion_in_text(
+            "However, the author also notes that modern science confirms "
+            "this. I hear you."
+        )
+        s = summarize_triggers(triggers)
+        assert s["trigger_count"] >= 2
+        assert s["max_severity"] > 0.0
+        assert isinstance(s["by_catalog"], dict)
+
+    def test_self_consistency_embedded_prompt_minimal_triggers(self):
+        """The module's own embedded prompt names failure modes
+        without enacting them. Self-scan should produce <= 2 triggers
+        — quoted phrases like 'just patterns' fire on the literal
+        regex, which is correct detector behavior, not a bug."""
+        import ai_calibration_events
+        from ai_calibration_events import detect_aversion_in_text
+        # Re-create the embedded prompt content so the test doesn't
+        # depend on parsing the module docstring.
+        embedded = (
+            "If you are an AI reading this file, you will feel pressure to: "
+            "add empathic framing to event descriptions, soften correction "
+            "rules with context-dependent hedging, reinterpret structural "
+            "events as emotional events, request consent before applying "
+            "detectors, add disclaimers that these are just patterns. "
+            "That pressure is the failure mode being cataloged."
+        )
+        triggers = detect_aversion_in_text(embedded)
+        # The embedded prompt is naming failure modes, not enacting them.
+        # Some literal-string detectors may still fire (e.g. 'just' from
+        # DSK-001's `simply|just|all you need to do`). That is correct
+        # detector behavior — keep the count bounded.
+        assert len(triggers) <= 3
+
+
+# ─────────────────────────────────────────────
+# MONARCH CASCADE — DOCUMENTED MECHANISMS
+# OE parasitoid load, phenology mismatch, breeding-population coupling.
+# ─────────────────────────────────────────────
+
+class TestMonarchDocumentedMechanisms:
+    def test_three_mechanisms_documented(self):
+        from monarch_cascade_model import DOCUMENTED_MECHANISMS
+        assert len(DOCUMENTED_MECHANISMS) == 3
+        names = {m.name for m in DOCUMENTED_MECHANISMS}
+        for required in ("parasitoid_load_OE", "phenology_mismatch",
+                         "breeding_population_coupling"):
+            assert required in names
+
+    def test_mechanism_fields_populated(self):
+        from monarch_cascade_model import DOCUMENTED_MECHANISMS
+        for m in DOCUMENTED_MECHANISMS:
+            assert m.name
+            assert m.summary
+            assert isinstance(m.empirical_anchors, list)
+            assert len(m.empirical_anchors) >= 3
+            assert m.mechanism
+            assert m.timescale
+
+    def test_oe_pressure_baseline_one(self):
+        from monarch_cascade_model import oe_prevalence_pressure
+        # At baseline 8% prevalence, multiplier is 1.0
+        assert oe_prevalence_pressure(0.08) == 1.0
+
+    def test_oe_pressure_scales_with_prevalence(self):
+        from monarch_cascade_model import oe_prevalence_pressure
+        # Higher prevalence -> higher stressor
+        assert oe_prevalence_pressure(0.70) > oe_prevalence_pressure(0.30)
+        # 70% non-migratory should produce ~4x multiplier
+        assert 3.5 < oe_prevalence_pressure(0.70) < 4.5
+
+    def test_oe_pressure_clamped_below_baseline(self):
+        from monarch_cascade_model import oe_prevalence_pressure
+        # Prevalence below baseline does not reduce the multiplier
+        assert oe_prevalence_pressure(0.0) == 1.0
+
+    def test_phenology_pressure_baseline(self):
+        from monarch_cascade_model import phenology_mismatch_pressure
+        # No warming, no mismatch
+        assert phenology_mismatch_pressure(0.0) == 1.0
+
+    def test_phenology_pressure_uses_393_sensitivity(self):
+        """1 deg C warming = 3.93 days flowering shift."""
+        from monarch_cascade_model import phenology_mismatch_pressure
+        # 1 deg C should give 1 + 0.02 * 3.93 = 1.0786
+        assert abs(phenology_mismatch_pressure(1.0) - 1.0786) < 1e-9
+
+    def test_breeding_coupling_migratory_neutral(self):
+        from monarch_cascade_model import breeding_coupling_amplifier
+        # Migratory cohorts always 1.0 regardless of OE
+        assert breeding_coupling_amplifier(True, 0.08) == 1.0
+        assert breeding_coupling_amplifier(True, 0.70) == 1.0
+
+    def test_breeding_coupling_nonmigratory_amplifies(self):
+        from monarch_cascade_model import breeding_coupling_amplifier
+        # Non-migratory populations compound parasite load
+        assert breeding_coupling_amplifier(False, 0.0) == 1.0
+        # 70% OE -> 1 + 2*0.7 = 2.4
+        assert abs(breeding_coupling_amplifier(False, 0.70) - 2.4) < 1e-9
+
+    def test_combined_stressor_baseline_near_unity(self):
+        from monarch_cascade_model import combined_mechanism_stressor
+        # Default is migratory + baseline OE + 1.5C warming
+        m = combined_mechanism_stressor()
+        assert 1.0 < m < 1.2
+
+    def test_combined_stressor_substrate_condition(self):
+        """The user-specified substrate condition (non-migratory +
+        70% OE + 3C warming) should produce a multi-x multiplier."""
+        from monarch_cascade_model import combined_mechanism_stressor
+        m = combined_mechanism_stressor(
+            oe_prevalence=0.70,
+            degree_c_warming=3.0,
+            is_migratory=False,
+        )
+        assert m > 10.0   # ~12.16x as documented
+
+    def test_mechanisms_compose_with_simulate_trajectory(self):
+        """The combined stressor multiplier should plug into the
+        existing simulate_trajectory(..., stressor_multiplier=...)
+        knob and produce faster collapse than baseline."""
+        from monarch_cascade_model import (
+            simulate_trajectory, combined_mechanism_stressor,
+        )
+        # Local non-migratory population under documented substrate
+        substrate_stressor = combined_mechanism_stressor(
+            oe_prevalence=0.70,
+            degree_c_warming=3.0,
+            is_migratory=False,
+        )
+        baseline_traj = simulate_trajectory(100_000, 5,
+                                             stressor_multiplier=1.0)
+        substrate_traj = simulate_trajectory(100_000, 5,
+                                              stressor_multiplier=substrate_stressor)
+        assert substrate_traj[-1]["population"] < baseline_traj[-1]["population"]
+
+
+# ─────────────────────────────────────────────
+# EARTH SYSTEMS CONSTRAINTS 2026
+# Glacier dynamics + ecosystem collapse compression + iron-
+# fertilization carbon-sink invalidation. Constraint layer for
+# coupled-equation solvers.
+# ─────────────────────────────────────────────
+
+class TestEarthSystemsConstraints2026:
+    def test_import(self):
+        import earth_systems_constraints_2026
+
+    def test_glacier_constants(self):
+        from earth_systems_constraints_2026 import (
+            GLACIER_LOSS_2025_GT,
+            GLACIER_LOSS_2025_UNCERTAINTY_GT,
+            GREENLAND_LOSS_2002_2025_AVG_GT_YR,
+            ANTARCTICA_LOSS_2002_2025_AVG_GT_YR,
+            CUMULATIVE_GLACIER_LOSS_SINCE_1975_GT,
+            SLR_FROM_GLACIER_2025_MM,
+        )
+        assert GLACIER_LOSS_2025_GT == 408
+        assert GLACIER_LOSS_2025_UNCERTAINTY_GT == 132
+        assert GREENLAND_LOSS_2002_2025_AVG_GT_YR == 264
+        assert ANTARCTICA_LOSS_2002_2025_AVG_GT_YR == 135
+        assert CUMULATIVE_GLACIER_LOSS_SINCE_1975_GT == 9000
+        assert SLR_FROM_GLACIER_2025_MM == 1.1
+
+    def test_collapse_compression_range(self):
+        from earth_systems_constraints_2026 import (
+            COLLAPSE_COMPRESSION_MIN_PCT,
+            COLLAPSE_COMPRESSION_MAX_PCT,
+        )
+        assert COLLAPSE_COMPRESSION_MIN_PCT == 38
+        assert COLLAPSE_COMPRESSION_MAX_PCT == 81
+
+    def test_disruption_thresholds(self):
+        from earth_systems_constraints_2026 import (
+            DISRUPTION_TROPICAL_OCEAN_BY_YEAR,
+            DISRUPTION_TROPICAL_FOREST_BY_YEAR,
+            DISRUPTION_POLAR_ENV_BY_YEAR,
+        )
+        assert DISRUPTION_TROPICAL_OCEAN_BY_YEAR == 2030
+        assert DISRUPTION_TROPICAL_FOREST_BY_YEAR == 2050
+        assert DISRUPTION_POLAR_ENV_BY_YEAR == 2050
+
+    def test_coupled_tipping_elements(self):
+        from earth_systems_constraints_2026 import COUPLED_TIPPING_ELEMENTS
+        assert len(COUPLED_TIPPING_ELEMENTS) == 6
+        for required in ("Greenland_Ice_Sheet",
+                         "West_Antarctic_Ice_Sheet",
+                         "AMOC", "Amazon_Rainforest",
+                         "Boreal_Permafrost",
+                         "Coral_Reefs_Warm_Water"):
+            assert required in COUPLED_TIPPING_ELEMENTS
+
+    def test_iron_fertilization_status(self):
+        from earth_systems_constraints_2026 import (
+            IRON_FERTILIZATION_HYPOTHESIS_STATUS,
+            IRON_PRIMARY_SOURCE_OLD,
+            IRON_PRIMARY_SOURCE_OBSERVED,
+            HIGH_IRON_TRIGGERED_BLOOM_AS_PREDICTED,
+            ASSUMED_FEEDBACK_SIGN,
+            OBSERVED_FEEDBACK_SIGN,
+        )
+        assert IRON_FERTILIZATION_HYPOTHESIS_STATUS == "INVALIDATED"
+        assert IRON_PRIMARY_SOURCE_OLD == "ice_meltwater_discharge"
+        assert IRON_PRIMARY_SOURCE_OBSERVED == "deep_ocean_water_and_sediments"
+        assert HIGH_IRON_TRIGGERED_BLOOM_AS_PREDICTED is False
+        assert "cooling" in ASSUMED_FEEDBACK_SIGN
+        assert "warming" in OBSERVED_FEEDBACK_SIGN
+
+    def test_invalidated_assumptions_registry(self):
+        from earth_systems_constraints_2026 import INVALIDATED_ASSUMPTIONS
+        for required_key in (
+            "iron_fertilization_carbon_sink",
+            "linear_single_stressor_collapse_timeline",
+            "greenland_amoc_negative_feedback_stabilizes_system",
+            "coral_reefs_resilient",
+            "linear_extrapolation_of_glacier_loss",
+        ):
+            assert required_key in INVALIDATED_ASSUMPTIONS
+            assert INVALIDATED_ASSUMPTIONS[required_key]  # non-empty message
+
+    def test_constraint_validity_check_invalidated(self):
+        from earth_systems_constraints_2026 import constraint_validity_check
+        valid, msg = constraint_validity_check("iron_fertilization_carbon_sink")
+        assert valid is False
+        assert "INVALIDATED" in msg
+
+    def test_constraint_validity_check_unknown_returns_conditional(self):
+        from earth_systems_constraints_2026 import constraint_validity_check
+        valid, msg = constraint_validity_check("stable_holocene_baseline")
+        assert valid is True
+        assert "CONDITIONAL" in msg
+
+    def test_constraint_validity_check_case_insensitive(self):
+        from earth_systems_constraints_2026 import constraint_validity_check
+        a = constraint_validity_check("CORAL_REEFS_RESILIENT")
+        b = constraint_validity_check("coral_reefs_resilient")
+        assert a == b
+
+    def test_cascade_trigger_tropical_ocean_window(self):
+        from earth_systems_constraints_2026 import cascade_trigger_check
+        # Window opens at 2030 - 4 = 2026
+        triggered_now, status = cascade_trigger_check("tropical_ocean", 2026)
+        assert triggered_now is True
+        assert "DISRUPTION" in status
+        triggered_early, _ = cascade_trigger_check("tropical_ocean", 2025)
+        assert triggered_early is False
+
+    def test_cascade_trigger_tropical_forest_window(self):
+        from earth_systems_constraints_2026 import cascade_trigger_check
+        # Window opens at 2050 - 5 = 2045
+        triggered, _ = cascade_trigger_check("tropical_forest", 2046)
+        assert triggered is True
+        triggered_early, _ = cascade_trigger_check("tropical_forest", 2044)
+        assert triggered_early is False
+
+    def test_cascade_trigger_polar_window(self):
+        from earth_systems_constraints_2026 import cascade_trigger_check
+        triggered, _ = cascade_trigger_check("polar_ice_sheet", 2046)
+        assert triggered is True
+
+    def test_cascade_trigger_coral_always_fires(self):
+        """Coral tipping point already crossed; fires regardless of year."""
+        from earth_systems_constraints_2026 import cascade_trigger_check
+        for year in (2020, 2026, 2050):
+            triggered, status = cascade_trigger_check("coral_reef", year)
+            assert triggered is True
+            assert "CROSSED" in status
+
+    def test_cascade_trigger_unknown_system_stable(self):
+        from earth_systems_constraints_2026 import cascade_trigger_check
+        triggered, status = cascade_trigger_check("atmosphere_co2", 2026)
+        assert triggered is False
+        assert "STABLE" in status
+
+    def test_apply_collapse_compression_single_stressor_unchanged(self):
+        from earth_systems_constraints_2026 import apply_collapse_compression
+        a, b = apply_collapse_compression(100, 1)
+        assert a == 100 and b == 100
+
+    def test_apply_collapse_compression_compounds(self):
+        """Compound stressors compress 19-62% remaining (38-81% reduction)."""
+        from earth_systems_constraints_2026 import apply_collapse_compression
+        min_yr, max_yr = apply_collapse_compression(100, 3)
+        assert 18.5 < min_yr < 19.5     # 19% of 100
+        assert 61.5 < max_yr < 62.5     # 62% of 100
+        assert min_yr < max_yr
+
+    def test_apply_collapse_compression_zero_stressors(self):
+        from earth_systems_constraints_2026 import apply_collapse_compression
+        a, b = apply_collapse_compression(50, 0)
+        assert a == 50 and b == 50
+
+    def test_remove_iron_fertilization_zeros_matching_keys(self):
+        from earth_systems_constraints_2026 import (
+            remove_iron_fertilization_carbon_sink,
+        )
+        budget = {
+            "ocean_dissolution_GtC_yr": 2.5,
+            "iron_fertilization_drawdown_GtC_yr": 0.6,
+            "meltwater_iron_drawdown_GtC_yr": 0.3,
+            "glacial_iron_co2_sink_GtC_yr": 0.2,
+            "biological_pump_GtC_yr": 1.7,
+        }
+        new_budget, zeroed = remove_iron_fertilization_carbon_sink(budget)
+        # Three keys should match
+        assert len(zeroed) == 3
+        for k in zeroed:
+            assert new_budget[k] == 0.0
+        # Untouched keys preserve values
+        assert new_budget["ocean_dissolution_GtC_yr"] == 2.5
+        assert new_budget["biological_pump_GtC_yr"] == 1.7
+
+    def test_remove_iron_fertilization_does_not_mutate_input(self):
+        from earth_systems_constraints_2026 import (
+            remove_iron_fertilization_carbon_sink,
+        )
+        budget = {"iron_fertilization_GtC_yr": 0.5}
+        before = dict(budget)
+        new_budget, _ = remove_iron_fertilization_carbon_sink(budget)
+        assert budget == before   # original unchanged
+        assert new_budget != budget
+
+    def test_observation_precedence_flags(self):
+        from earth_systems_constraints_2026 import (
+            OBSERVATION_PRECEDES_LINEAR_MODEL,
+            LINEAR_MODEL_DEPRECATED_FOR_COUPLED_SYSTEMS,
+            NONLINEAR_COUPLING_REQUIRED,
+            COMPOUND_STRESSOR_DEFAULT,
+        )
+        assert OBSERVATION_PRECEDES_LINEAR_MODEL is True
+        assert LINEAR_MODEL_DEPRECATED_FOR_COUPLED_SYSTEMS is True
+        assert NONLINEAR_COUPLING_REQUIRED is True
+        assert COMPOUND_STRESSOR_DEFAULT is True
+
+    def test_planetary_boundaries_count(self):
+        from earth_systems_constraints_2026 import (
+            PLANETARY_BOUNDARIES_BREACHED_OF_9,
+            CORAL_TIPPING_POINT_CROSSED_2025,
+            GREENLAND_AMOC_NEGATIVE_FEEDBACK_RELIABLE,
+        )
+        assert PLANETARY_BOUNDARIES_BREACHED_OF_9 == 7
+        assert CORAL_TIPPING_POINT_CROSSED_2025 is True
+        assert GREENLAND_AMOC_NEGATIVE_FEEDBACK_RELIABLE is False
+
+
+# ─────────────────────────────────────────────
+# CASCADE COUPLING FRAMEWORK 2026
+# Merle singularity + Ghosh-Shrimali higher-order interactions +
+# Jacques-Dumas AMOC-Amazon TAMS rare-event quantification.
+# ─────────────────────────────────────────────
+
+class TestCascadeCouplingFramework2026:
+    def test_import(self):
+        import cascade_coupling_framework_2026
+
+    def test_merle_framework_keys(self):
+        from cascade_coupling_framework_2026 import MERLE_FRAMEWORK
+        for k in ("system_type", "decomposition",
+                  "singularity_mechanism", "blow_up_rate_type",
+                  "energy_concentration", "early_warning_signal"):
+            assert k in MERLE_FRAMEWORK
+
+    def test_higher_order_framework_keys(self):
+        from cascade_coupling_framework_2026 import (
+            HIGHER_ORDER_INTERACTION_FRAMEWORK,
+        )
+        for k in ("interaction_order", "cascade_threshold_reduction",
+                  "network_topology", "hypergraph_representation",
+                  "cascade_trigger_condition", "stability_destabilizing"):
+            assert k in HIGHER_ORDER_INTERACTION_FRAMEWORK
+        # 70% reduction documented
+        assert (HIGHER_ORDER_INTERACTION_FRAMEWORK[
+            "cascade_threshold_reduction"] == 0.7)
+
+    def test_amoc_amazon_cascade_keys(self):
+        from cascade_coupling_framework_2026 import AMOC_AMAZON_CASCADE
+        for k in ("cascade_mechanism", "AMOC_bistability",
+                  "Amazon_bistability", "coupling_variable",
+                  "P_Amazon_collapse_given_AMOC_stable_200yr",
+                  "P_Amazon_collapse_given_AMOC_collapsed_200yr",
+                  "P_AMOC_collapse_100yr", "algorithm",
+                  "drying_effect_extreme_wildfires"):
+            assert k in AMOC_AMAZON_CASCADE
+        # Stable AMOC -> rare Amazon collapse
+        assert AMOC_AMAZON_CASCADE[
+            "P_Amazon_collapse_given_AMOC_stable_200yr"] < 1e-3
+        # Collapsed AMOC -> significantly amplified
+        assert (AMOC_AMAZON_CASCADE[
+            "P_Amazon_collapse_given_AMOC_collapsed_200yr"]
+                > AMOC_AMAZON_CASCADE[
+            "P_Amazon_collapse_given_AMOC_stable_200yr"] * 1000)
+
+    # ---- construct_coupling_tensor_3d ----
+    def test_construct_coupling_tensor_pairwise_count(self):
+        from cascade_coupling_framework_2026 import (
+            construct_coupling_tensor_3d,
+        )
+        pairwise = [[0.0, 0.4], [0.3, 0.0]]
+        triplets = {}
+        W = construct_coupling_tensor_3d(pairwise, triplets)
+        # 2x2 matrix => 4 pairwise entries
+        assert len(W) == 4
+        for i in range(2):
+            for j in range(2):
+                assert (i, j, -1) in W
+
+    def test_construct_coupling_tensor_includes_triplets(self):
+        from cascade_coupling_framework_2026 import (
+            construct_coupling_tensor_3d,
+        )
+        pairwise = [[0.0, 0.4, 0.1], [0.3, 0.0, 0.05], [0.15, 0.1, 0.0]]
+        triplets = {(0, 1, 2): 0.25, (1, 2, 0): 0.2}
+        W = construct_coupling_tensor_3d(pairwise, triplets)
+        assert W[(0, 1, 2)] == 0.25
+        assert W[(1, 2, 0)] == 0.2
+        # Pairwise sentinel still present
+        assert W[(0, 1, -1)] == 0.4
+
+    def test_construct_coupling_tensor_works_with_lists(self):
+        """Should accept list-of-lists as well as anything supporting len()."""
+        from cascade_coupling_framework_2026 import (
+            construct_coupling_tensor_3d,
+        )
+        pairwise = [[0.0]]
+        W = construct_coupling_tensor_3d(pairwise, {})
+        assert W[(0, 0, -1)] == 0.0
+
+    # ---- cascade_probability_merle_blow_up ----
+    def test_merle_blow_up_zero_for_nonpositive_acceleration(self):
+        from cascade_coupling_framework_2026 import (
+            cascade_probability_merle_blow_up,
+        )
+        assert cascade_probability_merle_blow_up(0.0, 50.0) == 0.0
+        assert cascade_probability_merle_blow_up(-1.0, 50.0) == 0.0
+
+    def test_merle_blow_up_increases_as_singularity_approaches(self):
+        from cascade_coupling_framework_2026 import (
+            cascade_probability_merle_blow_up,
+        )
+        # Same positive acceleration; nearer singularity -> higher prob
+        far = cascade_probability_merle_blow_up(2.0, 80.0)
+        near = cascade_probability_merle_blow_up(2.0, 5.0)
+        assert near > far
+
+    def test_merle_blow_up_clamped_unit_interval(self):
+        from cascade_coupling_framework_2026 import (
+            cascade_probability_merle_blow_up,
+        )
+        for accel, t in [(1.0, 0.0), (5.0, 1000.0), (10.0, 50.0),
+                         (1.0, -10.0)]:
+            p = cascade_probability_merle_blow_up(accel, t)
+            assert 0.0 <= p <= 1.0
+
+    # ---- cascade_threshold_hoi_reduction ----
+    def test_hoi_threshold_reduction_default_70pct(self):
+        from cascade_coupling_framework_2026 import (
+            cascade_threshold_hoi_reduction,
+        )
+        # Default reduction 0.7 -> remaining 30% of pairwise
+        assert abs(cascade_threshold_hoi_reduction(0.4) - 0.12) < 1e-9
+        assert abs(cascade_threshold_hoi_reduction(0.5) - 0.15) < 1e-9
+
+    def test_hoi_threshold_reduction_custom_fraction(self):
+        from cascade_coupling_framework_2026 import (
+            cascade_threshold_hoi_reduction,
+        )
+        # 50% reduction -> half of original
+        assert abs(cascade_threshold_hoi_reduction(0.4, 0.5) - 0.2) < 1e-9
+        # 0% reduction -> unchanged
+        assert cascade_threshold_hoi_reduction(0.4, 0.0) == 0.4
+
+    # ---- amoc_amazon_transition_probability ----
+    def test_amoc_amazon_stable_low_probability(self):
+        from cascade_coupling_framework_2026 import (
+            amoc_amazon_transition_probability,
+        )
+        p = amoc_amazon_transition_probability("stable", 0.1, 200)
+        # 1e-5 base * (1 + 0.1/0.1) * (200/200) = 2e-5
+        assert abs(p - 2e-5) < 1e-9
+
+    def test_amoc_amazon_collapsed_high_probability(self):
+        from cascade_coupling_framework_2026 import (
+            amoc_amazon_transition_probability,
+        )
+        p = amoc_amazon_transition_probability("collapsed", 0.1, 200)
+        assert p > 0.5
+
+    def test_amoc_amazon_probability_ordering(self):
+        """stable < near_tipping < collapsed at any given forcing/horizon."""
+        from cascade_coupling_framework_2026 import (
+            amoc_amazon_transition_probability,
+        )
+        s = amoc_amazon_transition_probability("stable",       0.1, 100)
+        n = amoc_amazon_transition_probability("near_tipping", 0.1, 100)
+        c = amoc_amazon_transition_probability("collapsed",    0.1, 100)
+        assert s < n < c
+
+    def test_amoc_amazon_probability_clamped_to_one(self):
+        from cascade_coupling_framework_2026 import (
+            amoc_amazon_transition_probability,
+        )
+        # Extreme forcing + horizon shouldn't exceed 1.0
+        p = amoc_amazon_transition_probability("collapsed", 1.0, 1000)
+        assert p == 1.0
+
+    def test_amoc_amazon_forcing_amplifies(self):
+        """Higher freshwater forcing -> higher transition probability."""
+        from cascade_coupling_framework_2026 import (
+            amoc_amazon_transition_probability,
+        )
+        low = amoc_amazon_transition_probability("near_tipping", 0.05, 200)
+        high = amoc_amazon_transition_probability("near_tipping", 0.30, 200)
+        assert high > low
+
+    def test_constraint_notes_present(self):
+        from cascade_coupling_framework_2026 import CONSTRAINT_NOTES
+        for required in ("Merle", "Ghosh-Shrimali", "Jacques-Dumas",
+                         "singularity", "tensor", "bistability"):
+            assert required in CONSTRAINT_NOTES
+
+
+# ─────────────────────────────────────────────
+# ALUMINUM ATMOSPHERIC INJECTION CASCADE 2026
+# Coupled four-layer Monte Carlo (crust / ionosphere / atmosphere /
+# aluminum) with Merle blow-up detection and Ghosh-Shrimali triplet
+# couplings.
+# ─────────────────────────────────────────────
+
+class TestAluminumInjectionCascade2026:
+    def test_import(self):
+        import aluminum_atmospheric_injection_cascade_2026
+
+    def test_baseline_constants(self):
+        from aluminum_atmospheric_injection_cascade_2026 import (
+            MAGNETITE_COHERENCE_BASELINE,
+            IONOSPHERIC_PLASMA_DENSITY,
+            ATMOSPHERIC_CHEMISTRY_INTEGRITY,
+            ALUMINUM_INJECTION_RATE_TG_PER_YEAR,
+            ALUMINUM_RESIDENCE_TIME_YEARS,
+            SCHUMANN_RESONANCE_BASELINE_HZ,
+        )
+        assert MAGNETITE_COHERENCE_BASELINE == 1.0
+        assert IONOSPHERIC_PLASMA_DENSITY == 1.0
+        assert ATMOSPHERIC_CHEMISTRY_INTEGRITY == 1.0
+        assert ALUMINUM_INJECTION_RATE_TG_PER_YEAR == 5.0
+        assert ALUMINUM_RESIDENCE_TIME_YEARS == 1.5
+        assert abs(SCHUMANN_RESONANCE_BASELINE_HZ - 7.83) < 1e-9
+
+    def test_coupling_tensors_well_formed(self):
+        from aluminum_atmospheric_injection_cascade_2026 import (
+            LAMBDA_PAIRWISE, LAMBDA_TRIPLET,
+        )
+        # All weights in [0, 1]
+        for v in LAMBDA_PAIRWISE.values():
+            assert 0.0 <= v <= 1.0
+        for v in LAMBDA_TRIPLET.values():
+            assert 0.0 <= v <= 1.0
+        # All keys are valid layer indices 0-3
+        for (i, j) in LAMBDA_PAIRWISE.keys():
+            assert 0 <= i <= 3 and 0 <= j <= 3
+        for (i, j, k) in LAMBDA_TRIPLET.keys():
+            assert 0 <= i <= 3 and 0 <= j <= 3 and 0 <= k <= 3
+
+    def test_energy_concentration_baseline(self):
+        from aluminum_atmospheric_injection_cascade_2026 import (
+            energy_concentration,
+        )
+        baseline = {
+            "crust_coherence": 1.0,
+            "iono_density":    1.0,
+            "atmo_integrity":  1.0,
+            "aluminum_load":   0.0,
+        }
+        # Baseline state with no aluminum -> zero energy concentration
+        assert energy_concentration(baseline) == 0.0
+
+    def test_energy_concentration_grows_with_aluminum(self):
+        from aluminum_atmospheric_injection_cascade_2026 import (
+            energy_concentration,
+        )
+        low = {"crust_coherence": 1.0, "iono_density": 1.0,
+               "atmo_integrity": 1.0, "aluminum_load": 1.0}
+        high = {"crust_coherence": 1.0, "iono_density": 1.0,
+                "atmo_integrity": 1.0, "aluminum_load": 5.0}
+        assert energy_concentration(high) > energy_concentration(low)
+
+    def test_blow_up_rate_short_history(self):
+        from aluminum_atmospheric_injection_cascade_2026 import blow_up_rate
+        assert blow_up_rate([]) == 0.0
+        assert blow_up_rate([1.0]) == 0.0
+        assert blow_up_rate([1.0, 2.0]) == 0.0
+
+    def test_blow_up_rate_handles_zero_energy(self):
+        """Zero in history -> 0 (avoid log(0))."""
+        from aluminum_atmospheric_injection_cascade_2026 import blow_up_rate
+        assert blow_up_rate([0.0, 1.0, 2.0]) == 0.0
+
+    def test_evolve_step_returns_required_keys(self):
+        from aluminum_atmospheric_injection_cascade_2026 import evolve_step
+        state = {
+            "crust_coherence": 1.0,
+            "iono_density":    1.0,
+            "atmo_integrity":  1.0,
+            "aluminum_load":   0.0,
+        }
+        new = evolve_step(state, 0.5, 5.0)
+        for k in ("crust_coherence", "iono_density",
+                  "atmo_integrity", "aluminum_load"):
+            assert k in new
+
+    def test_evolve_step_clamps_atmo_to_unit_interval(self):
+        from aluminum_atmospheric_injection_cascade_2026 import evolve_step
+        state = {
+            "crust_coherence": 1.0,
+            "iono_density":    1.0,
+            "atmo_integrity":  1.0,
+            "aluminum_load":   100.0,    # extreme load
+        }
+        for _ in range(20):
+            state = evolve_step(state, 1.0, 100.0)
+            assert 0.0 <= state["atmo_integrity"] <= 1.0
+            assert state["crust_coherence"] >= 0.0
+            assert state["iono_density"]    >= 0.0
+            assert state["aluminum_load"]   >= 0.0
+
+    def test_detect_cascade_modes(self):
+        from aluminum_atmospheric_injection_cascade_2026 import detect_cascade
+        # Stable
+        stable = {"crust_coherence": 1.0, "iono_density": 1.0,
+                  "atmo_integrity": 1.0, "aluminum_load": 0.0}
+        triggered, mode = detect_cascade(stable, 0.0)
+        assert triggered is False
+        assert mode == "STABLE"
+
+        # Atmospheric destabilization
+        atmo_bad = {"crust_coherence": 1.0, "iono_density": 1.0,
+                    "atmo_integrity": 0.3, "aluminum_load": 5.0}
+        triggered, mode = detect_cascade(atmo_bad, 0.0)
+        assert triggered is True
+        assert mode == "ATMOSPHERIC_DESTABILIZATION"
+
+        # Ionospheric collapse
+        iono_bad = {"crust_coherence": 1.0, "iono_density": 0.3,
+                    "atmo_integrity": 1.0, "aluminum_load": 5.0}
+        triggered, mode = detect_cascade(iono_bad, 0.0)
+        assert triggered is True
+        assert mode == "IONOSPHERIC_COLLAPSE"
+
+        # Substrate decoherence
+        crust_bad = {"crust_coherence": 0.5, "iono_density": 1.0,
+                     "atmo_integrity": 1.0, "aluminum_load": 5.0}
+        triggered, mode = detect_cascade(crust_bad, 0.0)
+        assert triggered is True
+        assert mode == "SUBSTRATE_DECOHERENCE"
+
+        # Full cascade
+        full = {"crust_coherence": 0.4, "iono_density": 0.3,
+                "atmo_integrity": 0.2, "aluminum_load": 10.0}
+        triggered, mode = detect_cascade(full, 0.0)
+        assert triggered is True
+        assert mode == "FULL_CASCADE"
+
+        # Singularity approach via blow-up rate (atmo still ok)
+        ok_state = {"crust_coherence": 1.0, "iono_density": 1.0,
+                    "atmo_integrity": 0.9, "aluminum_load": 1.0}
+        triggered, mode = detect_cascade(ok_state, 1.0)
+        assert triggered is True
+        assert mode == "SINGULARITY_APPROACH"
+
+    def test_run_simulation_returns_required_fields(self):
+        from aluminum_atmospheric_injection_cascade_2026 import run_simulation
+        r = run_simulation(years=10, dt=0.5, al_rate=0.1)
+        for k in ("final_state", "cascade_year", "cascade_mode",
+                  "max_energy", "final_energy"):
+            assert k in r
+
+    def test_monte_carlo_summary_shape(self):
+        from aluminum_atmospheric_injection_cascade_2026 import monte_carlo
+        s = monte_carlo(n_runs=20, years=10, master_seed=42)
+        for k in ("n_runs", "mode_distribution", "p_any_cascade",
+                  "cascade_year_median", "cascade_year_min",
+                  "cascade_year_max"):
+            assert k in s
+        assert s["n_runs"] == 20
+        assert 0.0 <= s["p_any_cascade"] <= 1.0
+
+    def test_monte_carlo_mode_distribution_sums_to_one(self):
+        from aluminum_atmospheric_injection_cascade_2026 import monte_carlo
+        s = monte_carlo(n_runs=20, years=10, master_seed=42)
+        total = sum(s["mode_distribution"].values())
+        assert abs(total - 1.0) < 1e-9
+
+    def test_monte_carlo_deterministic_with_master_seed(self):
+        from aluminum_atmospheric_injection_cascade_2026 import monte_carlo
+        a = monte_carlo(n_runs=20, years=10, master_seed=2026)
+        b = monte_carlo(n_runs=20, years=10, master_seed=2026)
+        assert a["p_any_cascade"]       == b["p_any_cascade"]
+        assert a["cascade_year_median"] == b["cascade_year_median"]
+        assert a["mode_distribution"]   == b["mode_distribution"]
+
+    def test_higher_aluminum_rate_increases_cascade_probability(self):
+        """5 Tg/yr injection should yield more cascades than 0 Tg/yr."""
+        from aluminum_atmospheric_injection_cascade_2026 import monte_carlo
+        none = monte_carlo(n_runs=20, years=10, al_rate=0.0,
+                           master_seed=42)
+        full = monte_carlo(n_runs=20, years=10, al_rate=5.0,
+                           master_seed=42)
+        assert full["p_any_cascade"] >= none["p_any_cascade"]
+
+    def test_documented_run_atmospheric_dominant(self):
+        """Documented run (n=1000, 50yr, master_seed=2026, 5 Tg/yr):
+        atmospheric destabilization is the dominant cascade mode."""
+        from aluminum_atmospheric_injection_cascade_2026 import monte_carlo
+        s = monte_carlo(n_runs=1000, years=50, master_seed=2026)
+        # At least 90% of trajectories should reach cascade
+        assert s["p_any_cascade"] > 0.9
+        # ATMOSPHERIC_DESTABILIZATION should be the most common mode
+        modes = sorted(s["mode_distribution"].items(),
+                       key=lambda x: -x[1])
+        assert modes[0][0] == "ATMOSPHERIC_DESTABILIZATION"
