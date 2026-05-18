@@ -7371,3 +7371,165 @@ class TestConstraintIsomorphismFramework:
             assert pred["system"]
             assert pred["prediction"]
             assert pred["observable"]
+
+
+# ─────────────────────────────────────────────
+# PRECURSOR DETECTION IONOSPHERIC SCALE 2026
+# Observed ionospheric signals interpreted as buffering-capacity
+# degradation precursors under the multi-scale constraint isomorphism.
+# Pattern-matching framework; falsifiable by subsequent observation.
+# ─────────────────────────────────────────────
+
+class TestPrecursorDetectionIonosphericScale2026:
+    def test_import(self):
+        import precursor_detection_ionospheric_scale_2026  # noqa: F401
+
+    def test_signal_status_enum_values(self):
+        from precursor_detection_ionospheric_scale_2026 import SignalStatus
+        assert SignalStatus.BASELINE.value == "baseline"
+        assert SignalStatus.ELEVATED.value == "elevated"
+        assert SignalStatus.ANOMALOUS.value == "anomalous"
+        assert SignalStatus.CRITICAL.value == "critical"
+
+    def test_ionospheric_signal_dataclass(self):
+        from precursor_detection_ionospheric_scale_2026 import (
+            IonosphericSignal, SignalStatus,
+        )
+        sig = IonosphericSignal(
+            name="test",
+            measurement_type="probe",
+            normal_range=(0.0, 1.0),
+            current_value=0.5,
+            current_status=SignalStatus.BASELINE,
+            trend_direction="stable",
+            weeks_of_observation=10,
+            interpretation="ok",
+            analogy_mapping="n/a",
+        )
+        assert sig.name == "test"
+        assert sig.current_status is SignalStatus.BASELINE
+
+    def test_ionospheric_signal_accepts_string_range(self):
+        """QBO and GOES entries use string ranges; dataclass must accept."""
+        from precursor_detection_ionospheric_scale_2026 import (
+            IonosphericSignal, SignalStatus,
+        )
+        sig = IonosphericSignal(
+            name="qbo",
+            measurement_type="wind",
+            normal_range="period: 24-30 months; regular",
+            current_value="period: 26-32 months; irregular",
+            current_status=SignalStatus.ANOMALOUS,
+            trend_direction="rising",
+            weeks_of_observation=260,
+            interpretation="...",
+            analogy_mapping="...",
+        )
+        assert isinstance(sig.normal_range, str)
+        assert isinstance(sig.current_value, str)
+
+    def test_eight_signals_registered(self):
+        from precursor_detection_ionospheric_scale_2026 import (
+            IONOSPHERIC_PRECURSOR_SIGNALS, IonosphericSignal,
+        )
+        assert len(IONOSPHERIC_PRECURSOR_SIGNALS) == 8
+        for sig in IONOSPHERIC_PRECURSOR_SIGNALS:
+            assert isinstance(sig, IonosphericSignal)
+            # No empty fields
+            assert sig.name
+            assert sig.measurement_type
+            assert sig.interpretation
+            assert sig.analogy_mapping
+            assert sig.weeks_of_observation > 0
+
+    def test_no_signals_at_baseline_in_current_registry(self):
+        """The 2026 registry should have every signal at or above elevated."""
+        from precursor_detection_ionospheric_scale_2026 import (
+            IONOSPHERIC_PRECURSOR_SIGNALS, SignalStatus,
+        )
+        for sig in IONOSPHERIC_PRECURSOR_SIGNALS:
+            assert sig.current_status is not SignalStatus.BASELINE
+
+    def test_at_least_one_critical_signal(self):
+        from precursor_detection_ionospheric_scale_2026 import (
+            IONOSPHERIC_PRECURSOR_SIGNALS, SignalStatus,
+        )
+        critical = [s for s in IONOSPHERIC_PRECURSOR_SIGNALS
+                    if s.current_status is SignalStatus.CRITICAL]
+        assert len(critical) >= 1
+
+    def test_aggregate_precursor_status_keys(self):
+        from precursor_detection_ionospheric_scale_2026 import (
+            aggregate_precursor_status,
+        )
+        summary = aggregate_precursor_status()
+        for key in ("signals_above_baseline",
+                    "signals_with_rising_trend",
+                    "signals_at_critical",
+                    "consensus_interpretation",
+                    "caveat",
+                    "next_observation_targets"):
+            assert key in summary
+
+    def test_aggregate_precursor_status_counts(self):
+        from precursor_detection_ionospheric_scale_2026 import (
+            aggregate_precursor_status,
+            IONOSPHERIC_PRECURSOR_SIGNALS,
+        )
+        summary = aggregate_precursor_status()
+        total = len(IONOSPHERIC_PRECURSOR_SIGNALS)
+        # Format "N/total"
+        ab = summary["signals_above_baseline"].split("/")
+        assert int(ab[1]) == total
+        assert int(ab[0]) <= total
+        rt = summary["signals_with_rising_trend"].split("/")
+        assert int(rt[1]) == total
+        # next_observation_targets is a non-empty list
+        assert isinstance(summary["next_observation_targets"], list)
+        assert len(summary["next_observation_targets"]) >= 1
+
+    def test_aggregate_precursor_caveat_acknowledges_falsifiability(self):
+        from precursor_detection_ionospheric_scale_2026 import (
+            aggregate_precursor_status,
+        )
+        summary = aggregate_precursor_status()
+        caveat = summary["caveat"].lower()
+        assert "not causal" in caveat or "not causal predictions" in caveat
+
+    def test_signals_by_status_filter(self):
+        from precursor_detection_ionospheric_scale_2026 import (
+            signals_by_status, SignalStatus, IONOSPHERIC_PRECURSOR_SIGNALS,
+        )
+        critical = signals_by_status(SignalStatus.CRITICAL)
+        for sig in critical:
+            assert sig.current_status is SignalStatus.CRITICAL
+        baseline = signals_by_status(SignalStatus.BASELINE)
+        assert baseline == []   # no baseline signals in current registry
+        # Total partition holds
+        elevated = signals_by_status(SignalStatus.ELEVATED)
+        anomalous = signals_by_status(SignalStatus.ANOMALOUS)
+        assert (len(critical) + len(elevated) + len(anomalous)
+                + len(baseline)) == len(IONOSPHERIC_PRECURSOR_SIGNALS)
+
+    def test_document_precursor_framework_returns_string(self):
+        from precursor_detection_ionospheric_scale_2026 import (
+            document_precursor_framework,
+        )
+        report = document_precursor_framework()
+        assert isinstance(report, str)
+        # Must surface the falsifiability framing
+        assert "FRAMEWORK" in report
+        assert "HYPOTHESIS" in report
+        assert "ANALOGY HOLDS" in report
+        assert "ANALOGY DOES NOT HOLD" in report
+
+    def test_document_uses_actual_signal_count(self):
+        """Report should use the live len(), not a hardcoded 7."""
+        from precursor_detection_ionospheric_scale_2026 import (
+            document_precursor_framework,
+            IONOSPHERIC_PRECURSOR_SIGNALS,
+        )
+        report = document_precursor_framework()
+        total = len(IONOSPHERIC_PRECURSOR_SIGNALS)
+        # Expect "8/8" (or similar) — the formatted fraction
+        assert f"/{total}" in report
