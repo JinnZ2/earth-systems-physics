@@ -7236,3 +7236,138 @@ class TestEarthSystemsElectromagneticConstraint2026:
         assert state["pole_hemisphere"] == "siberian"
         assert state["pole_drift_rate_km_yr"] == 35
         assert state["wmm2025_valid_window"] == (2025.0, 2030.0)
+
+
+# ─────────────────────────────────────────────
+# CONSTRAINT ISOMORPHISM FRAMEWORK
+# Multi-scale pattern recognition: identical constraint topologies
+# across cell biology, liposomes, ionosphere, atmosphere. Predictions
+# by analogy from fast (cellular) to slow (atmospheric) systems.
+# ─────────────────────────────────────────────
+
+class TestConstraintIsomorphismFramework:
+    def test_import(self):
+        import constraint_isomorphism_framework  # noqa: F401
+
+    def test_constraint_topology_dataclass(self):
+        from constraint_isomorphism_framework import ConstraintTopology
+        topo = ConstraintTopology(
+            primary_resource="x",
+            stress_timescale_relative="fast",
+            bifurcation_point="threshold",
+            adaptation_path="adapt",
+            collapse_path="collapse",
+            coupling_strength="strong",
+            observable_precursor="signal",
+            recovery_timescale="hours",
+        )
+        assert topo.primary_resource == "x"
+        assert topo.coupling_strength == "strong"
+
+    def test_four_reference_systems_present(self):
+        from constraint_isomorphism_framework import (
+            cancer_cell_stress,
+            artificial_cell_stress,
+            ionosphere_stress,
+            atmosphere_stress,
+            ConstraintTopology,
+        )
+        for sys in (cancer_cell_stress, artificial_cell_stress,
+                    ionosphere_stress, atmosphere_stress):
+            assert isinstance(sys, ConstraintTopology)
+            # No empty fields
+            assert sys.primary_resource
+            assert sys.bifurcation_point
+            assert sys.adaptation_path
+            assert sys.collapse_path
+            assert sys.observable_precursor
+
+    def test_fast_vs_slow_timescale_distinction(self):
+        """Cellular systems are fast; geophysical systems are slow."""
+        from constraint_isomorphism_framework import (
+            cancer_cell_stress,
+            artificial_cell_stress,
+            ionosphere_stress,
+            atmosphere_stress,
+        )
+        assert "fast" in cancer_cell_stress.stress_timescale_relative
+        assert "fast" in artificial_cell_stress.stress_timescale_relative
+        assert "slow" in ionosphere_stress.stress_timescale_relative
+        assert "slow" in atmosphere_stress.stress_timescale_relative
+
+    def test_check_isomorphism_returns_full_mapping(self):
+        from constraint_isomorphism_framework import (
+            check_isomorphism,
+            cancer_cell_stress,
+            ionosphere_stress,
+        )
+        mapping = check_isomorphism(cancer_cell_stress, ionosphere_stress)
+        for key in ("resource_depletion", "timescale_ratio",
+                    "bifurcation_analogy", "adaptation_paths",
+                    "precursor_observable"):
+            assert key in mapping
+
+    def test_check_isomorphism_pairs_systems_correctly(self):
+        from constraint_isomorphism_framework import (
+            check_isomorphism,
+            cancer_cell_stress,
+            ionosphere_stress,
+        )
+        mapping = check_isomorphism(cancer_cell_stress, ionosphere_stress)
+        sys1_resource, sys2_resource = mapping["resource_depletion"]
+        assert sys1_resource == cancer_cell_stress.primary_resource
+        assert sys2_resource == ionosphere_stress.primary_resource
+
+    def test_cascade_prediction_known_behaviors_map(self):
+        from constraint_isomorphism_framework import (
+            cascade_prediction_by_analogy,
+            cancer_cell_stress,
+            atmosphere_stress,
+        )
+        for behavior in (
+            "heterogeneous_response",
+            "lag_phase_buffering",
+            "positive_feedback_cascade",
+            "non_reversibility",
+            "population_level_emergence",
+        ):
+            result = cascade_prediction_by_analogy(
+                cancer_cell_stress, atmosphere_stress, behavior
+            )
+            assert result != "ANALOGY MAPPING NOT ESTABLISHED"
+            assert len(result) > 0
+
+    def test_cascade_prediction_unknown_behavior_returns_sentinel(self):
+        from constraint_isomorphism_framework import (
+            cascade_prediction_by_analogy,
+            cancer_cell_stress,
+            atmosphere_stress,
+        )
+        result = cascade_prediction_by_analogy(
+            cancer_cell_stress, atmosphere_stress, "phlogiston_release"
+        )
+        assert result == "ANALOGY MAPPING NOT ESTABLISHED"
+
+    def test_debris_loading_perturbation_keys(self):
+        from constraint_isomorphism_framework import (
+            debris_loading_as_perturbation,
+        )
+        for key in ("mechanism", "analogue_system",
+                    "effect_on_bifurcation_threshold",
+                    "observable_consequence",
+                    "feedback_loop", "positive_feedback_risk"):
+            assert key in debris_loading_as_perturbation
+            assert debris_loading_as_perturbation[key]
+        assert debris_loading_as_perturbation["positive_feedback_risk"] == "HIGH if reentry rate accelerates"
+
+    def test_predictions_by_analogy_structure(self):
+        from constraint_isomorphism_framework import PREDICTIONS_BY_ANALOGY
+        assert len(PREDICTIONS_BY_ANALOGY) == 4
+        for pred in PREDICTIONS_BY_ANALOGY:
+            for key in ("system", "fast_analogue", "prediction",
+                        "observable", "falsifiable"):
+                assert key in pred
+            assert pred["falsifiable"] is True
+            assert pred["system"]
+            assert pred["prediction"]
+            assert pred["observable"]
