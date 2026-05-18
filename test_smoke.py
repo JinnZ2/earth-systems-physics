@@ -6931,3 +6931,308 @@ class TestAluminumInjectionCascade2026:
         modes = sorted(s["mode_distribution"].items(),
                        key=lambda x: -x[1])
         assert modes[0][0] == "ATMOSPHERIC_DESTABILIZATION"
+
+
+# ─────────────────────────────────────────────
+# EARTH SYSTEMS ELECTROMAGNETIC CONSTRAINT 2026
+# Pole drift deceleration + WMM2025/HDGM2026 model windows + SAA
+# bifurcation. Layer-0 electromagnetic base constraint for coupled-
+# equation solvers.
+# ─────────────────────────────────────────────
+
+class TestEarthSystemsElectromagneticConstraint2026:
+    def test_import(self):
+        import earth_systems_electromagnetic_constraint_2026  # noqa: F401
+
+    def test_pole_drift_constants(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            POLE_DRIFT_RATE_PEAK_KM_YR,
+            POLE_DRIFT_RATE_CURRENT_KM_YR,
+            POLE_DRIFT_DECELERATION_LARGEST_ON_RECORD,
+            POLE_NOW_CLOSER_TO_SIBERIA_THAN_CANADA,
+            YEARS_OF_ARCTIC_TRAVERSAL,
+        )
+        assert POLE_DRIFT_RATE_PEAK_KM_YR == 60
+        assert POLE_DRIFT_RATE_CURRENT_KM_YR == 35
+        assert POLE_DRIFT_DECELERATION_LARGEST_ON_RECORD is True
+        assert POLE_NOW_CLOSER_TO_SIBERIA_THAN_CANADA is True
+        assert YEARS_OF_ARCTIC_TRAVERSAL == 190
+
+    def test_wmm2025_model_window(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            WMM2025_VALID_START,
+            WMM2025_VALID_END,
+            WMM2025_SPHERICAL_HARMONIC_DEGREE,
+            WMMHR2025_SPHERICAL_HARMONIC_DEGREE_MAIN,
+            WMMHR2025_CRUSTAL_SH_DEGREE,
+        )
+        assert WMM2025_VALID_START == 2025.0
+        assert WMM2025_VALID_END == 2030.0
+        assert WMM2025_SPHERICAL_HARMONIC_DEGREE == 12
+        assert WMMHR2025_SPHERICAL_HARMONIC_DEGREE_MAIN == 15
+        assert WMMHR2025_CRUSTAL_SH_DEGREE == 133
+
+    def test_hdgm_2026_constants(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            HDGM_2026_RESOLUTION_INCREASE_PCT,
+            HDGM_2026_CRUSTAL_DEPTH_RESOLUTION_KM,
+            HDGM_2026_REALTIME_DISTURBANCE_CORRECTION,
+            HDGM_2026_VALID_THROUGH,
+        )
+        assert HDGM_2026_RESOLUTION_INCREASE_PCT == 20
+        assert HDGM_2026_CRUSTAL_DEPTH_RESOLUTION_KM == 19
+        assert HDGM_2026_REALTIME_DISTURBANCE_CORRECTION is True
+        assert HDGM_2026_VALID_THROUGH == "2026-12-31"
+
+    def test_regime_shift_signals(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            DYNAMO_REGIME_SHIFT_SIGNAL_2025,
+            DYNAMO_DECELERATION_ONSET_APPROX_YEAR,
+            OUTER_CORE_BOUNDARY_FLOW_SHIFT_DETECTED,
+            GEOMAGNETIC_JERK_2017_SIGNATURE,
+            GEOMAGNETIC_JERK_2024_CANDIDATE,
+        )
+        assert DYNAMO_REGIME_SHIFT_SIGNAL_2025 is True
+        assert DYNAMO_DECELERATION_ONSET_APPROX_YEAR == 2020
+        assert OUTER_CORE_BOUNDARY_FLOW_SHIFT_DETECTED is True
+        assert GEOMAGNETIC_JERK_2017_SIGNATURE is True
+        assert GEOMAGNETIC_JERK_2024_CANDIDATE is True
+
+    def test_saa_bifurcation_signals(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            SAA_BIFURCATING_INTO_TWO_LOBES,
+            SAA_INTENSITY_DECLINE_PCT_PER_DECADE,
+            SAA_AFFECTS_LEO_SATELLITE_OPERATIONS,
+        )
+        assert SAA_BIFURCATING_INTO_TWO_LOBES is True
+        assert SAA_INTENSITY_DECLINE_PCT_PER_DECADE == 2.0
+        assert SAA_AFFECTS_LEO_SATELLITE_OPERATIONS is True
+
+    def test_coupling_flags(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            COUPLES_TO_MAGNETOSPHERE_GEOMETRY,
+            COUPLES_TO_IONOSPHERE_AURORAL_OVAL,
+            COUPLES_TO_INFRASTRUCTURE_GIC_RISK,
+            GIC_RISK_GEOGRAPHIC_REDISTRIBUTION,
+            ORBITAL_TO_DYNAMO_VIA_ROTATION_ONLY,
+            ORBITAL_TO_DYNAMO_DIRECT_HEAT_FLUX_PATHWAY_REJECTED,
+        )
+        assert COUPLES_TO_MAGNETOSPHERE_GEOMETRY is True
+        assert COUPLES_TO_IONOSPHERE_AURORAL_OVAL is True
+        assert COUPLES_TO_INFRASTRUCTURE_GIC_RISK is True
+        assert GIC_RISK_GEOGRAPHIC_REDISTRIBUTION is True
+        assert ORBITAL_TO_DYNAMO_VIA_ROTATION_ONLY is True
+        assert ORBITAL_TO_DYNAMO_DIRECT_HEAT_FLUX_PATHWAY_REJECTED is True
+
+    def test_invalidated_assumptions_registry(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            INVALIDATED_ASSUMPTIONS,
+        )
+        for required_key in (
+            "linear_pole_drift_extrapolation",
+            "constant_dipole_moment",
+            "saa_single_lobe",
+            "wmm_valid_indefinitely",
+            "auroral_oval_geographically_fixed",
+            "orbital_forcing_drives_dynamo_via_direct_heat_flux",
+        ):
+            assert required_key in INVALIDATED_ASSUMPTIONS
+            assert INVALIDATED_ASSUMPTIONS[required_key]  # non-empty
+
+    def test_constraint_validity_check_invalidated(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            constraint_validity_check,
+        )
+        valid, msg = constraint_validity_check(
+            "linear_pole_drift_extrapolation"
+        )
+        assert valid is False
+        assert "INVALIDATED" in msg
+
+    def test_constraint_validity_check_unknown_returns_conditional(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            constraint_validity_check,
+        )
+        valid, msg = constraint_validity_check("uniform_crustal_remanence")
+        assert valid is True
+        assert "CONDITIONAL" in msg
+
+    def test_constraint_validity_check_case_insensitive(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            constraint_validity_check,
+        )
+        a = constraint_validity_check("SAA_SINGLE_LOBE")
+        b = constraint_validity_check("saa_single_lobe")
+        assert a == b
+
+    def test_model_currency_in_window(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            model_currency_check,
+        )
+        in_window, model, status = model_currency_check(2026.5)
+        assert in_window is True
+        assert model == "WMM2025"
+        assert status == "IN_WINDOW"
+
+    def test_model_currency_expired(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            model_currency_check,
+        )
+        in_window, model, status = model_currency_check(2031.0)
+        assert in_window is False
+        assert status == "EXPIRED_AWAIT_NEXT_5YR_MODEL"
+
+    def test_model_currency_before_start(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            model_currency_check,
+        )
+        in_window, model, status = model_currency_check(2024.5)
+        assert in_window is False
+        assert status == "BEFORE_VALIDITY_START"
+
+    def test_deceleration_anomaly_at_peak(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            deceleration_anomaly_flag,
+        )
+        anom, status, frac = deceleration_anomaly_flag(60)
+        assert anom is False
+        assert frac == 0.0
+        assert status == "WITHIN_PEAK_BAND"
+
+    def test_deceleration_anomaly_current_rate(self):
+        """Current 35 km/yr rate is firmly in the anomaly regime."""
+        from earth_systems_electromagnetic_constraint_2026 import (
+            deceleration_anomaly_flag,
+        )
+        anom, status, frac = deceleration_anomaly_flag(35)
+        assert anom is True
+        assert frac > 0.25
+        assert "REGIME_SHIFT" in status
+
+    def test_deceleration_anomaly_re_acceleration(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            deceleration_anomaly_flag,
+        )
+        anom, status, frac = deceleration_anomaly_flag(70)
+        assert anom is True
+        assert frac < 0
+        assert "RE_ACCELERATION" in status
+
+    def test_cascade_trigger_pole_drift(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            cascade_trigger_check,
+        )
+        triggered, status = cascade_trigger_check(
+            "pole_drift_deceleration", 2026
+        )
+        assert triggered is True
+        assert "REGIME_SHIFT" in status
+        # Pre-2025 should not fire
+        triggered_old, _ = cascade_trigger_check(
+            "pole_drift_deceleration", 2020
+        )
+        assert triggered_old is False
+
+    def test_cascade_trigger_saa_bifurcation(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            cascade_trigger_check,
+        )
+        triggered, status = cascade_trigger_check("saa_bifurcation", 2024)
+        assert triggered is True
+        assert "LOBE_SEPARATION" in status
+
+    def test_cascade_trigger_dipole_collapse_not_within_horizon(self):
+        """Full reversal is millennia; should NOT fire on decadal queries."""
+        from earth_systems_electromagnetic_constraint_2026 import (
+            cascade_trigger_check,
+        )
+        triggered, status = cascade_trigger_check("dipole_collapse", 2050)
+        assert triggered is False
+        assert "DECADAL_HORIZON" in status
+
+    def test_cascade_trigger_unknown_signal_stable(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            cascade_trigger_check,
+        )
+        triggered, status = cascade_trigger_check("background_em_noise", 2026)
+        assert triggered is False
+        assert "STABLE" in status
+
+    def test_adjust_pole_drift_projection_band_contains_linear(self):
+        """Nonlinear band should bracket the linear projection at peak."""
+        from earth_systems_electromagnetic_constraint_2026 import (
+            adjust_pole_drift_projection,
+        )
+        linear, lo, hi = adjust_pole_drift_projection(10)
+        assert lo < linear < hi
+        # Sanity: 10 yr at 35 km/yr = 350 km linear
+        assert linear == 350
+
+    def test_adjust_pole_drift_projection_scales(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            adjust_pole_drift_projection,
+        )
+        l1, _, _ = adjust_pole_drift_projection(1)
+        l10, _, _ = adjust_pole_drift_projection(10)
+        assert l10 == 10 * l1
+
+    def test_remove_static_dipole_replaces_matching_keys(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            remove_static_dipole_assumption,
+        )
+        em_state = {
+            "static_dipole_moment_Am2": 8.22e22,
+            "constant_field_assumption": True,
+            "fixed_pole_position_lat": 86.5,
+            "secular_variation_nT_yr": 130.0,
+        }
+        new_state, replaced = remove_static_dipole_assumption(em_state)
+        assert len(replaced) == 3
+        for k in replaced:
+            assert new_state[k] == "DYNAMIC_REQUIRES_TIME_DEPENDENT_MODEL"
+        # Untouched key preserved
+        assert new_state["secular_variation_nT_yr"] == 130.0
+
+    def test_remove_static_dipole_does_not_mutate_input(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            remove_static_dipole_assumption,
+        )
+        em_state = {"static_dipole_moment_Am2": 8.22e22}
+        before = dict(em_state)
+        new_state, _ = remove_static_dipole_assumption(em_state)
+        assert em_state == before
+        assert new_state != em_state
+
+    def test_observational_precedence_flags(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            OBSERVATION_PRECEDES_MODEL_FIT,
+            LINEAR_DIPOLE_EXTRAPOLATION_DEPRECATED,
+            NONLINEAR_DYNAMO_COUPLING_REQUIRED,
+            JERK_EVENTS_ARE_DEFAULT_NOT_EXCEPTION,
+        )
+        assert OBSERVATION_PRECEDES_MODEL_FIT is True
+        assert LINEAR_DIPOLE_EXTRAPOLATION_DEPRECATED is True
+        assert NONLINEAR_DYNAMO_COUPLING_REQUIRED is True
+        assert JERK_EVENTS_ARE_DEFAULT_NOT_EXCEPTION is True
+
+    def test_coupling_state_export_keys(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            coupling_state,
+        )
+        state = coupling_state()
+        for required in (
+            "pole_drift_rate_km_yr",
+            "pole_drift_peak_km_yr",
+            "deceleration_regime_active",
+            "pole_hemisphere",
+            "wmm2025_valid_window",
+            "dynamo_regime_shift",
+            "saa_bifurcating",
+            "couples_to_magnetosphere",
+            "couples_to_ionosphere",
+            "couples_to_infrastructure",
+        ):
+            assert required in state
+        assert state["pole_hemisphere"] == "siberian"
+        assert state["pole_drift_rate_km_yr"] == 35
+        assert state["wmm2025_valid_window"] == (2025.0, 2030.0)
