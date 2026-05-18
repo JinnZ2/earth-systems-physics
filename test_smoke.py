@@ -7533,3 +7533,221 @@ class TestPrecursorDetectionIonosphericScale2026:
         total = len(IONOSPHERIC_PRECURSOR_SIGNALS)
         # Expect "8/8" (or similar) — the formatted fraction
         assert f"/{total}" in report
+
+
+# ─────────────────────────────────────────────
+# FORMALIZED DISSENT — EARTH SYSTEMS PHYSICS
+# Structural falsification-seeking role. When a consensus model forms
+# (e.g. ionospheric buffering degradation), dissent engages concurrently:
+# assume the model is wrong, document closure conditions, list failure
+# scenarios, propose a falsifying observation.
+# ─────────────────────────────────────────────
+
+class TestFormalizedDissentEarthSystemsPhysics:
+    def test_import(self):
+        import formalized_dissent_earth_systems_physics  # noqa: F401
+
+    def test_dissenter_authority_enum(self):
+        from formalized_dissent_earth_systems_physics import (
+            DissenterAuthority,
+        )
+        assert DissenterAuthority.EQUAL.value == "equal_standing"
+        assert DissenterAuthority.STRUCTURAL.value == "built_into_process"
+        assert DissenterAuthority.HALT_POWER.value == "can_demand_halt"
+        assert (DissenterAuthority.PRECEDENT_INVOKE.value
+                == "can_invoke_historical_precedent")
+
+    def test_model_under_review_dataclass(self):
+        from formalized_dissent_earth_systems_physics import ModelUnderReview
+        model = ModelUnderReview(
+            model_name="test",
+            layer="ionosphere",
+            claim="something is happening",
+            consensus_strength=3,
+            primary_evidence=["a", "b", "c"],
+            assumed_mechanisms=["m1"],
+            prediction_timescale="weeks",
+            field_testable=True,
+        )
+        assert model.consensus_strength == 3
+        assert model.field_testable is True
+        assert len(model.primary_evidence) == 3
+
+    def test_dissenter_analysis_dataclass(self):
+        from formalized_dissent_earth_systems_physics import DissenterAnalysis
+        a = DissenterAnalysis(
+            model_reviewed="m",
+            dissenter_assumption="wrong",
+            assumption_that_breaks_it="X assumes Y",
+            evidence_against=["e1"],
+            closure_conditions=["c1"],
+            failure_scenarios=["f1"],
+            alternative_explanations=["alt1"],
+            testable_prediction_to_falsify="if Z then dissent fails",
+            probability_dissenter_is_right=0.4,
+            strength_if_consensus_holds="stronger",
+        )
+        assert a.probability_dissenter_is_right == 0.4
+        assert 0.0 <= a.probability_dissenter_is_right <= 1.0
+
+    def test_engine_defaults(self):
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics, DissenterAuthority,
+        )
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        assert engine.models_under_review == []
+        assert engine.dissent_analyses == []
+        assert engine.dissenter_authority is DissenterAuthority.EQUAL
+        assert engine.halt_power_active is True
+
+    def test_propose_consensus_model_records_and_triggers_dissent(self, capsys):
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics, ModelUnderReview,
+        )
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        model = ModelUnderReview(
+            model_name="Ionospheric_Test_Model",
+            layer="ionosphere",
+            claim="Ionospheric buffering capacity is degrading",
+            consensus_strength=5,
+            primary_evidence=["evidence 1"],
+            assumed_mechanisms=["mech 1"],
+            prediction_timescale="months",
+            field_testable=True,
+        )
+        engine.propose_consensus_model(model)
+        # Model recorded
+        assert len(engine.models_under_review) == 1
+        # Dissent automatically generated
+        assert len(engine.dissent_analyses) == 1
+        # Output should mention both consensus and dissent
+        out = capsys.readouterr().out
+        assert "CONSENSUS MODEL PROPOSED" in out
+        assert "FORMALIZED DISSENT ACTIVATION" in out
+
+    def test_ionosphere_dissent_is_domain_specific(self):
+        """An ionosphere + buffering model gets the populated dissent,
+        not the generic placeholder."""
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics, ModelUnderReview,
+        )
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        model = ModelUnderReview(
+            model_name="ionos_buf",
+            layer="ionosphere",
+            claim="ionospheric buffering capacity declining",
+            consensus_strength=5,
+            primary_evidence=[],
+            assumed_mechanisms=[],
+            prediction_timescale="months",
+            field_testable=True,
+        )
+        analysis = engine._generate_dissent_analysis(model)
+        # Domain-specific path returns Swarm/calibration content
+        assert "Swarm" in analysis.testable_prediction_to_falsify
+        assert any("magnetometer" in e.lower()
+                   for e in analysis.evidence_against)
+        # Placeholder strings must NOT appear
+        assert "[To be populated" not in str(analysis.evidence_against)
+
+    def test_generic_dissent_for_unknown_layer(self):
+        """Non-ionosphere model gets the generic placeholder dissent."""
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics, ModelUnderReview,
+        )
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        model = ModelUnderReview(
+            model_name="hydro_model",
+            layer="hydrosphere",
+            claim="AMOC will slow",
+            consensus_strength=3,
+            primary_evidence=[],
+            assumed_mechanisms=[],
+            prediction_timescale="decades",
+            field_testable=True,
+        )
+        analysis = engine._generate_dissent_analysis(model)
+        # Generic placeholders surface honestly
+        assert any("[To be populated" in e
+                   for e in analysis.evidence_against)
+        # Probability is 0.0 placeholder when domain-specific path absent
+        assert analysis.probability_dissenter_is_right == 0.0
+
+    def test_dissent_probability_in_valid_range(self):
+        """Domain-specific dissents must report 0 <= p <= 1."""
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics, ModelUnderReview,
+        )
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        model = ModelUnderReview(
+            model_name="x",
+            layer="ionosphere",
+            claim="buffering claim",
+            consensus_strength=1,
+            primary_evidence=[],
+            assumed_mechanisms=[],
+            prediction_timescale="weeks",
+            field_testable=True,
+        )
+        analysis = engine._generate_dissent_analysis(model)
+        assert 0.0 <= analysis.probability_dissenter_is_right <= 1.0
+
+    def test_halt_implementation_prints_when_active(self, capsys):
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics,
+        )
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        engine.halt_implementation("calibration not yet verified")
+        out = capsys.readouterr().out
+        assert "DISSENTER HALT INVOKED" in out
+        assert "calibration not yet verified" in out
+
+    def test_halt_implementation_silent_when_inactive(self, capsys):
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics,
+        )
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        engine.halt_power_active = False
+        engine.halt_implementation("should not appear")
+        out = capsys.readouterr().out
+        assert "DISSENTER HALT INVOKED" not in out
+
+    def test_resolve_dissent_prints(self, capsys):
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics,
+        )
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        engine.resolve_dissent("cross-check planned")
+        out = capsys.readouterr().out
+        assert "DISSENT RESOLUTION" in out
+        assert "cross-check planned" in out
+
+    def test_export_dissent_json_round_trip(self):
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics, ModelUnderReview,
+        )
+        import json as _json
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        model = ModelUnderReview(
+            model_name="m",
+            layer="ionosphere",
+            claim="buffering claim",
+            consensus_strength=1,
+            primary_evidence=[],
+            assumed_mechanisms=[],
+            prediction_timescale="weeks",
+            field_testable=True,
+        )
+        engine.propose_consensus_model(model)
+        payload = engine.export_dissent_json()
+        decoded = _json.loads(payload)
+        assert isinstance(decoded, list)
+        assert len(decoded) == 1
+        rec = decoded[0]
+        for key in ("model_reviewed", "dissenter_assumption",
+                    "evidence_against", "closure_conditions",
+                    "failure_scenarios", "alternative_explanations",
+                    "testable_prediction_to_falsify",
+                    "probability_dissenter_is_right",
+                    "strength_if_consensus_holds"):
+            assert key in rec
