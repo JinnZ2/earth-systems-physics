@@ -8365,3 +8365,295 @@ class TestInstitutionalBottleneckAudit:
         assert "WHAT THIS DOCUMENT IS" in out
         # Aggregate figure should appear
         assert "AGGREGATE" in out
+
+
+# ─────────────────────────────────────────────
+# VILLAGE NUTRIENT CLOSURE TOOLKIT
+# Village-scale N/P/K closure planner. Maps locally available
+# substrates (humanure, livestock, legumes, biomass, ash, bokashi,
+# seaweed, etc.) against crop nutrient need and emits a dispatch
+# sequence aligned to the planting calendar.
+# ─────────────────────────────────────────────
+
+class TestVillageNClosure:
+    def test_import(self):
+        import village_n_closure  # noqa: F401
+
+    def test_crop_nutrient_need_structure(self):
+        from village_n_closure import CROP_NUTRIENT_NEED
+        assert len(CROP_NUTRIENT_NEED) == 11
+        for crop, tup in CROP_NUTRIENT_NEED.items():
+            assert isinstance(tup, tuple) and len(tup) == 3
+            n, p, k = tup
+            assert n >= 0 and p >= 0 and k >= 0
+
+    def test_typical_yield_t_per_ha_keys_match_crops(self):
+        from village_n_closure import (
+            CROP_NUTRIENT_NEED, TYPICAL_YIELD_T_PER_HA,
+        )
+        # Every crop with a nutrient profile should have a yield default
+        for crop in CROP_NUTRIENT_NEED:
+            assert crop in TYPICAL_YIELD_T_PER_HA
+
+    def test_substrates_schema(self):
+        from village_n_closure import SUBSTRATES
+        assert len(SUBSTRATES) >= 15
+        for name, s in SUBSTRATES.items():
+            for required in ("unit", "yield", "lag_mo",
+                             "notes", "safety", "scale"):
+                assert required in s, f"{name} missing {required}"
+            for nut in ("N", "P2O5", "K2O"):
+                assert nut in s["yield"]
+                assert s["yield"][nut] >= 0
+            assert s["lag_mo"] >= 0
+
+    def test_substrates_categorical_coverage(self):
+        """The catalog should cover humanure, livestock, N-fixing,
+        biomass, ash, fermentation, mineral sources."""
+        from village_n_closure import SUBSTRATES
+        assert "humanure_composted" in SUBSTRATES
+        assert "urine_diverted" in SUBSTRATES
+        assert "cattle_manure" in SUBSTRATES
+        assert "chicken_manure" in SUBSTRATES
+        assert "legume_residue_inplace" in SUBSTRATES
+        assert "azolla_pond" in SUBSTRATES
+        assert "wood_ash" in SUBSTRATES
+        assert "biochar_charged" in SUBSTRATES
+        assert "bokashi_food_scrap" in SUBSTRATES
+        assert "rock_phosphate_local" in SUBSTRATES
+
+    def test_calendar_bands_structure(self):
+        from village_n_closure import CALENDAR_BANDS
+        assert len(CALENDAR_BANDS) == 8
+        for band, info in CALENDAR_BANDS.items():
+            assert "plant" in info
+            assert "compost_start_by" in info
+
+    def test_village_dataclass_defaults(self):
+        from village_n_closure import Village
+        v = Village(
+            name="x", population=10, climate_band="equatorial",
+            crops={"maize": 1.0}, substrates={},
+        )
+        assert v.target_yield_pct == 1.0
+        assert v.nutrient_need == {}
+        assert v.nutrient_supply == {}
+        assert v.deficit == {}
+        assert v.dispatch == []
+
+    def test_compute_need_known_inputs(self):
+        """10 ha maize at 3.5 t/ha typical, target=1.0:
+        35 t * 22 kg N/t = 770 kg N
+        35 t * 8 kg P/t  = 280 kg P
+        35 t * 18 kg K/t = 630 kg K"""
+        from village_n_closure import compute_need, Village
+        v = Village(name="t", population=1, climate_band="NH_temperate",
+                    crops={"maize": 10.0}, substrates={},
+                    target_yield_pct=1.0)
+        n = compute_need(v)
+        assert abs(n["N"]    - 770.0) < 1e-6
+        assert abs(n["P2O5"] - 280.0) < 1e-6
+        assert abs(n["K2O"]  - 630.0) < 1e-6
+
+    def test_compute_need_scales_with_yield_target(self):
+        from village_n_closure import compute_need, Village
+        v_full = Village(name="t", population=1, climate_band="NH_temperate",
+                         crops={"maize": 10.0}, substrates={},
+                         target_yield_pct=1.0)
+        v_half = Village(name="t", population=1, climate_band="NH_temperate",
+                         crops={"maize": 10.0}, substrates={},
+                         target_yield_pct=0.5)
+        n_full = compute_need(v_full)
+        n_half = compute_need(v_half)
+        for nut in ("N", "P2O5", "K2O"):
+            assert abs(n_full[nut] - 2 * n_half[nut]) < 1e-6
+
+    def test_compute_need_unknown_crop_ignored(self):
+        from village_n_closure import compute_need, Village
+        v = Village(name="t", population=1, climate_band="NH_temperate",
+                    crops={"unicorn_grain": 5.0}, substrates={})
+        n = compute_need(v)
+        assert n == {"N": 0.0, "P2O5": 0.0, "K2O": 0.0}
+
+    def test_compute_supply_with_breakdown(self):
+        """40 cattle * (60, 20, 40) = (2400, 800, 1600)
+        + 0.5 t wood_ash * (0, 20, 50) = (0, 10, 25)
+        totals: (2400, 810, 1625)"""
+        from village_n_closure import compute_supply, Village
+        v = Village(name="t", population=1, climate_band="NH_temperate",
+                    crops={},
+                    substrates={"cattle_manure": 40, "wood_ash": 0.5})
+        s = compute_supply(v)
+        assert abs(s["N"]    - 2400.0) < 1e-6
+        assert abs(s["P2O5"] -  810.0) < 1e-6
+        assert abs(s["K2O"]  - 1625.0) < 1e-6
+        # Breakdown attached to village
+        assert hasattr(v, "nutrient_supply_breakdown")
+        assert set(v.nutrient_supply_breakdown.keys()) == {
+            "cattle_manure", "wood_ash"
+        }
+
+    def test_compute_supply_unknown_substrate_ignored(self):
+        from village_n_closure import compute_supply, Village
+        v = Village(name="t", population=1, climate_band="NH_temperate",
+                    crops={},
+                    substrates={"unicorn_dung": 100})
+        s = compute_supply(v)
+        assert s == {"N": 0.0, "P2O5": 0.0, "K2O": 0.0}
+
+    def test_compute_deficit_sign(self):
+        from village_n_closure import compute_deficit
+        need   = {"N": 100.0, "P2O5":  50.0, "K2O":  80.0}
+        supply = {"N":  30.0, "P2O5":  60.0, "K2O":  80.0}
+        d = compute_deficit(need, supply)
+        assert d["N"] == 70.0       # shortfall (positive)
+        assert d["P2O5"] == -10.0   # surplus (negative)
+        assert d["K2O"] == 0.0      # exact
+
+    def test_build_dispatch_includes_held_substrates_and_calendar(self):
+        from village_n_closure import build_dispatch, Village
+        v = Village(name="t", population=1, climate_band="NH_temperate",
+                    crops={},
+                    substrates={"cattle_manure": 5,
+                                "wood_ash": 0.2})
+        # All surplus, no deficit
+        d = build_dispatch(v, {"N": -100.0, "P2O5": -50.0, "K2O": -50.0})
+        actions = [step["action"] for step in d]
+        assert any("processing cattle_manure" in a for a in actions)
+        assert any("processing wood_ash" in a for a in actions)
+        assert any(a == "Calendar gate" for a in actions)
+        # No deficit-driven phases
+        assert not any("N-fixing" in a for a in actions)
+        assert not any("Source P" in a for a in actions)
+        assert not any("Source K" in a for a in actions)
+
+    def test_build_dispatch_adds_n_fixing_when_n_deficit(self):
+        from village_n_closure import build_dispatch, Village
+        v = Village(name="t", population=1, climate_band="NH_temperate",
+                    crops={}, substrates={})
+        d = build_dispatch(v, {"N": 500.0, "P2O5": 0.0, "K2O": 0.0})
+        actions = [step["action"] for step in d]
+        assert any("N-fixing" in a for a in actions)
+        # NOT in tropical/monsoon band -> no azolla recommendation
+        assert not any("azolla" in a for a in actions)
+
+    def test_build_dispatch_adds_azolla_in_tropical_bands(self):
+        from village_n_closure import build_dispatch, Village
+        for band in ("NH_monsoon", "equatorial", "SH_subtropical"):
+            v = Village(name="t", population=1, climate_band=band,
+                        crops={}, substrates={})
+            d = build_dispatch(v, {"N": 1000.0, "P2O5": 0.0, "K2O": 0.0})
+            actions = [step["action"] for step in d]
+            assert any("azolla" in a for a in actions), (
+                f"missing azolla in {band}"
+            )
+
+    def test_build_dispatch_adds_p_and_k_when_those_deficit(self):
+        from village_n_closure import build_dispatch, Village
+        v = Village(name="t", population=1, climate_band="NH_temperate",
+                    crops={}, substrates={})
+        d = build_dispatch(v, {"N": 0.0, "P2O5": 100.0, "K2O": 100.0})
+        actions = [step["action"] for step in d]
+        assert any("Source P" in a for a in actions)
+        assert any("Source K" in a for a in actions)
+
+    def test_build_dispatch_sorted_by_priority_then_lag(self):
+        from village_n_closure import build_dispatch, Village
+        v = Village(name="t", population=1, climate_band="NH_temperate",
+                    crops={},
+                    substrates={"humanure_composted": 100,  # lag 6
+                                "wood_ash": 0.5})             # lag 0
+        d = build_dispatch(v, {"N": 500.0, "P2O5": 0.0, "K2O": 0.0})
+        # Within priority 1 entries, wood_ash (lag 0) should precede
+        # humanure_composted (lag 6)
+        p1 = [step for step in d if step["priority"] == 1]
+        actions_p1 = [step["action"] for step in p1]
+        wood_idx = next(i for i, a in enumerate(actions_p1)
+                        if "wood_ash" in a)
+        humanure_idx = next(i for i, a in enumerate(actions_p1)
+                            if "humanure_composted" in a)
+        assert wood_idx < humanure_idx
+        # Priorities overall are sorted ascending
+        prev = -1
+        for step in d:
+            assert step["priority"] >= prev
+            prev = step["priority"]
+
+    def test_fmt_kg(self):
+        from village_n_closure import fmt_kg
+        assert "t" in fmt_kg(2500)
+        assert "kg" in fmt_kg(50)
+        assert "kg" in fmt_kg(0)
+
+    def test_remediate_known_condition(self, capsys):
+        from village_n_closure import remediate
+        remediate("soil_depleted_organic_matter")
+        out = capsys.readouterr().out
+        assert "REMEDIATION" in out
+        assert "compost application" in out
+
+    def test_remediate_unknown_condition_lists_options(self, capsys):
+        from village_n_closure import remediate
+        remediate("haunted_soil")
+        out = capsys.readouterr().out
+        assert "Unknown condition" in out
+        assert "soil_acidic" in out   # known options listed
+
+    def test_ferment_known_protocol(self, capsys):
+        from village_n_closure import ferment
+        ferment("bokashi")
+        out = capsys.readouterr().out
+        assert "FERMENTATION: bokashi" in out
+        assert "EM/LAB" in out
+
+    def test_ferment_unknown_protocol_lists_options(self, capsys):
+        from village_n_closure import ferment
+        ferment("alchemical_transmutation")
+        out = capsys.readouterr().out
+        assert "Unknown protocol" in out
+        assert "bokashi" in out
+
+    def test_example_village_has_surplus_on_all_three_nutrients(self):
+        """The documented EXAMPLE_VILLAGE is configured so that locally
+        available substrates exceed crop need on N, P, and K — the
+        affirmative demonstration the module exists to make."""
+        from village_n_closure import (
+            EXAMPLE_VILLAGE, compute_need, compute_supply, compute_deficit,
+        )
+        need    = compute_need(EXAMPLE_VILLAGE)
+        supply  = compute_supply(EXAMPLE_VILLAGE)
+        deficit = compute_deficit(need, supply)
+        for nut in ("N", "P2O5", "K2O"):
+            assert deficit[nut] < 0, (
+                f"EXAMPLE_VILLAGE has shortfall in {nut} = {deficit[nut]}"
+            )
+
+    def test_run_custom_returns_village_and_runs(self, capsys):
+        from village_n_closure import run_custom, Village
+        v = run_custom(
+            name="Test Village",
+            population=50,
+            climate_band="equatorial",
+            crops={"cassava": 1.0},
+            substrates={"humanure_composted": 50,
+                        "azolla_pond": 5},
+            target_yield_pct=1.0,
+        )
+        assert isinstance(v, Village)
+        out = capsys.readouterr().out
+        assert "Test Village" in out
+        assert "VILLAGE N-CLOSURE REPORT" in out
+
+    def test_report_populates_village_attributes(self):
+        """report() should write back computed values to the Village
+        instance so callers can introspect after."""
+        from village_n_closure import report, EXAMPLE_VILLAGE
+        report(EXAMPLE_VILLAGE)
+        assert EXAMPLE_VILLAGE.nutrient_need
+        assert EXAMPLE_VILLAGE.nutrient_supply
+        assert EXAMPLE_VILLAGE.deficit
+        assert EXAMPLE_VILLAGE.dispatch
+        # Specifically the keys
+        for nut in ("N", "P2O5", "K2O"):
+            assert nut in EXAMPLE_VILLAGE.nutrient_need
+            assert nut in EXAMPLE_VILLAGE.deficit
