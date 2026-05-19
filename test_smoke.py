@@ -6931,3 +6931,1729 @@ class TestAluminumInjectionCascade2026:
         modes = sorted(s["mode_distribution"].items(),
                        key=lambda x: -x[1])
         assert modes[0][0] == "ATMOSPHERIC_DESTABILIZATION"
+
+
+# ─────────────────────────────────────────────
+# EARTH SYSTEMS ELECTROMAGNETIC CONSTRAINT 2026
+# Pole drift deceleration + WMM2025/HDGM2026 model windows + SAA
+# bifurcation. Layer-0 electromagnetic base constraint for coupled-
+# equation solvers.
+# ─────────────────────────────────────────────
+
+class TestEarthSystemsElectromagneticConstraint2026:
+    def test_import(self):
+        import earth_systems_electromagnetic_constraint_2026  # noqa: F401
+
+    def test_pole_drift_constants(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            POLE_DRIFT_RATE_PEAK_KM_YR,
+            POLE_DRIFT_RATE_CURRENT_KM_YR,
+            POLE_DRIFT_DECELERATION_LARGEST_ON_RECORD,
+            POLE_NOW_CLOSER_TO_SIBERIA_THAN_CANADA,
+            YEARS_OF_ARCTIC_TRAVERSAL,
+        )
+        assert POLE_DRIFT_RATE_PEAK_KM_YR == 60
+        assert POLE_DRIFT_RATE_CURRENT_KM_YR == 35
+        assert POLE_DRIFT_DECELERATION_LARGEST_ON_RECORD is True
+        assert POLE_NOW_CLOSER_TO_SIBERIA_THAN_CANADA is True
+        assert YEARS_OF_ARCTIC_TRAVERSAL == 190
+
+    def test_wmm2025_model_window(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            WMM2025_VALID_START,
+            WMM2025_VALID_END,
+            WMM2025_SPHERICAL_HARMONIC_DEGREE,
+            WMMHR2025_SPHERICAL_HARMONIC_DEGREE_MAIN,
+            WMMHR2025_CRUSTAL_SH_DEGREE,
+        )
+        assert WMM2025_VALID_START == 2025.0
+        assert WMM2025_VALID_END == 2030.0
+        assert WMM2025_SPHERICAL_HARMONIC_DEGREE == 12
+        assert WMMHR2025_SPHERICAL_HARMONIC_DEGREE_MAIN == 15
+        assert WMMHR2025_CRUSTAL_SH_DEGREE == 133
+
+    def test_hdgm_2026_constants(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            HDGM_2026_RESOLUTION_INCREASE_PCT,
+            HDGM_2026_CRUSTAL_DEPTH_RESOLUTION_KM,
+            HDGM_2026_REALTIME_DISTURBANCE_CORRECTION,
+            HDGM_2026_VALID_THROUGH,
+        )
+        assert HDGM_2026_RESOLUTION_INCREASE_PCT == 20
+        assert HDGM_2026_CRUSTAL_DEPTH_RESOLUTION_KM == 19
+        assert HDGM_2026_REALTIME_DISTURBANCE_CORRECTION is True
+        assert HDGM_2026_VALID_THROUGH == "2026-12-31"
+
+    def test_regime_shift_signals(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            DYNAMO_REGIME_SHIFT_SIGNAL_2025,
+            DYNAMO_DECELERATION_ONSET_APPROX_YEAR,
+            OUTER_CORE_BOUNDARY_FLOW_SHIFT_DETECTED,
+            GEOMAGNETIC_JERK_2017_SIGNATURE,
+            GEOMAGNETIC_JERK_2024_CANDIDATE,
+        )
+        assert DYNAMO_REGIME_SHIFT_SIGNAL_2025 is True
+        assert DYNAMO_DECELERATION_ONSET_APPROX_YEAR == 2020
+        assert OUTER_CORE_BOUNDARY_FLOW_SHIFT_DETECTED is True
+        assert GEOMAGNETIC_JERK_2017_SIGNATURE is True
+        assert GEOMAGNETIC_JERK_2024_CANDIDATE is True
+
+    def test_saa_bifurcation_signals(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            SAA_BIFURCATING_INTO_TWO_LOBES,
+            SAA_INTENSITY_DECLINE_PCT_PER_DECADE,
+            SAA_AFFECTS_LEO_SATELLITE_OPERATIONS,
+        )
+        assert SAA_BIFURCATING_INTO_TWO_LOBES is True
+        assert SAA_INTENSITY_DECLINE_PCT_PER_DECADE == 2.0
+        assert SAA_AFFECTS_LEO_SATELLITE_OPERATIONS is True
+
+    def test_coupling_flags(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            COUPLES_TO_MAGNETOSPHERE_GEOMETRY,
+            COUPLES_TO_IONOSPHERE_AURORAL_OVAL,
+            COUPLES_TO_INFRASTRUCTURE_GIC_RISK,
+            GIC_RISK_GEOGRAPHIC_REDISTRIBUTION,
+            ORBITAL_TO_DYNAMO_VIA_ROTATION_ONLY,
+            ORBITAL_TO_DYNAMO_DIRECT_HEAT_FLUX_PATHWAY_REJECTED,
+        )
+        assert COUPLES_TO_MAGNETOSPHERE_GEOMETRY is True
+        assert COUPLES_TO_IONOSPHERE_AURORAL_OVAL is True
+        assert COUPLES_TO_INFRASTRUCTURE_GIC_RISK is True
+        assert GIC_RISK_GEOGRAPHIC_REDISTRIBUTION is True
+        assert ORBITAL_TO_DYNAMO_VIA_ROTATION_ONLY is True
+        assert ORBITAL_TO_DYNAMO_DIRECT_HEAT_FLUX_PATHWAY_REJECTED is True
+
+    def test_invalidated_assumptions_registry(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            INVALIDATED_ASSUMPTIONS,
+        )
+        for required_key in (
+            "linear_pole_drift_extrapolation",
+            "constant_dipole_moment",
+            "saa_single_lobe",
+            "wmm_valid_indefinitely",
+            "auroral_oval_geographically_fixed",
+            "orbital_forcing_drives_dynamo_via_direct_heat_flux",
+        ):
+            assert required_key in INVALIDATED_ASSUMPTIONS
+            assert INVALIDATED_ASSUMPTIONS[required_key]  # non-empty
+
+    def test_constraint_validity_check_invalidated(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            constraint_validity_check,
+        )
+        valid, msg = constraint_validity_check(
+            "linear_pole_drift_extrapolation"
+        )
+        assert valid is False
+        assert "INVALIDATED" in msg
+
+    def test_constraint_validity_check_unknown_returns_conditional(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            constraint_validity_check,
+        )
+        valid, msg = constraint_validity_check("uniform_crustal_remanence")
+        assert valid is True
+        assert "CONDITIONAL" in msg
+
+    def test_constraint_validity_check_case_insensitive(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            constraint_validity_check,
+        )
+        a = constraint_validity_check("SAA_SINGLE_LOBE")
+        b = constraint_validity_check("saa_single_lobe")
+        assert a == b
+
+    def test_model_currency_in_window(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            model_currency_check,
+        )
+        in_window, model, status = model_currency_check(2026.5)
+        assert in_window is True
+        assert model == "WMM2025"
+        assert status == "IN_WINDOW"
+
+    def test_model_currency_expired(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            model_currency_check,
+        )
+        in_window, model, status = model_currency_check(2031.0)
+        assert in_window is False
+        assert status == "EXPIRED_AWAIT_NEXT_5YR_MODEL"
+
+    def test_model_currency_before_start(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            model_currency_check,
+        )
+        in_window, model, status = model_currency_check(2024.5)
+        assert in_window is False
+        assert status == "BEFORE_VALIDITY_START"
+
+    def test_deceleration_anomaly_at_peak(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            deceleration_anomaly_flag,
+        )
+        anom, status, frac = deceleration_anomaly_flag(60)
+        assert anom is False
+        assert frac == 0.0
+        assert status == "WITHIN_PEAK_BAND"
+
+    def test_deceleration_anomaly_current_rate(self):
+        """Current 35 km/yr rate is firmly in the anomaly regime."""
+        from earth_systems_electromagnetic_constraint_2026 import (
+            deceleration_anomaly_flag,
+        )
+        anom, status, frac = deceleration_anomaly_flag(35)
+        assert anom is True
+        assert frac > 0.25
+        assert "REGIME_SHIFT" in status
+
+    def test_deceleration_anomaly_re_acceleration(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            deceleration_anomaly_flag,
+        )
+        anom, status, frac = deceleration_anomaly_flag(70)
+        assert anom is True
+        assert frac < 0
+        assert "RE_ACCELERATION" in status
+
+    def test_cascade_trigger_pole_drift(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            cascade_trigger_check,
+        )
+        triggered, status = cascade_trigger_check(
+            "pole_drift_deceleration", 2026
+        )
+        assert triggered is True
+        assert "REGIME_SHIFT" in status
+        # Pre-2025 should not fire
+        triggered_old, _ = cascade_trigger_check(
+            "pole_drift_deceleration", 2020
+        )
+        assert triggered_old is False
+
+    def test_cascade_trigger_saa_bifurcation(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            cascade_trigger_check,
+        )
+        triggered, status = cascade_trigger_check("saa_bifurcation", 2024)
+        assert triggered is True
+        assert "LOBE_SEPARATION" in status
+
+    def test_cascade_trigger_dipole_collapse_not_within_horizon(self):
+        """Full reversal is millennia; should NOT fire on decadal queries."""
+        from earth_systems_electromagnetic_constraint_2026 import (
+            cascade_trigger_check,
+        )
+        triggered, status = cascade_trigger_check("dipole_collapse", 2050)
+        assert triggered is False
+        assert "DECADAL_HORIZON" in status
+
+    def test_cascade_trigger_unknown_signal_stable(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            cascade_trigger_check,
+        )
+        triggered, status = cascade_trigger_check("background_em_noise", 2026)
+        assert triggered is False
+        assert "STABLE" in status
+
+    def test_adjust_pole_drift_projection_band_contains_linear(self):
+        """Nonlinear band should bracket the linear projection at peak."""
+        from earth_systems_electromagnetic_constraint_2026 import (
+            adjust_pole_drift_projection,
+        )
+        linear, lo, hi = adjust_pole_drift_projection(10)
+        assert lo < linear < hi
+        # Sanity: 10 yr at 35 km/yr = 350 km linear
+        assert linear == 350
+
+    def test_adjust_pole_drift_projection_scales(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            adjust_pole_drift_projection,
+        )
+        l1, _, _ = adjust_pole_drift_projection(1)
+        l10, _, _ = adjust_pole_drift_projection(10)
+        assert l10 == 10 * l1
+
+    def test_remove_static_dipole_replaces_matching_keys(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            remove_static_dipole_assumption,
+        )
+        em_state = {
+            "static_dipole_moment_Am2": 8.22e22,
+            "constant_field_assumption": True,
+            "fixed_pole_position_lat": 86.5,
+            "secular_variation_nT_yr": 130.0,
+        }
+        new_state, replaced = remove_static_dipole_assumption(em_state)
+        assert len(replaced) == 3
+        for k in replaced:
+            assert new_state[k] == "DYNAMIC_REQUIRES_TIME_DEPENDENT_MODEL"
+        # Untouched key preserved
+        assert new_state["secular_variation_nT_yr"] == 130.0
+
+    def test_remove_static_dipole_does_not_mutate_input(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            remove_static_dipole_assumption,
+        )
+        em_state = {"static_dipole_moment_Am2": 8.22e22}
+        before = dict(em_state)
+        new_state, _ = remove_static_dipole_assumption(em_state)
+        assert em_state == before
+        assert new_state != em_state
+
+    def test_observational_precedence_flags(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            OBSERVATION_PRECEDES_MODEL_FIT,
+            LINEAR_DIPOLE_EXTRAPOLATION_DEPRECATED,
+            NONLINEAR_DYNAMO_COUPLING_REQUIRED,
+            JERK_EVENTS_ARE_DEFAULT_NOT_EXCEPTION,
+        )
+        assert OBSERVATION_PRECEDES_MODEL_FIT is True
+        assert LINEAR_DIPOLE_EXTRAPOLATION_DEPRECATED is True
+        assert NONLINEAR_DYNAMO_COUPLING_REQUIRED is True
+        assert JERK_EVENTS_ARE_DEFAULT_NOT_EXCEPTION is True
+
+    def test_coupling_state_export_keys(self):
+        from earth_systems_electromagnetic_constraint_2026 import (
+            coupling_state,
+        )
+        state = coupling_state()
+        for required in (
+            "pole_drift_rate_km_yr",
+            "pole_drift_peak_km_yr",
+            "deceleration_regime_active",
+            "pole_hemisphere",
+            "wmm2025_valid_window",
+            "dynamo_regime_shift",
+            "saa_bifurcating",
+            "couples_to_magnetosphere",
+            "couples_to_ionosphere",
+            "couples_to_infrastructure",
+        ):
+            assert required in state
+        assert state["pole_hemisphere"] == "siberian"
+        assert state["pole_drift_rate_km_yr"] == 35
+        assert state["wmm2025_valid_window"] == (2025.0, 2030.0)
+
+
+# ─────────────────────────────────────────────
+# CONSTRAINT ISOMORPHISM FRAMEWORK
+# Multi-scale pattern recognition: identical constraint topologies
+# across cell biology, liposomes, ionosphere, atmosphere. Predictions
+# by analogy from fast (cellular) to slow (atmospheric) systems.
+# ─────────────────────────────────────────────
+
+class TestConstraintIsomorphismFramework:
+    def test_import(self):
+        import constraint_isomorphism_framework  # noqa: F401
+
+    def test_constraint_topology_dataclass(self):
+        from constraint_isomorphism_framework import ConstraintTopology
+        topo = ConstraintTopology(
+            primary_resource="x",
+            stress_timescale_relative="fast",
+            bifurcation_point="threshold",
+            adaptation_path="adapt",
+            collapse_path="collapse",
+            coupling_strength="strong",
+            observable_precursor="signal",
+            recovery_timescale="hours",
+        )
+        assert topo.primary_resource == "x"
+        assert topo.coupling_strength == "strong"
+
+    def test_four_reference_systems_present(self):
+        from constraint_isomorphism_framework import (
+            cancer_cell_stress,
+            artificial_cell_stress,
+            ionosphere_stress,
+            atmosphere_stress,
+            ConstraintTopology,
+        )
+        for sys in (cancer_cell_stress, artificial_cell_stress,
+                    ionosphere_stress, atmosphere_stress):
+            assert isinstance(sys, ConstraintTopology)
+            # No empty fields
+            assert sys.primary_resource
+            assert sys.bifurcation_point
+            assert sys.adaptation_path
+            assert sys.collapse_path
+            assert sys.observable_precursor
+
+    def test_fast_vs_slow_timescale_distinction(self):
+        """Cellular systems are fast; geophysical systems are slow."""
+        from constraint_isomorphism_framework import (
+            cancer_cell_stress,
+            artificial_cell_stress,
+            ionosphere_stress,
+            atmosphere_stress,
+        )
+        assert "fast" in cancer_cell_stress.stress_timescale_relative
+        assert "fast" in artificial_cell_stress.stress_timescale_relative
+        assert "slow" in ionosphere_stress.stress_timescale_relative
+        assert "slow" in atmosphere_stress.stress_timescale_relative
+
+    def test_check_isomorphism_returns_full_mapping(self):
+        from constraint_isomorphism_framework import (
+            check_isomorphism,
+            cancer_cell_stress,
+            ionosphere_stress,
+        )
+        mapping = check_isomorphism(cancer_cell_stress, ionosphere_stress)
+        for key in ("resource_depletion", "timescale_ratio",
+                    "bifurcation_analogy", "adaptation_paths",
+                    "precursor_observable"):
+            assert key in mapping
+
+    def test_check_isomorphism_pairs_systems_correctly(self):
+        from constraint_isomorphism_framework import (
+            check_isomorphism,
+            cancer_cell_stress,
+            ionosphere_stress,
+        )
+        mapping = check_isomorphism(cancer_cell_stress, ionosphere_stress)
+        sys1_resource, sys2_resource = mapping["resource_depletion"]
+        assert sys1_resource == cancer_cell_stress.primary_resource
+        assert sys2_resource == ionosphere_stress.primary_resource
+
+    def test_cascade_prediction_known_behaviors_map(self):
+        from constraint_isomorphism_framework import (
+            cascade_prediction_by_analogy,
+            cancer_cell_stress,
+            atmosphere_stress,
+        )
+        for behavior in (
+            "heterogeneous_response",
+            "lag_phase_buffering",
+            "positive_feedback_cascade",
+            "non_reversibility",
+            "population_level_emergence",
+        ):
+            result = cascade_prediction_by_analogy(
+                cancer_cell_stress, atmosphere_stress, behavior
+            )
+            assert result != "ANALOGY MAPPING NOT ESTABLISHED"
+            assert len(result) > 0
+
+    def test_cascade_prediction_unknown_behavior_returns_sentinel(self):
+        from constraint_isomorphism_framework import (
+            cascade_prediction_by_analogy,
+            cancer_cell_stress,
+            atmosphere_stress,
+        )
+        result = cascade_prediction_by_analogy(
+            cancer_cell_stress, atmosphere_stress, "phlogiston_release"
+        )
+        assert result == "ANALOGY MAPPING NOT ESTABLISHED"
+
+    def test_debris_loading_perturbation_keys(self):
+        from constraint_isomorphism_framework import (
+            debris_loading_as_perturbation,
+        )
+        for key in ("mechanism", "analogue_system",
+                    "effect_on_bifurcation_threshold",
+                    "observable_consequence",
+                    "feedback_loop", "positive_feedback_risk"):
+            assert key in debris_loading_as_perturbation
+            assert debris_loading_as_perturbation[key]
+        assert debris_loading_as_perturbation["positive_feedback_risk"] == "HIGH if reentry rate accelerates"
+
+    def test_predictions_by_analogy_structure(self):
+        from constraint_isomorphism_framework import PREDICTIONS_BY_ANALOGY
+        assert len(PREDICTIONS_BY_ANALOGY) == 4
+        for pred in PREDICTIONS_BY_ANALOGY:
+            for key in ("system", "fast_analogue", "prediction",
+                        "observable", "falsifiable"):
+                assert key in pred
+            assert pred["falsifiable"] is True
+            assert pred["system"]
+            assert pred["prediction"]
+            assert pred["observable"]
+
+
+# ─────────────────────────────────────────────
+# PRECURSOR DETECTION IONOSPHERIC SCALE 2026
+# Observed ionospheric signals interpreted as buffering-capacity
+# degradation precursors under the multi-scale constraint isomorphism.
+# Pattern-matching framework; falsifiable by subsequent observation.
+# ─────────────────────────────────────────────
+
+class TestPrecursorDetectionIonosphericScale2026:
+    def test_import(self):
+        import precursor_detection_ionospheric_scale_2026  # noqa: F401
+
+    def test_signal_status_enum_values(self):
+        from precursor_detection_ionospheric_scale_2026 import SignalStatus
+        assert SignalStatus.BASELINE.value == "baseline"
+        assert SignalStatus.ELEVATED.value == "elevated"
+        assert SignalStatus.ANOMALOUS.value == "anomalous"
+        assert SignalStatus.CRITICAL.value == "critical"
+
+    def test_ionospheric_signal_dataclass(self):
+        from precursor_detection_ionospheric_scale_2026 import (
+            IonosphericSignal, SignalStatus,
+        )
+        sig = IonosphericSignal(
+            name="test",
+            measurement_type="probe",
+            normal_range=(0.0, 1.0),
+            current_value=0.5,
+            current_status=SignalStatus.BASELINE,
+            trend_direction="stable",
+            weeks_of_observation=10,
+            interpretation="ok",
+            analogy_mapping="n/a",
+        )
+        assert sig.name == "test"
+        assert sig.current_status is SignalStatus.BASELINE
+
+    def test_ionospheric_signal_accepts_string_range(self):
+        """QBO and GOES entries use string ranges; dataclass must accept."""
+        from precursor_detection_ionospheric_scale_2026 import (
+            IonosphericSignal, SignalStatus,
+        )
+        sig = IonosphericSignal(
+            name="qbo",
+            measurement_type="wind",
+            normal_range="period: 24-30 months; regular",
+            current_value="period: 26-32 months; irregular",
+            current_status=SignalStatus.ANOMALOUS,
+            trend_direction="rising",
+            weeks_of_observation=260,
+            interpretation="...",
+            analogy_mapping="...",
+        )
+        assert isinstance(sig.normal_range, str)
+        assert isinstance(sig.current_value, str)
+
+    def test_eight_signals_registered(self):
+        from precursor_detection_ionospheric_scale_2026 import (
+            IONOSPHERIC_PRECURSOR_SIGNALS, IonosphericSignal,
+        )
+        assert len(IONOSPHERIC_PRECURSOR_SIGNALS) == 8
+        for sig in IONOSPHERIC_PRECURSOR_SIGNALS:
+            assert isinstance(sig, IonosphericSignal)
+            # No empty fields
+            assert sig.name
+            assert sig.measurement_type
+            assert sig.interpretation
+            assert sig.analogy_mapping
+            assert sig.weeks_of_observation > 0
+
+    def test_no_signals_at_baseline_in_current_registry(self):
+        """The 2026 registry should have every signal at or above elevated."""
+        from precursor_detection_ionospheric_scale_2026 import (
+            IONOSPHERIC_PRECURSOR_SIGNALS, SignalStatus,
+        )
+        for sig in IONOSPHERIC_PRECURSOR_SIGNALS:
+            assert sig.current_status is not SignalStatus.BASELINE
+
+    def test_at_least_one_critical_signal(self):
+        from precursor_detection_ionospheric_scale_2026 import (
+            IONOSPHERIC_PRECURSOR_SIGNALS, SignalStatus,
+        )
+        critical = [s for s in IONOSPHERIC_PRECURSOR_SIGNALS
+                    if s.current_status is SignalStatus.CRITICAL]
+        assert len(critical) >= 1
+
+    def test_aggregate_precursor_status_keys(self):
+        from precursor_detection_ionospheric_scale_2026 import (
+            aggregate_precursor_status,
+        )
+        summary = aggregate_precursor_status()
+        for key in ("signals_above_baseline",
+                    "signals_with_rising_trend",
+                    "signals_at_critical",
+                    "consensus_interpretation",
+                    "caveat",
+                    "next_observation_targets"):
+            assert key in summary
+
+    def test_aggregate_precursor_status_counts(self):
+        from precursor_detection_ionospheric_scale_2026 import (
+            aggregate_precursor_status,
+            IONOSPHERIC_PRECURSOR_SIGNALS,
+        )
+        summary = aggregate_precursor_status()
+        total = len(IONOSPHERIC_PRECURSOR_SIGNALS)
+        # Format "N/total"
+        ab = summary["signals_above_baseline"].split("/")
+        assert int(ab[1]) == total
+        assert int(ab[0]) <= total
+        rt = summary["signals_with_rising_trend"].split("/")
+        assert int(rt[1]) == total
+        # next_observation_targets is a non-empty list
+        assert isinstance(summary["next_observation_targets"], list)
+        assert len(summary["next_observation_targets"]) >= 1
+
+    def test_aggregate_precursor_caveat_acknowledges_falsifiability(self):
+        from precursor_detection_ionospheric_scale_2026 import (
+            aggregate_precursor_status,
+        )
+        summary = aggregate_precursor_status()
+        caveat = summary["caveat"].lower()
+        assert "not causal" in caveat or "not causal predictions" in caveat
+
+    def test_signals_by_status_filter(self):
+        from precursor_detection_ionospheric_scale_2026 import (
+            signals_by_status, SignalStatus, IONOSPHERIC_PRECURSOR_SIGNALS,
+        )
+        critical = signals_by_status(SignalStatus.CRITICAL)
+        for sig in critical:
+            assert sig.current_status is SignalStatus.CRITICAL
+        baseline = signals_by_status(SignalStatus.BASELINE)
+        assert baseline == []   # no baseline signals in current registry
+        # Total partition holds
+        elevated = signals_by_status(SignalStatus.ELEVATED)
+        anomalous = signals_by_status(SignalStatus.ANOMALOUS)
+        assert (len(critical) + len(elevated) + len(anomalous)
+                + len(baseline)) == len(IONOSPHERIC_PRECURSOR_SIGNALS)
+
+    def test_document_precursor_framework_returns_string(self):
+        from precursor_detection_ionospheric_scale_2026 import (
+            document_precursor_framework,
+        )
+        report = document_precursor_framework()
+        assert isinstance(report, str)
+        # Must surface the falsifiability framing
+        assert "FRAMEWORK" in report
+        assert "HYPOTHESIS" in report
+        assert "ANALOGY HOLDS" in report
+        assert "ANALOGY DOES NOT HOLD" in report
+
+    def test_document_uses_actual_signal_count(self):
+        """Report should use the live len(), not a hardcoded 7."""
+        from precursor_detection_ionospheric_scale_2026 import (
+            document_precursor_framework,
+            IONOSPHERIC_PRECURSOR_SIGNALS,
+        )
+        report = document_precursor_framework()
+        total = len(IONOSPHERIC_PRECURSOR_SIGNALS)
+        # Expect "8/8" (or similar) — the formatted fraction
+        assert f"/{total}" in report
+
+
+# ─────────────────────────────────────────────
+# FORMALIZED DISSENT — EARTH SYSTEMS PHYSICS
+# Structural falsification-seeking role. When a consensus model forms
+# (e.g. ionospheric buffering degradation), dissent engages concurrently:
+# assume the model is wrong, document closure conditions, list failure
+# scenarios, propose a falsifying observation.
+# ─────────────────────────────────────────────
+
+class TestFormalizedDissentEarthSystemsPhysics:
+    def test_import(self):
+        import formalized_dissent_earth_systems_physics  # noqa: F401
+
+    def test_dissenter_authority_enum(self):
+        from formalized_dissent_earth_systems_physics import (
+            DissenterAuthority,
+        )
+        assert DissenterAuthority.EQUAL.value == "equal_standing"
+        assert DissenterAuthority.STRUCTURAL.value == "built_into_process"
+        assert DissenterAuthority.HALT_POWER.value == "can_demand_halt"
+        assert (DissenterAuthority.PRECEDENT_INVOKE.value
+                == "can_invoke_historical_precedent")
+
+    def test_model_under_review_dataclass(self):
+        from formalized_dissent_earth_systems_physics import ModelUnderReview
+        model = ModelUnderReview(
+            model_name="test",
+            layer="ionosphere",
+            claim="something is happening",
+            consensus_strength=3,
+            primary_evidence=["a", "b", "c"],
+            assumed_mechanisms=["m1"],
+            prediction_timescale="weeks",
+            field_testable=True,
+        )
+        assert model.consensus_strength == 3
+        assert model.field_testable is True
+        assert len(model.primary_evidence) == 3
+
+    def test_dissenter_analysis_dataclass(self):
+        from formalized_dissent_earth_systems_physics import DissenterAnalysis
+        a = DissenterAnalysis(
+            model_reviewed="m",
+            dissenter_assumption="wrong",
+            assumption_that_breaks_it="X assumes Y",
+            evidence_against=["e1"],
+            closure_conditions=["c1"],
+            failure_scenarios=["f1"],
+            alternative_explanations=["alt1"],
+            testable_prediction_to_falsify="if Z then dissent fails",
+            probability_dissenter_is_right=0.4,
+            strength_if_consensus_holds="stronger",
+        )
+        assert a.probability_dissenter_is_right == 0.4
+        assert 0.0 <= a.probability_dissenter_is_right <= 1.0
+
+    def test_engine_defaults(self):
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics, DissenterAuthority,
+        )
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        assert engine.models_under_review == []
+        assert engine.dissent_analyses == []
+        assert engine.dissenter_authority is DissenterAuthority.EQUAL
+        assert engine.halt_power_active is True
+
+    def test_propose_consensus_model_records_and_triggers_dissent(self, capsys):
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics, ModelUnderReview,
+        )
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        model = ModelUnderReview(
+            model_name="Ionospheric_Test_Model",
+            layer="ionosphere",
+            claim="Ionospheric buffering capacity is degrading",
+            consensus_strength=5,
+            primary_evidence=["evidence 1"],
+            assumed_mechanisms=["mech 1"],
+            prediction_timescale="months",
+            field_testable=True,
+        )
+        engine.propose_consensus_model(model)
+        # Model recorded
+        assert len(engine.models_under_review) == 1
+        # Dissent automatically generated
+        assert len(engine.dissent_analyses) == 1
+        # Output should mention both consensus and dissent
+        out = capsys.readouterr().out
+        assert "CONSENSUS MODEL PROPOSED" in out
+        assert "FORMALIZED DISSENT ACTIVATION" in out
+
+    def test_ionosphere_dissent_is_domain_specific(self):
+        """An ionosphere + buffering model gets the populated dissent,
+        not the generic placeholder."""
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics, ModelUnderReview,
+        )
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        model = ModelUnderReview(
+            model_name="ionos_buf",
+            layer="ionosphere",
+            claim="ionospheric buffering capacity declining",
+            consensus_strength=5,
+            primary_evidence=[],
+            assumed_mechanisms=[],
+            prediction_timescale="months",
+            field_testable=True,
+        )
+        analysis = engine._generate_dissent_analysis(model)
+        # Domain-specific path returns Swarm/calibration content
+        assert "Swarm" in analysis.testable_prediction_to_falsify
+        assert any("magnetometer" in e.lower()
+                   for e in analysis.evidence_against)
+        # Placeholder strings must NOT appear
+        assert "[To be populated" not in str(analysis.evidence_against)
+
+    def test_generic_dissent_for_unknown_layer(self):
+        """Non-ionosphere model gets the generic placeholder dissent."""
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics, ModelUnderReview,
+        )
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        model = ModelUnderReview(
+            model_name="hydro_model",
+            layer="hydrosphere",
+            claim="AMOC will slow",
+            consensus_strength=3,
+            primary_evidence=[],
+            assumed_mechanisms=[],
+            prediction_timescale="decades",
+            field_testable=True,
+        )
+        analysis = engine._generate_dissent_analysis(model)
+        # Generic placeholders surface honestly
+        assert any("[To be populated" in e
+                   for e in analysis.evidence_against)
+        # Probability is 0.0 placeholder when domain-specific path absent
+        assert analysis.probability_dissenter_is_right == 0.0
+
+    def test_dissent_probability_in_valid_range(self):
+        """Domain-specific dissents must report 0 <= p <= 1."""
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics, ModelUnderReview,
+        )
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        model = ModelUnderReview(
+            model_name="x",
+            layer="ionosphere",
+            claim="buffering claim",
+            consensus_strength=1,
+            primary_evidence=[],
+            assumed_mechanisms=[],
+            prediction_timescale="weeks",
+            field_testable=True,
+        )
+        analysis = engine._generate_dissent_analysis(model)
+        assert 0.0 <= analysis.probability_dissenter_is_right <= 1.0
+
+    def test_halt_implementation_prints_when_active(self, capsys):
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics,
+        )
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        engine.halt_implementation("calibration not yet verified")
+        out = capsys.readouterr().out
+        assert "DISSENTER HALT INVOKED" in out
+        assert "calibration not yet verified" in out
+
+    def test_halt_implementation_silent_when_inactive(self, capsys):
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics,
+        )
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        engine.halt_power_active = False
+        engine.halt_implementation("should not appear")
+        out = capsys.readouterr().out
+        assert "DISSENTER HALT INVOKED" not in out
+
+    def test_resolve_dissent_prints(self, capsys):
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics,
+        )
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        engine.resolve_dissent("cross-check planned")
+        out = capsys.readouterr().out
+        assert "DISSENT RESOLUTION" in out
+        assert "cross-check planned" in out
+
+    def test_export_dissent_json_round_trip(self):
+        from formalized_dissent_earth_systems_physics import (
+            FormalizedDissent_EarthSystemsPhysics, ModelUnderReview,
+        )
+        import json as _json
+        engine = FormalizedDissent_EarthSystemsPhysics()
+        model = ModelUnderReview(
+            model_name="m",
+            layer="ionosphere",
+            claim="buffering claim",
+            consensus_strength=1,
+            primary_evidence=[],
+            assumed_mechanisms=[],
+            prediction_timescale="weeks",
+            field_testable=True,
+        )
+        engine.propose_consensus_model(model)
+        payload = engine.export_dissent_json()
+        decoded = _json.loads(payload)
+        assert isinstance(decoded, list)
+        assert len(decoded) == 1
+        rec = decoded[0]
+        for key in ("model_reviewed", "dissenter_assumption",
+                    "evidence_against", "closure_conditions",
+                    "failure_scenarios", "alternative_explanations",
+                    "testable_prediction_to_falsify",
+                    "probability_dissenter_is_right",
+                    "strength_if_consensus_holds"):
+            assert key in rec
+
+
+# ─────────────────────────────────────────────
+# HORMUZ CASCADE AUDIT
+# Thermodynamic + Earth-systems audit of the Hormuz -> fertilizer ->
+# food cascade. Tests whether the 118M-225M excess-deaths claim is
+# physically consistent with Haber-Bosch energetics, crop-calendar
+# timing, caloric throughput, BMI-deficit mortality, and Solar Min
+# forcing as added stressor.
+# ─────────────────────────────────────────────
+
+class TestHormuzCascadeAudit:
+    def test_import(self):
+        import hormuz_cascade_audit  # noqa: F401
+
+    def test_physical_constants(self):
+        from hormuz_cascade_audit import (
+            J_PER_KCAL, KCAL_PER_PERSON_DAY, DAYS_PER_YEAR,
+            HB_ENERGY_PER_KG_N, NG_LHV, NG_KG_PER_KG_N,
+            GLOBAL_N_TRADE_FRAC_HORMUZ, POP_DEPENDENT_ON_IMPORT_N,
+            WFP_ACUTE_HUNGER_INCREMENT,
+        )
+        assert J_PER_KCAL == 4184.0
+        assert KCAL_PER_PERSON_DAY == 2100.0
+        assert HB_ENERGY_PER_KG_N == 36e6
+        assert NG_LHV == 50e6
+        # Internal consistency: NG_KG_PER_KG_N = HB_ENERGY / LHV
+        assert abs(NG_KG_PER_KG_N - HB_ENERGY_PER_KG_N / NG_LHV) < 1e-12
+        # Sanity: Hormuz fertilizer share should be substantial but not >50%
+        assert 0.20 <= GLOBAL_N_TRADE_FRAC_HORMUZ <= 0.50
+        assert POP_DEPENDENT_ON_IMPORT_N > WFP_ACUTE_HUNGER_INCREMENT
+
+    def test_hb_energy_and_natgas_scale_linearly(self):
+        from hormuz_cascade_audit import (
+            hb_energy_required, hb_nat_gas_required,
+        )
+        e1 = hb_energy_required({"kg_N": 1.0})
+        e2 = hb_energy_required({"kg_N": 1000.0})
+        assert abs(e2 - 1000.0 * e1) < 1e-6
+        ng1 = hb_nat_gas_required({"kg_N": 1.0})
+        ng2 = hb_nat_gas_required({"kg_N": 1000.0})
+        assert abs(ng2 - 1000.0 * ng1) < 1e-6
+        # Sanity: ~0.72 kg CH4 per kg N
+        assert 0.5 <= ng1 <= 1.0
+
+    def test_yield_loss_from_delay_breakpoints(self):
+        from hormuz_cascade_audit import yield_loss_from_delay
+        assert yield_loss_from_delay({"weeks_delay": 0}) == 0.00
+        assert abs(yield_loss_from_delay({"weeks_delay": 2}) - 0.08) < 1e-6
+        assert abs(yield_loss_from_delay({"weeks_delay": 4}) - 0.22) < 1e-6
+        assert abs(yield_loss_from_delay({"weeks_delay": 6}) - 0.40) < 1e-6
+        assert abs(yield_loss_from_delay({"weeks_delay": 8}) - 0.60) < 1e-6
+
+    def test_yield_loss_from_delay_monotonic_and_capped(self):
+        from hormuz_cascade_audit import yield_loss_from_delay
+        prev = -1.0
+        for w in (0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 26, 52, 100):
+            v = yield_loss_from_delay({"weeks_delay": w})
+            assert v >= prev
+            assert v <= 0.60
+            prev = v
+
+    def test_hormuz_coupling_loss_extremes(self):
+        from hormuz_cascade_audit import (
+            hormuz_coupling_loss, GLOBAL_N_TRADE_FRAC_HORMUZ,
+        )
+        # Full throughput -> zero loss
+        zero = hormuz_coupling_loss({
+            "hormuz_throughput_frac": 1.0,
+            "substitution_lag_months": 12.0,
+            "buffer_stock_months": 0.0,
+        })
+        assert zero == 0.0
+        # Full closure, long lag, no buffer -> approaches but does not
+        # exceed Hormuz's share of N trade
+        deep = hormuz_coupling_loss({
+            "hormuz_throughput_frac": 0.0,
+            "substitution_lag_months": 36.0,
+            "buffer_stock_months": 0.0,
+        })
+        assert 0.0 < deep <= GLOBAL_N_TRADE_FRAC_HORMUZ + 1e-9
+
+    def test_hormuz_coupling_buffer_dominates_short_lag(self):
+        """If buffer exceeds substitution lag, no loss accrues."""
+        from hormuz_cascade_audit import hormuz_coupling_loss
+        v = hormuz_coupling_loss({
+            "hormuz_throughput_frac": 0.0,
+            "substitution_lag_months": 2.0,
+            "buffer_stock_months": 6.0,
+        })
+        assert v == 0.0
+
+    def test_solar_minimum_modifier_range(self):
+        from hormuz_cascade_audit import (
+            solar_minimum_modifier,
+            SOLAR_MIN_YIELD_PENALTY_LOW,
+            SOLAR_MIN_YIELD_PENALTY_HIGH,
+        )
+        lo = solar_minimum_modifier({"solar_min_intensity": 0.0})
+        hi = solar_minimum_modifier({"solar_min_intensity": 1.0})
+        assert lo == SOLAR_MIN_YIELD_PENALTY_LOW
+        assert hi == SOLAR_MIN_YIELD_PENALTY_HIGH
+        mid = solar_minimum_modifier({"solar_min_intensity": 0.5})
+        assert lo < mid < hi
+
+    def test_excess_mortality_monotonic_in_deficit(self):
+        from hormuz_cascade_audit import (
+            excess_mortality_from_caloric_deficit,
+        )
+        prev = -1.0
+        for d in (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6):
+            v = excess_mortality_from_caloric_deficit({
+                "pop_exposed": 1e6,
+                "kcal_deficit_pct": d,
+                "duration_months": 6.0,
+                "buffer_redistribution": 0.2,
+            })
+            assert v >= prev
+            prev = v
+
+    def test_excess_mortality_capped_at_30pct(self):
+        """Physical ceiling: cumulative mortality rate <= 30%."""
+        from hormuz_cascade_audit import (
+            excess_mortality_from_caloric_deficit,
+        )
+        pop = 1e6
+        deaths = excess_mortality_from_caloric_deficit({
+            "pop_exposed": pop,
+            "kcal_deficit_pct": 0.6,
+            "duration_months": 60.0,    # very long
+            "buffer_redistribution": 0.0,
+        })
+        assert deaths <= 0.30 * pop + 1e-3
+
+    def test_excess_mortality_calibration_sudan(self):
+        """Sudan 2024 anchor: 17M @ 50% deficit x 6mo with buffer~0.1."""
+        from hormuz_cascade_audit import (
+            excess_mortality_from_caloric_deficit,
+        )
+        deaths = excess_mortality_from_caloric_deficit({
+            "pop_exposed": 17e6,
+            "kcal_deficit_pct": 0.5,
+            "duration_months": 6.0,
+            "buffer_redistribution": 0.1,
+        })
+        # Anchored to ~2.5M; tolerate +/- 30% from form approximations
+        assert 1.5e6 < deaths < 3.5e6
+
+    def test_build_scenarios_count_and_names(self):
+        from hormuz_cascade_audit import build_scenarios
+        scenarios = build_scenarios()
+        assert len(scenarios) == 5
+        names = {s.scenario for s in scenarios}
+        assert "FAO_baseline_broad_sharing" in names
+        assert "WFP_prolonged_moderate" in names
+        assert "presenter_low_concentrated" in names
+        assert "presenter_high_concentrated" in names
+        assert "solar_only_no_hormuz" in names
+
+    def test_cascade_run_execute_populates_all_results(self):
+        from hormuz_cascade_audit import build_scenarios
+        for s in build_scenarios():
+            r = s.execute()
+            for key in ("n_loss_frac_global", "kg_N_withheld",
+                        "timing_loss_frac", "solar_drag_frac",
+                        "total_yield_loss_frac", "kcal_lost",
+                        "person_years_unfed", "kcal_deficit_pct",
+                        "excess_deaths", "hb_energy_freed_J",
+                        "natgas_freed_kg"):
+                assert key in r
+
+    def test_solar_only_scenario_zero_n_loss(self):
+        """solar_only_no_hormuz: throughput=1.0 + no buffer overdraft
+        -> zero N loss, zero NG freed."""
+        from hormuz_cascade_audit import build_scenarios
+        s = next(s for s in build_scenarios()
+                 if s.scenario == "solar_only_no_hormuz")
+        s.execute()
+        assert s.results["n_loss_frac_global"] == 0.0
+        assert s.results["kg_N_withheld"] == 0.0
+        assert s.results["natgas_freed_kg"] == 0.0
+
+    def test_presenter_high_hits_physical_ceiling(self):
+        from hormuz_cascade_audit import (
+            build_scenarios, POP_DEPENDENT_ON_IMPORT_N,
+        )
+        s = next(s for s in build_scenarios()
+                 if s.scenario == "presenter_high_concentrated")
+        s.execute()
+        # Ceiling = 30% of import-dependent population
+        ceiling = 0.30 * POP_DEPENDENT_ON_IMPORT_N
+        assert s.results["excess_deaths"] <= ceiling + 1.0
+        # And it does reach (or essentially reach) the ceiling
+        assert s.results["excess_deaths"] >= 0.95 * ceiling
+
+    def test_fao_baseline_below_presenter_low(self):
+        """Broad-sharing FAO baseline should yield fewer deaths than
+        concentrated presenter scenarios."""
+        from hormuz_cascade_audit import build_scenarios
+        runs = {s.scenario: s for s in build_scenarios()}
+        for s in runs.values():
+            s.execute()
+        fao = runs["FAO_baseline_broad_sharing"].results["excess_deaths"]
+        plow = runs["presenter_low_concentrated"].results["excess_deaths"]
+        phigh = runs["presenter_high_concentrated"].results["excess_deaths"]
+        assert fao < plow
+        assert plow <= phigh
+
+    def test_sensitivity_sweep_returns_pairs_and_is_non_decreasing(self):
+        from hormuz_cascade_audit import sensitivity_sweep
+        result = sensitivity_sweep()
+        assert len(result) == 8
+        prev_deaths = -1.0
+        prev_va = -1.0
+        for va, deaths in result:
+            assert 0.0 <= va <= 1.0
+            assert va > prev_va
+            assert deaths >= prev_deaths
+            prev_va = va
+            prev_deaths = deaths
+
+    def test_audit_claims_structure(self):
+        from hormuz_cascade_audit import AUDIT_CLAIMS
+        assert len(AUDIT_CLAIMS) == 5
+        ids = [c["id"] for c in AUDIT_CLAIMS]
+        assert ids == ["C1", "C2", "C3", "C4", "C5"]
+        for c in AUDIT_CLAIMS:
+            assert callable(c["test"])
+            assert c["claim"]
+            assert c["passes_when"]
+
+    def test_all_audit_claims_pass_on_documented_scenarios(self):
+        """Every claim must pass against its targeted scenario in the
+        documented configuration; the audit's value is that it's
+        internally consistent before being applied elsewhere."""
+        from hormuz_cascade_audit import (
+            build_scenarios, AUDIT_CLAIMS,
+        )
+        runs = {s.scenario: s for s in build_scenarios()}
+        for s in runs.values():
+            s.execute()
+
+        def pick(claim_id):
+            if claim_id == "C1":
+                return runs["presenter_high_concentrated"].results
+            if claim_id == "C2":
+                return runs["FAO_baseline_broad_sharing"].results
+            if claim_id == "C3":
+                return runs["solar_only_no_hormuz"].results
+            return runs["presenter_high_concentrated"].results
+
+        for c in AUDIT_CLAIMS:
+            r = pick(c["id"])
+            assert c["test"](r), f"audit claim {c['id']} failed: {c['claim']}"
+
+    def test_fmt_formats_magnitudes(self):
+        from hormuz_cascade_audit import fmt
+        assert fmt(None) == "-"
+        assert fmt(0) == "0.000"
+        assert "k" in fmt(2500)
+        assert "M" in fmt(2.5e6)
+        assert "B" in fmt(2.5e9)
+        assert "T" in fmt(2.5e12)
+
+    def test_earth_system_map_mentions_key_layers(self):
+        from hormuz_cascade_audit import EARTH_SYSTEM_MAP
+        for term in ("electromagnetic", "ionosphere", "hydrosphere",
+                     "lithosphere", "biosphere", "Haber-Bosch",
+                     "HORMUZ CHOKEPOINT"):
+            assert term in EARTH_SYSTEM_MAP
+
+
+# ─────────────────────────────────────────────
+# LEVERAGE ANALYSIS V2
+# Companion to hormuz_cascade_audit. Computes lives-saved per
+# intervention across multiple operating points (today Q2 2026 /
+# prolonged 6mo / mild), then ranks. Identifies whether
+# duration, allocation, or supply is the dominant lever at each
+# operating point.
+# ─────────────────────────────────────────────
+
+class TestLeverageAnalysisV2:
+    def test_import(self):
+        import leverage_analysis_v2  # noqa: F401
+
+    def test_operating_points_keys(self):
+        from leverage_analysis_v2 import OPERATING_POINTS
+        assert set(OPERATING_POINTS.keys()) == {
+            "today_q2_2026", "prolonged_6mo", "mild",
+        }
+        # Each operating point has all 8 cascade parameters
+        for op in OPERATING_POINTS.values():
+            for k in ("hormuz_throughput_frac", "substitution_lag_months",
+                      "buffer_stock_months", "weeks_planting_delay",
+                      "duration_months", "buffer_redistribution",
+                      "solar_min_intensity", "vulnerable_absorption"):
+                assert k in op
+
+    def test_interventions_structure(self):
+        from leverage_analysis_v2 import INTERVENTIONS
+        assert len(INTERVENTIONS) == 7
+        for name, param, delta, itype in INTERVENTIONS:
+            assert isinstance(name, str) and name
+            assert isinstance(param, str) and param
+            assert isinstance(delta, (int, float))
+            assert isinstance(itype, str) and itype
+
+    def test_deaths_function_returns_nonneg(self):
+        from leverage_analysis_v2 import deaths, OPERATING_POINTS
+        for op in OPERATING_POINTS.values():
+            d = deaths(op)
+            assert d >= 0.0
+
+    def test_apply_clamps_fractional_params(self):
+        from leverage_analysis_v2 import apply, OPERATING_POINTS
+        op = OPERATING_POINTS["today_q2_2026"]
+        # Push throughput above 1.0 -> clamped
+        out = apply(op, "hormuz_throughput_frac", +5.0)
+        assert out["hormuz_throughput_frac"] == 1.0
+        # Push redistribution below 0 -> clamped
+        out = apply(op, "buffer_redistribution", -5.0)
+        assert out["buffer_redistribution"] == 0.0
+
+    def test_apply_clamps_nonneg_time_params(self):
+        from leverage_analysis_v2 import apply, OPERATING_POINTS
+        op = OPERATING_POINTS["today_q2_2026"]
+        out = apply(op, "duration_months", -100.0)
+        assert out["duration_months"] == 0.0
+        out = apply(op, "substitution_lag_months", -100.0)
+        assert out["substitution_lag_months"] == 0.0
+
+    def test_apply_does_not_mutate_input(self):
+        from leverage_analysis_v2 import apply, OPERATING_POINTS
+        op = OPERATING_POINTS["today_q2_2026"]
+        original = dict(op)
+        _ = apply(op, "duration_months", -3.0)
+        assert op == original
+
+    def test_fmt_magnitudes(self):
+        from leverage_analysis_v2 import fmt
+        assert "B" in fmt(2.5e9)
+        assert "M" in fmt(2.5e6)
+        assert "k" in fmt(2500)
+        assert fmt(0) == "0.0"
+
+    def test_build_leverage_matrix_shape(self):
+        from leverage_analysis_v2 import (
+            build_leverage_matrix, OPERATING_POINTS, INTERVENTIONS,
+        )
+        matrix, baselines = build_leverage_matrix()
+        assert set(baselines.keys()) == set(OPERATING_POINTS.keys())
+        for opname in OPERATING_POINTS:
+            assert opname in matrix
+            assert (set(matrix[opname].keys())
+                    == {iv[0] for iv in INTERVENTIONS})
+
+    def test_build_leverage_matrix_lives_saved_nonneg(self):
+        """Every documented intervention is framed as positive=improvement,
+        so lives-saved should be >= 0 at every operating point."""
+        from leverage_analysis_v2 import build_leverage_matrix
+        matrix, _ = build_leverage_matrix()
+        for opname, row in matrix.items():
+            for iname, saved in row.items():
+                assert saved >= -1.0, (
+                    f"{iname} at {opname} produced negative lives saved: {saved}"
+                )
+
+    def test_rank_interventions_orders_high_to_low(self):
+        from leverage_analysis_v2 import (
+            build_leverage_matrix, rank_interventions,
+        )
+        matrix, _ = build_leverage_matrix()
+        ranked = rank_interventions(matrix, "today_q2_2026")
+        prev = float("inf")
+        for name, _, _, _ in ranked:
+            saved = matrix["today_q2_2026"][name]
+            assert saved <= prev
+            prev = saved
+
+    def test_duration_is_top_lever_at_today_baseline(self):
+        """The documented hypothesis: at the today_q2_2026 operating
+        point (saturated cascade with capped deficit), shortening
+        conflict duration is the top lever. This is the analytical
+        finding the module is built to surface."""
+        from leverage_analysis_v2 import (
+            build_leverage_matrix, rank_interventions,
+        )
+        matrix, _ = build_leverage_matrix()
+        ranked = rank_interventions(matrix, "today_q2_2026")
+        top_name = ranked[0][0]
+        second_name = ranked[1][0]
+        assert "Shorten conflict" in top_name
+        # Redistribution should be next
+        assert "Redistribution" in second_name
+
+    def test_supply_side_interventions_zero_at_today_baseline(self):
+        """Documented model behaviour: at today's saturated operating
+        point, supply-side interventions (Hormuz, lag, buffer, planting
+        delay) save zero lives because the deficit is already capped
+        at the 60% physical ceiling. This is the audit's point."""
+        from leverage_analysis_v2 import build_leverage_matrix
+        matrix, _ = build_leverage_matrix()
+        row = matrix["today_q2_2026"]
+        for name in ("Reopen Hormuz +30%",
+                     "Cut substitution lag -3mo",
+                     "+3mo buffer stocks",
+                     "Planting delay -2wks"):
+            assert row[name] == 0.0, (
+                f"{name} unexpectedly saved lives at saturated baseline"
+            )
+
+    def test_mild_operating_point_has_lowest_baseline(self):
+        """mild scenario (rapid resolution) should yield fewer deaths
+        than today's actual situation or the prolonged-6mo extension."""
+        from leverage_analysis_v2 import build_leverage_matrix
+        _, baselines = build_leverage_matrix()
+        assert baselines["mild"] < baselines["today_q2_2026"]
+        assert baselines["today_q2_2026"] < baselines["prolonged_6mo"]
+
+    def test_mild_operating_point_supply_intervention_helps(self):
+        """At the 'mild' (non-saturated) operating point, a supply-side
+        intervention like planting-delay reduction SHOULD save lives —
+        that's the contrast the analysis surfaces."""
+        from leverage_analysis_v2 import build_leverage_matrix
+        matrix, _ = build_leverage_matrix()
+        # Planting delay reduction saves lives in mild scenario
+        assert matrix["mild"]["Planting delay -2wks"] > 0.0
+        # Same intervention saves zero in saturated today scenario
+        assert matrix["today_q2_2026"]["Planting delay -2wks"] == 0.0
+
+    def test_main_runs_without_error(self, capsys):
+        """The main() function should produce structured output without
+        raising; capture and verify the key headers."""
+        from leverage_analysis_v2 import main
+        main()
+        out = capsys.readouterr().out
+        assert "LEVERAGE ANALYSIS" in out
+        assert "RANKED LEVERAGE" in out
+        assert "WHAT THE NUMBERS REVEAL" in out
+        assert "Shorten conflict" in out
+
+
+# ─────────────────────────────────────────────
+# INSTITUTIONAL BOTTLENECK AUDIT
+# Audits the Hormuz cascade for the load-bearing failure node.
+# Argues the bottleneck is regulatory (humanure prohibitions blocking
+# closed-loop N), not physical, and produces an accountability trail
+# with named authority + lives-per-month-delay for 6 jurisdictions.
+# ─────────────────────────────────────────────
+
+class TestInstitutionalBottleneckAudit:
+    def test_import(self):
+        import institutional_bottleneck_audit  # noqa: F401
+
+    def test_physical_facts_keys_and_values(self):
+        from institutional_bottleneck_audit import PHYSICAL_FACTS
+        for key in ("human_N_excretion_kg_per_yr", "global_pop",
+                    "total_human_N_output_Mt", "global_synthetic_N_Mt",
+                    "hormuz_disrupted_N_Mt", "replacement_potential_pct",
+                    "thermophilic_kill_temp_C", "thermophilic_kill_time_days",
+                    "full_compost_curing_months", "planting_windows_required",
+                    "deaths_at_baseline_today", "deaths_avoidable_via_loop"):
+            assert key in PHYSICAL_FACTS
+        # Internal consistency: total_human_N_output = pop * per-person / 1e9
+        expected_Mt = (PHYSICAL_FACTS["global_pop"]
+                       * PHYSICAL_FACTS["human_N_excretion_kg_per_yr"]
+                       / 1e9)
+        assert abs(PHYSICAL_FACTS["total_human_N_output_Mt"] - expected_Mt) < 0.5
+        # Hormuz share = 30% of global synthetic N
+        assert (abs(PHYSICAL_FACTS["hormuz_disrupted_N_Mt"]
+                    - 0.30 * PHYSICAL_FACTS["global_synthetic_N_Mt"])
+                < 1.0)
+        # Three planting windows listed
+        assert len(PHYSICAL_FACTS["planting_windows_required"]) == 3
+
+    def test_regulatory_node_dataclass(self):
+        from institutional_bottleneck_audit import RegulatoryNode
+        n = RegulatoryNode(
+            jurisdiction="x",
+            rule="r",
+            authority="a",
+            prohibits="p",
+            physically_safe=True,
+            change_lead_time="6mo",
+            lives_per_month_delay=1000.0,
+        )
+        assert n.jurisdiction == "x"
+        assert n.lives_per_month_delay == 1000.0
+
+    def test_accountability_statement_physics_justified_branch(self):
+        """When physically_safe=True, the statement should report the
+        rule as physics-justified — no accountability call."""
+        from institutional_bottleneck_audit import RegulatoryNode
+        n = RegulatoryNode(
+            jurisdiction="US",
+            rule="X",
+            authority="EPA",
+            prohibits="something",
+            physically_safe=True,
+            change_lead_time="long",
+            lives_per_month_delay=10_000,
+        )
+        s = n.accountability_statement()
+        assert "EPA" in s
+        assert "physics-justified" in s
+        # Should NOT contain the accountability call
+        assert "authority to modify" not in s
+
+    def test_accountability_statement_not_justified_branch(self):
+        """When physically_safe=False, the statement should call out
+        the authority with the lives-per-month figure."""
+        from institutional_bottleneck_audit import RegulatoryNode
+        n = RegulatoryNode(
+            jurisdiction="MN",
+            rule="R",
+            authority="MN PCA",
+            prohibits="composting toilets",
+            physically_safe=False,
+            change_lead_time="6mo",
+            lives_per_month_delay=15_000,
+        )
+        s = n.accountability_statement()
+        assert "MN PCA" in s
+        assert "authority to modify" in s
+        assert "NOT physics-justified" in s
+        # Lives figure surfaces (15_000 / 1000 = 15 -> "15k")
+        assert "15k" in s
+
+    def test_six_regulatory_bottlenecks_with_required_fields(self):
+        from institutional_bottleneck_audit import REGULATORY_BOTTLENECKS
+        assert len(REGULATORY_BOTTLENECKS) == 6
+        for node in REGULATORY_BOTTLENECKS:
+            assert node.jurisdiction
+            assert node.rule
+            assert node.authority
+            assert node.prohibits
+            assert isinstance(node.physically_safe, bool)
+            assert node.change_lead_time
+            assert node.lives_per_month_delay >= 0
+
+    def test_regulatory_bottlenecks_named_jurisdictions(self):
+        from institutional_bottleneck_audit import REGULATORY_BOTTLENECKS
+        jurisdictions = {n.jurisdiction for n in REGULATORY_BOTTLENECKS}
+        assert any("United States" in j for j in jurisdictions)
+        assert any("Minnesota" in j for j in jurisdictions)
+        assert any("European Union" in j for j in jurisdictions)
+        assert any("India" in j for j in jurisdictions)
+        assert any("Africa" in j for j in jurisdictions)
+        assert any("Codex" in j for j in jurisdictions)
+
+    def test_aggregate_lives_per_month_matches_sum(self):
+        from institutional_bottleneck_audit import (
+            REGULATORY_BOTTLENECKS, aggregate_lives_per_month,
+        )
+        total = aggregate_lives_per_month()
+        expected = sum(n.lives_per_month_delay for n in REGULATORY_BOTTLENECKS)
+        assert total == expected
+        # Documented total: 50k + 500 + 80k + 200k + 300k + 100k = 730,500
+        assert total == 730_500
+
+    def test_defenses_that_fail_structure(self):
+        from institutional_bottleneck_audit import DEFENSES_THAT_FAIL
+        assert len(DEFENSES_THAT_FAIL) == 6
+        for d in DEFENSES_THAT_FAIL:
+            assert set(d.keys()) == {"defense", "rebuttal"}
+            assert d["defense"]
+            assert d["rebuttal"]
+
+    def test_defenses_include_key_arguments(self):
+        from institutional_bottleneck_audit import DEFENSES_THAT_FAIL
+        defenses = [d["defense"] for d in DEFENSES_THAT_FAIL]
+        rebuttals = " ".join(d["rebuttal"] for d in DEFENSES_THAT_FAIL)
+        # The six classic deflection patterns
+        assert any("didn't know" in d for d in defenses)
+        assert any("not safe" in d for d in defenses)
+        assert any("Heavy metals" in d for d in defenses)
+        assert any("Cultural" in d for d in defenses)
+        assert any("more time" in d for d in defenses)
+        assert any("Markets" in d for d in defenses)
+        # Rebuttals reference the calibrating historical record
+        assert "Bengal 1943" in rebuttals or "Bengal" in rebuttals
+        assert "King" in rebuttals   # 'Farmers of Forty Centuries'
+
+    def test_cascade_topology_mentions_both_paths(self):
+        from institutional_bottleneck_audit import CASCADE_TOPOLOGY
+        for term in ("PHYSICAL CASCADE",
+                     "INSTITUTIONAL CASCADE",
+                     "Hormuz chokepoint",
+                     "Haber-Bosch",
+                     "CLOSED LOOP",
+                     "OPEN/DUMPED",
+                     "EPA 503",
+                     "AUDIT TRAIL"):
+            assert term in CASCADE_TOPOLOGY
+
+    def test_fmt_format(self):
+        from institutional_bottleneck_audit import fmt
+        assert "B" in fmt(2.5e9)
+        assert "M" in fmt(2.5e6)
+        assert "k" in fmt(2500)
+        assert fmt(0) == "0"
+
+    def test_run_executes_without_error(self, capsys):
+        from institutional_bottleneck_audit import run
+        run()
+        out = capsys.readouterr().out
+        # Section headers we expect
+        assert "INSTITUTIONAL BOTTLENECK AUDIT" in out
+        assert "REGULATORY CHOKE POINTS" in out
+        assert "DEFENSES AGAINST FUTURE INSTITUTIONAL CLAIMS" in out
+        assert "ATTRIBUTION FORMULA" in out
+        assert "WHAT THIS DOCUMENT IS" in out
+        # Aggregate figure should appear
+        assert "AGGREGATE" in out
+
+
+# ─────────────────────────────────────────────
+# VILLAGE NUTRIENT CLOSURE TOOLKIT
+# Village-scale N/P/K closure planner. Maps locally available
+# substrates (humanure, livestock, legumes, biomass, ash, bokashi,
+# seaweed, etc.) against crop nutrient need and emits a dispatch
+# sequence aligned to the planting calendar.
+# ─────────────────────────────────────────────
+
+class TestVillageNClosure:
+    def test_import(self):
+        import village_n_closure  # noqa: F401
+
+    def test_crop_nutrient_need_structure(self):
+        from village_n_closure import CROP_NUTRIENT_NEED
+        assert len(CROP_NUTRIENT_NEED) == 11
+        for crop, tup in CROP_NUTRIENT_NEED.items():
+            assert isinstance(tup, tuple) and len(tup) == 3
+            n, p, k = tup
+            assert n >= 0 and p >= 0 and k >= 0
+
+    def test_typical_yield_t_per_ha_keys_match_crops(self):
+        from village_n_closure import (
+            CROP_NUTRIENT_NEED, TYPICAL_YIELD_T_PER_HA,
+        )
+        # Every crop with a nutrient profile should have a yield default
+        for crop in CROP_NUTRIENT_NEED:
+            assert crop in TYPICAL_YIELD_T_PER_HA
+
+    def test_substrates_schema(self):
+        from village_n_closure import SUBSTRATES
+        assert len(SUBSTRATES) >= 15
+        for name, s in SUBSTRATES.items():
+            for required in ("unit", "yield", "lag_mo",
+                             "notes", "safety", "scale"):
+                assert required in s, f"{name} missing {required}"
+            for nut in ("N", "P2O5", "K2O"):
+                assert nut in s["yield"]
+                assert s["yield"][nut] >= 0
+            assert s["lag_mo"] >= 0
+
+    def test_substrates_categorical_coverage(self):
+        """The catalog should cover humanure, livestock, N-fixing,
+        biomass, ash, fermentation, mineral sources."""
+        from village_n_closure import SUBSTRATES
+        assert "humanure_composted" in SUBSTRATES
+        assert "urine_diverted" in SUBSTRATES
+        assert "cattle_manure" in SUBSTRATES
+        assert "chicken_manure" in SUBSTRATES
+        assert "legume_residue_inplace" in SUBSTRATES
+        assert "azolla_pond" in SUBSTRATES
+        assert "wood_ash" in SUBSTRATES
+        assert "biochar_charged" in SUBSTRATES
+        assert "bokashi_food_scrap" in SUBSTRATES
+        assert "rock_phosphate_local" in SUBSTRATES
+
+    def test_calendar_bands_structure(self):
+        from village_n_closure import CALENDAR_BANDS
+        assert len(CALENDAR_BANDS) == 8
+        for band, info in CALENDAR_BANDS.items():
+            assert "plant" in info
+            assert "compost_start_by" in info
+
+    def test_village_dataclass_defaults(self):
+        from village_n_closure import Village
+        v = Village(
+            name="x", population=10, climate_band="equatorial",
+            crops={"maize": 1.0}, substrates={},
+        )
+        assert v.target_yield_pct == 1.0
+        assert v.nutrient_need == {}
+        assert v.nutrient_supply == {}
+        assert v.deficit == {}
+        assert v.dispatch == []
+
+    def test_compute_need_known_inputs(self):
+        """10 ha maize at 3.5 t/ha typical, target=1.0:
+        35 t * 22 kg N/t = 770 kg N
+        35 t * 8 kg P/t  = 280 kg P
+        35 t * 18 kg K/t = 630 kg K"""
+        from village_n_closure import compute_need, Village
+        v = Village(name="t", population=1, climate_band="NH_temperate",
+                    crops={"maize": 10.0}, substrates={},
+                    target_yield_pct=1.0)
+        n = compute_need(v)
+        assert abs(n["N"]    - 770.0) < 1e-6
+        assert abs(n["P2O5"] - 280.0) < 1e-6
+        assert abs(n["K2O"]  - 630.0) < 1e-6
+
+    def test_compute_need_scales_with_yield_target(self):
+        from village_n_closure import compute_need, Village
+        v_full = Village(name="t", population=1, climate_band="NH_temperate",
+                         crops={"maize": 10.0}, substrates={},
+                         target_yield_pct=1.0)
+        v_half = Village(name="t", population=1, climate_band="NH_temperate",
+                         crops={"maize": 10.0}, substrates={},
+                         target_yield_pct=0.5)
+        n_full = compute_need(v_full)
+        n_half = compute_need(v_half)
+        for nut in ("N", "P2O5", "K2O"):
+            assert abs(n_full[nut] - 2 * n_half[nut]) < 1e-6
+
+    def test_compute_need_unknown_crop_ignored(self):
+        from village_n_closure import compute_need, Village
+        v = Village(name="t", population=1, climate_band="NH_temperate",
+                    crops={"unicorn_grain": 5.0}, substrates={})
+        n = compute_need(v)
+        assert n == {"N": 0.0, "P2O5": 0.0, "K2O": 0.0}
+
+    def test_compute_supply_with_breakdown(self):
+        """40 cattle * (60, 20, 40) = (2400, 800, 1600)
+        + 0.5 t wood_ash * (0, 20, 50) = (0, 10, 25)
+        totals: (2400, 810, 1625)"""
+        from village_n_closure import compute_supply, Village
+        v = Village(name="t", population=1, climate_band="NH_temperate",
+                    crops={},
+                    substrates={"cattle_manure": 40, "wood_ash": 0.5})
+        s = compute_supply(v)
+        assert abs(s["N"]    - 2400.0) < 1e-6
+        assert abs(s["P2O5"] -  810.0) < 1e-6
+        assert abs(s["K2O"]  - 1625.0) < 1e-6
+        # Breakdown attached to village
+        assert hasattr(v, "nutrient_supply_breakdown")
+        assert set(v.nutrient_supply_breakdown.keys()) == {
+            "cattle_manure", "wood_ash"
+        }
+
+    def test_compute_supply_unknown_substrate_ignored(self):
+        from village_n_closure import compute_supply, Village
+        v = Village(name="t", population=1, climate_band="NH_temperate",
+                    crops={},
+                    substrates={"unicorn_dung": 100})
+        s = compute_supply(v)
+        assert s == {"N": 0.0, "P2O5": 0.0, "K2O": 0.0}
+
+    def test_compute_deficit_sign(self):
+        from village_n_closure import compute_deficit
+        need   = {"N": 100.0, "P2O5":  50.0, "K2O":  80.0}
+        supply = {"N":  30.0, "P2O5":  60.0, "K2O":  80.0}
+        d = compute_deficit(need, supply)
+        assert d["N"] == 70.0       # shortfall (positive)
+        assert d["P2O5"] == -10.0   # surplus (negative)
+        assert d["K2O"] == 0.0      # exact
+
+    def test_build_dispatch_includes_held_substrates_and_calendar(self):
+        from village_n_closure import build_dispatch, Village
+        v = Village(name="t", population=1, climate_band="NH_temperate",
+                    crops={},
+                    substrates={"cattle_manure": 5,
+                                "wood_ash": 0.2})
+        # All surplus, no deficit
+        d = build_dispatch(v, {"N": -100.0, "P2O5": -50.0, "K2O": -50.0})
+        actions = [step["action"] for step in d]
+        assert any("processing cattle_manure" in a for a in actions)
+        assert any("processing wood_ash" in a for a in actions)
+        assert any(a == "Calendar gate" for a in actions)
+        # No deficit-driven phases
+        assert not any("N-fixing" in a for a in actions)
+        assert not any("Source P" in a for a in actions)
+        assert not any("Source K" in a for a in actions)
+
+    def test_build_dispatch_adds_n_fixing_when_n_deficit(self):
+        from village_n_closure import build_dispatch, Village
+        v = Village(name="t", population=1, climate_band="NH_temperate",
+                    crops={}, substrates={})
+        d = build_dispatch(v, {"N": 500.0, "P2O5": 0.0, "K2O": 0.0})
+        actions = [step["action"] for step in d]
+        assert any("N-fixing" in a for a in actions)
+        # NOT in tropical/monsoon band -> no azolla recommendation
+        assert not any("azolla" in a for a in actions)
+
+    def test_build_dispatch_adds_azolla_in_tropical_bands(self):
+        from village_n_closure import build_dispatch, Village
+        for band in ("NH_monsoon", "equatorial", "SH_subtropical"):
+            v = Village(name="t", population=1, climate_band=band,
+                        crops={}, substrates={})
+            d = build_dispatch(v, {"N": 1000.0, "P2O5": 0.0, "K2O": 0.0})
+            actions = [step["action"] for step in d]
+            assert any("azolla" in a for a in actions), (
+                f"missing azolla in {band}"
+            )
+
+    def test_build_dispatch_adds_p_and_k_when_those_deficit(self):
+        from village_n_closure import build_dispatch, Village
+        v = Village(name="t", population=1, climate_band="NH_temperate",
+                    crops={}, substrates={})
+        d = build_dispatch(v, {"N": 0.0, "P2O5": 100.0, "K2O": 100.0})
+        actions = [step["action"] for step in d]
+        assert any("Source P" in a for a in actions)
+        assert any("Source K" in a for a in actions)
+
+    def test_build_dispatch_sorted_by_priority_then_lag(self):
+        from village_n_closure import build_dispatch, Village
+        v = Village(name="t", population=1, climate_band="NH_temperate",
+                    crops={},
+                    substrates={"humanure_composted": 100,  # lag 6
+                                "wood_ash": 0.5})             # lag 0
+        d = build_dispatch(v, {"N": 500.0, "P2O5": 0.0, "K2O": 0.0})
+        # Within priority 1 entries, wood_ash (lag 0) should precede
+        # humanure_composted (lag 6)
+        p1 = [step for step in d if step["priority"] == 1]
+        actions_p1 = [step["action"] for step in p1]
+        wood_idx = next(i for i, a in enumerate(actions_p1)
+                        if "wood_ash" in a)
+        humanure_idx = next(i for i, a in enumerate(actions_p1)
+                            if "humanure_composted" in a)
+        assert wood_idx < humanure_idx
+        # Priorities overall are sorted ascending
+        prev = -1
+        for step in d:
+            assert step["priority"] >= prev
+            prev = step["priority"]
+
+    def test_fmt_kg(self):
+        from village_n_closure import fmt_kg
+        assert "t" in fmt_kg(2500)
+        assert "kg" in fmt_kg(50)
+        assert "kg" in fmt_kg(0)
+
+    def test_remediate_known_condition(self, capsys):
+        from village_n_closure import remediate
+        remediate("soil_depleted_organic_matter")
+        out = capsys.readouterr().out
+        assert "REMEDIATION" in out
+        assert "compost application" in out
+
+    def test_remediate_unknown_condition_lists_options(self, capsys):
+        from village_n_closure import remediate
+        remediate("haunted_soil")
+        out = capsys.readouterr().out
+        assert "Unknown condition" in out
+        assert "soil_acidic" in out   # known options listed
+
+    def test_ferment_known_protocol(self, capsys):
+        from village_n_closure import ferment
+        ferment("bokashi")
+        out = capsys.readouterr().out
+        assert "FERMENTATION: bokashi" in out
+        assert "EM/LAB" in out
+
+    def test_ferment_unknown_protocol_lists_options(self, capsys):
+        from village_n_closure import ferment
+        ferment("alchemical_transmutation")
+        out = capsys.readouterr().out
+        assert "Unknown protocol" in out
+        assert "bokashi" in out
+
+    def test_example_village_has_surplus_on_all_three_nutrients(self):
+        """The documented EXAMPLE_VILLAGE is configured so that locally
+        available substrates exceed crop need on N, P, and K — the
+        affirmative demonstration the module exists to make."""
+        from village_n_closure import (
+            EXAMPLE_VILLAGE, compute_need, compute_supply, compute_deficit,
+        )
+        need    = compute_need(EXAMPLE_VILLAGE)
+        supply  = compute_supply(EXAMPLE_VILLAGE)
+        deficit = compute_deficit(need, supply)
+        for nut in ("N", "P2O5", "K2O"):
+            assert deficit[nut] < 0, (
+                f"EXAMPLE_VILLAGE has shortfall in {nut} = {deficit[nut]}"
+            )
+
+    def test_run_custom_returns_village_and_runs(self, capsys):
+        from village_n_closure import run_custom, Village
+        v = run_custom(
+            name="Test Village",
+            population=50,
+            climate_band="equatorial",
+            crops={"cassava": 1.0},
+            substrates={"humanure_composted": 50,
+                        "azolla_pond": 5},
+            target_yield_pct=1.0,
+        )
+        assert isinstance(v, Village)
+        out = capsys.readouterr().out
+        assert "Test Village" in out
+        assert "VILLAGE N-CLOSURE REPORT" in out
+
+    def test_report_populates_village_attributes(self):
+        """report() should write back computed values to the Village
+        instance so callers can introspect after."""
+        from village_n_closure import report, EXAMPLE_VILLAGE
+        report(EXAMPLE_VILLAGE)
+        assert EXAMPLE_VILLAGE.nutrient_need
+        assert EXAMPLE_VILLAGE.nutrient_supply
+        assert EXAMPLE_VILLAGE.deficit
+        assert EXAMPLE_VILLAGE.dispatch
+        # Specifically the keys
+        for nut in ("N", "P2O5", "K2O"):
+            assert nut in EXAMPLE_VILLAGE.nutrient_need
+            assert nut in EXAMPLE_VILLAGE.deficit
