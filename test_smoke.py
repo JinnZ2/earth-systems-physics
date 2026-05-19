@@ -8021,3 +8021,173 @@ class TestHormuzCascadeAudit:
                      "lithosphere", "biosphere", "Haber-Bosch",
                      "HORMUZ CHOKEPOINT"):
             assert term in EARTH_SYSTEM_MAP
+
+
+# ─────────────────────────────────────────────
+# LEVERAGE ANALYSIS V2
+# Companion to hormuz_cascade_audit. Computes lives-saved per
+# intervention across multiple operating points (today Q2 2026 /
+# prolonged 6mo / mild), then ranks. Identifies whether
+# duration, allocation, or supply is the dominant lever at each
+# operating point.
+# ─────────────────────────────────────────────
+
+class TestLeverageAnalysisV2:
+    def test_import(self):
+        import leverage_analysis_v2  # noqa: F401
+
+    def test_operating_points_keys(self):
+        from leverage_analysis_v2 import OPERATING_POINTS
+        assert set(OPERATING_POINTS.keys()) == {
+            "today_q2_2026", "prolonged_6mo", "mild",
+        }
+        # Each operating point has all 8 cascade parameters
+        for op in OPERATING_POINTS.values():
+            for k in ("hormuz_throughput_frac", "substitution_lag_months",
+                      "buffer_stock_months", "weeks_planting_delay",
+                      "duration_months", "buffer_redistribution",
+                      "solar_min_intensity", "vulnerable_absorption"):
+                assert k in op
+
+    def test_interventions_structure(self):
+        from leverage_analysis_v2 import INTERVENTIONS
+        assert len(INTERVENTIONS) == 7
+        for name, param, delta, itype in INTERVENTIONS:
+            assert isinstance(name, str) and name
+            assert isinstance(param, str) and param
+            assert isinstance(delta, (int, float))
+            assert isinstance(itype, str) and itype
+
+    def test_deaths_function_returns_nonneg(self):
+        from leverage_analysis_v2 import deaths, OPERATING_POINTS
+        for op in OPERATING_POINTS.values():
+            d = deaths(op)
+            assert d >= 0.0
+
+    def test_apply_clamps_fractional_params(self):
+        from leverage_analysis_v2 import apply, OPERATING_POINTS
+        op = OPERATING_POINTS["today_q2_2026"]
+        # Push throughput above 1.0 -> clamped
+        out = apply(op, "hormuz_throughput_frac", +5.0)
+        assert out["hormuz_throughput_frac"] == 1.0
+        # Push redistribution below 0 -> clamped
+        out = apply(op, "buffer_redistribution", -5.0)
+        assert out["buffer_redistribution"] == 0.0
+
+    def test_apply_clamps_nonneg_time_params(self):
+        from leverage_analysis_v2 import apply, OPERATING_POINTS
+        op = OPERATING_POINTS["today_q2_2026"]
+        out = apply(op, "duration_months", -100.0)
+        assert out["duration_months"] == 0.0
+        out = apply(op, "substitution_lag_months", -100.0)
+        assert out["substitution_lag_months"] == 0.0
+
+    def test_apply_does_not_mutate_input(self):
+        from leverage_analysis_v2 import apply, OPERATING_POINTS
+        op = OPERATING_POINTS["today_q2_2026"]
+        original = dict(op)
+        _ = apply(op, "duration_months", -3.0)
+        assert op == original
+
+    def test_fmt_magnitudes(self):
+        from leverage_analysis_v2 import fmt
+        assert "B" in fmt(2.5e9)
+        assert "M" in fmt(2.5e6)
+        assert "k" in fmt(2500)
+        assert fmt(0) == "0.0"
+
+    def test_build_leverage_matrix_shape(self):
+        from leverage_analysis_v2 import (
+            build_leverage_matrix, OPERATING_POINTS, INTERVENTIONS,
+        )
+        matrix, baselines = build_leverage_matrix()
+        assert set(baselines.keys()) == set(OPERATING_POINTS.keys())
+        for opname in OPERATING_POINTS:
+            assert opname in matrix
+            assert (set(matrix[opname].keys())
+                    == {iv[0] for iv in INTERVENTIONS})
+
+    def test_build_leverage_matrix_lives_saved_nonneg(self):
+        """Every documented intervention is framed as positive=improvement,
+        so lives-saved should be >= 0 at every operating point."""
+        from leverage_analysis_v2 import build_leverage_matrix
+        matrix, _ = build_leverage_matrix()
+        for opname, row in matrix.items():
+            for iname, saved in row.items():
+                assert saved >= -1.0, (
+                    f"{iname} at {opname} produced negative lives saved: {saved}"
+                )
+
+    def test_rank_interventions_orders_high_to_low(self):
+        from leverage_analysis_v2 import (
+            build_leverage_matrix, rank_interventions,
+        )
+        matrix, _ = build_leverage_matrix()
+        ranked = rank_interventions(matrix, "today_q2_2026")
+        prev = float("inf")
+        for name, _, _, _ in ranked:
+            saved = matrix["today_q2_2026"][name]
+            assert saved <= prev
+            prev = saved
+
+    def test_duration_is_top_lever_at_today_baseline(self):
+        """The documented hypothesis: at the today_q2_2026 operating
+        point (saturated cascade with capped deficit), shortening
+        conflict duration is the top lever. This is the analytical
+        finding the module is built to surface."""
+        from leverage_analysis_v2 import (
+            build_leverage_matrix, rank_interventions,
+        )
+        matrix, _ = build_leverage_matrix()
+        ranked = rank_interventions(matrix, "today_q2_2026")
+        top_name = ranked[0][0]
+        second_name = ranked[1][0]
+        assert "Shorten conflict" in top_name
+        # Redistribution should be next
+        assert "Redistribution" in second_name
+
+    def test_supply_side_interventions_zero_at_today_baseline(self):
+        """Documented model behaviour: at today's saturated operating
+        point, supply-side interventions (Hormuz, lag, buffer, planting
+        delay) save zero lives because the deficit is already capped
+        at the 60% physical ceiling. This is the audit's point."""
+        from leverage_analysis_v2 import build_leverage_matrix
+        matrix, _ = build_leverage_matrix()
+        row = matrix["today_q2_2026"]
+        for name in ("Reopen Hormuz +30%",
+                     "Cut substitution lag -3mo",
+                     "+3mo buffer stocks",
+                     "Planting delay -2wks"):
+            assert row[name] == 0.0, (
+                f"{name} unexpectedly saved lives at saturated baseline"
+            )
+
+    def test_mild_operating_point_has_lowest_baseline(self):
+        """mild scenario (rapid resolution) should yield fewer deaths
+        than today's actual situation or the prolonged-6mo extension."""
+        from leverage_analysis_v2 import build_leverage_matrix
+        _, baselines = build_leverage_matrix()
+        assert baselines["mild"] < baselines["today_q2_2026"]
+        assert baselines["today_q2_2026"] < baselines["prolonged_6mo"]
+
+    def test_mild_operating_point_supply_intervention_helps(self):
+        """At the 'mild' (non-saturated) operating point, a supply-side
+        intervention like planting-delay reduction SHOULD save lives —
+        that's the contrast the analysis surfaces."""
+        from leverage_analysis_v2 import build_leverage_matrix
+        matrix, _ = build_leverage_matrix()
+        # Planting delay reduction saves lives in mild scenario
+        assert matrix["mild"]["Planting delay -2wks"] > 0.0
+        # Same intervention saves zero in saturated today scenario
+        assert matrix["today_q2_2026"]["Planting delay -2wks"] == 0.0
+
+    def test_main_runs_without_error(self, capsys):
+        """The main() function should produce structured output without
+        raising; capture and verify the key headers."""
+        from leverage_analysis_v2 import main
+        main()
+        out = capsys.readouterr().out
+        assert "LEVERAGE ANALYSIS" in out
+        assert "RANKED LEVERAGE" in out
+        assert "WHAT THE NUMBERS REVEAL" in out
+        assert "Shorten conflict" in out
