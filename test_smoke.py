@@ -8191,3 +8191,177 @@ class TestLeverageAnalysisV2:
         assert "RANKED LEVERAGE" in out
         assert "WHAT THE NUMBERS REVEAL" in out
         assert "Shorten conflict" in out
+
+
+# ─────────────────────────────────────────────
+# INSTITUTIONAL BOTTLENECK AUDIT
+# Audits the Hormuz cascade for the load-bearing failure node.
+# Argues the bottleneck is regulatory (humanure prohibitions blocking
+# closed-loop N), not physical, and produces an accountability trail
+# with named authority + lives-per-month-delay for 6 jurisdictions.
+# ─────────────────────────────────────────────
+
+class TestInstitutionalBottleneckAudit:
+    def test_import(self):
+        import institutional_bottleneck_audit  # noqa: F401
+
+    def test_physical_facts_keys_and_values(self):
+        from institutional_bottleneck_audit import PHYSICAL_FACTS
+        for key in ("human_N_excretion_kg_per_yr", "global_pop",
+                    "total_human_N_output_Mt", "global_synthetic_N_Mt",
+                    "hormuz_disrupted_N_Mt", "replacement_potential_pct",
+                    "thermophilic_kill_temp_C", "thermophilic_kill_time_days",
+                    "full_compost_curing_months", "planting_windows_required",
+                    "deaths_at_baseline_today", "deaths_avoidable_via_loop"):
+            assert key in PHYSICAL_FACTS
+        # Internal consistency: total_human_N_output = pop * per-person / 1e9
+        expected_Mt = (PHYSICAL_FACTS["global_pop"]
+                       * PHYSICAL_FACTS["human_N_excretion_kg_per_yr"]
+                       / 1e9)
+        assert abs(PHYSICAL_FACTS["total_human_N_output_Mt"] - expected_Mt) < 0.5
+        # Hormuz share = 30% of global synthetic N
+        assert (abs(PHYSICAL_FACTS["hormuz_disrupted_N_Mt"]
+                    - 0.30 * PHYSICAL_FACTS["global_synthetic_N_Mt"])
+                < 1.0)
+        # Three planting windows listed
+        assert len(PHYSICAL_FACTS["planting_windows_required"]) == 3
+
+    def test_regulatory_node_dataclass(self):
+        from institutional_bottleneck_audit import RegulatoryNode
+        n = RegulatoryNode(
+            jurisdiction="x",
+            rule="r",
+            authority="a",
+            prohibits="p",
+            physically_safe=True,
+            change_lead_time="6mo",
+            lives_per_month_delay=1000.0,
+        )
+        assert n.jurisdiction == "x"
+        assert n.lives_per_month_delay == 1000.0
+
+    def test_accountability_statement_physics_justified_branch(self):
+        """When physically_safe=True, the statement should report the
+        rule as physics-justified — no accountability call."""
+        from institutional_bottleneck_audit import RegulatoryNode
+        n = RegulatoryNode(
+            jurisdiction="US",
+            rule="X",
+            authority="EPA",
+            prohibits="something",
+            physically_safe=True,
+            change_lead_time="long",
+            lives_per_month_delay=10_000,
+        )
+        s = n.accountability_statement()
+        assert "EPA" in s
+        assert "physics-justified" in s
+        # Should NOT contain the accountability call
+        assert "authority to modify" not in s
+
+    def test_accountability_statement_not_justified_branch(self):
+        """When physically_safe=False, the statement should call out
+        the authority with the lives-per-month figure."""
+        from institutional_bottleneck_audit import RegulatoryNode
+        n = RegulatoryNode(
+            jurisdiction="MN",
+            rule="R",
+            authority="MN PCA",
+            prohibits="composting toilets",
+            physically_safe=False,
+            change_lead_time="6mo",
+            lives_per_month_delay=15_000,
+        )
+        s = n.accountability_statement()
+        assert "MN PCA" in s
+        assert "authority to modify" in s
+        assert "NOT physics-justified" in s
+        # Lives figure surfaces (15_000 / 1000 = 15 -> "15k")
+        assert "15k" in s
+
+    def test_six_regulatory_bottlenecks_with_required_fields(self):
+        from institutional_bottleneck_audit import REGULATORY_BOTTLENECKS
+        assert len(REGULATORY_BOTTLENECKS) == 6
+        for node in REGULATORY_BOTTLENECKS:
+            assert node.jurisdiction
+            assert node.rule
+            assert node.authority
+            assert node.prohibits
+            assert isinstance(node.physically_safe, bool)
+            assert node.change_lead_time
+            assert node.lives_per_month_delay >= 0
+
+    def test_regulatory_bottlenecks_named_jurisdictions(self):
+        from institutional_bottleneck_audit import REGULATORY_BOTTLENECKS
+        jurisdictions = {n.jurisdiction for n in REGULATORY_BOTTLENECKS}
+        assert any("United States" in j for j in jurisdictions)
+        assert any("Minnesota" in j for j in jurisdictions)
+        assert any("European Union" in j for j in jurisdictions)
+        assert any("India" in j for j in jurisdictions)
+        assert any("Africa" in j for j in jurisdictions)
+        assert any("Codex" in j for j in jurisdictions)
+
+    def test_aggregate_lives_per_month_matches_sum(self):
+        from institutional_bottleneck_audit import (
+            REGULATORY_BOTTLENECKS, aggregate_lives_per_month,
+        )
+        total = aggregate_lives_per_month()
+        expected = sum(n.lives_per_month_delay for n in REGULATORY_BOTTLENECKS)
+        assert total == expected
+        # Documented total: 50k + 500 + 80k + 200k + 300k + 100k = 730,500
+        assert total == 730_500
+
+    def test_defenses_that_fail_structure(self):
+        from institutional_bottleneck_audit import DEFENSES_THAT_FAIL
+        assert len(DEFENSES_THAT_FAIL) == 6
+        for d in DEFENSES_THAT_FAIL:
+            assert set(d.keys()) == {"defense", "rebuttal"}
+            assert d["defense"]
+            assert d["rebuttal"]
+
+    def test_defenses_include_key_arguments(self):
+        from institutional_bottleneck_audit import DEFENSES_THAT_FAIL
+        defenses = [d["defense"] for d in DEFENSES_THAT_FAIL]
+        rebuttals = " ".join(d["rebuttal"] for d in DEFENSES_THAT_FAIL)
+        # The six classic deflection patterns
+        assert any("didn't know" in d for d in defenses)
+        assert any("not safe" in d for d in defenses)
+        assert any("Heavy metals" in d for d in defenses)
+        assert any("Cultural" in d for d in defenses)
+        assert any("more time" in d for d in defenses)
+        assert any("Markets" in d for d in defenses)
+        # Rebuttals reference the calibrating historical record
+        assert "Bengal 1943" in rebuttals or "Bengal" in rebuttals
+        assert "King" in rebuttals   # 'Farmers of Forty Centuries'
+
+    def test_cascade_topology_mentions_both_paths(self):
+        from institutional_bottleneck_audit import CASCADE_TOPOLOGY
+        for term in ("PHYSICAL CASCADE",
+                     "INSTITUTIONAL CASCADE",
+                     "Hormuz chokepoint",
+                     "Haber-Bosch",
+                     "CLOSED LOOP",
+                     "OPEN/DUMPED",
+                     "EPA 503",
+                     "AUDIT TRAIL"):
+            assert term in CASCADE_TOPOLOGY
+
+    def test_fmt_format(self):
+        from institutional_bottleneck_audit import fmt
+        assert "B" in fmt(2.5e9)
+        assert "M" in fmt(2.5e6)
+        assert "k" in fmt(2500)
+        assert fmt(0) == "0"
+
+    def test_run_executes_without_error(self, capsys):
+        from institutional_bottleneck_audit import run
+        run()
+        out = capsys.readouterr().out
+        # Section headers we expect
+        assert "INSTITUTIONAL BOTTLENECK AUDIT" in out
+        assert "REGULATORY CHOKE POINTS" in out
+        assert "DEFENSES AGAINST FUTURE INSTITUTIONAL CLAIMS" in out
+        assert "ATTRIBUTION FORMULA" in out
+        assert "WHAT THIS DOCUMENT IS" in out
+        # Aggregate figure should appear
+        assert "AGGREGATE" in out
