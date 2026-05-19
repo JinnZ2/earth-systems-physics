@@ -7751,3 +7751,273 @@ class TestFormalizedDissentEarthSystemsPhysics:
                     "probability_dissenter_is_right",
                     "strength_if_consensus_holds"):
             assert key in rec
+
+
+# ─────────────────────────────────────────────
+# HORMUZ CASCADE AUDIT
+# Thermodynamic + Earth-systems audit of the Hormuz -> fertilizer ->
+# food cascade. Tests whether the 118M-225M excess-deaths claim is
+# physically consistent with Haber-Bosch energetics, crop-calendar
+# timing, caloric throughput, BMI-deficit mortality, and Solar Min
+# forcing as added stressor.
+# ─────────────────────────────────────────────
+
+class TestHormuzCascadeAudit:
+    def test_import(self):
+        import hormuz_cascade_audit  # noqa: F401
+
+    def test_physical_constants(self):
+        from hormuz_cascade_audit import (
+            J_PER_KCAL, KCAL_PER_PERSON_DAY, DAYS_PER_YEAR,
+            HB_ENERGY_PER_KG_N, NG_LHV, NG_KG_PER_KG_N,
+            GLOBAL_N_TRADE_FRAC_HORMUZ, POP_DEPENDENT_ON_IMPORT_N,
+            WFP_ACUTE_HUNGER_INCREMENT,
+        )
+        assert J_PER_KCAL == 4184.0
+        assert KCAL_PER_PERSON_DAY == 2100.0
+        assert HB_ENERGY_PER_KG_N == 36e6
+        assert NG_LHV == 50e6
+        # Internal consistency: NG_KG_PER_KG_N = HB_ENERGY / LHV
+        assert abs(NG_KG_PER_KG_N - HB_ENERGY_PER_KG_N / NG_LHV) < 1e-12
+        # Sanity: Hormuz fertilizer share should be substantial but not >50%
+        assert 0.20 <= GLOBAL_N_TRADE_FRAC_HORMUZ <= 0.50
+        assert POP_DEPENDENT_ON_IMPORT_N > WFP_ACUTE_HUNGER_INCREMENT
+
+    def test_hb_energy_and_natgas_scale_linearly(self):
+        from hormuz_cascade_audit import (
+            hb_energy_required, hb_nat_gas_required,
+        )
+        e1 = hb_energy_required({"kg_N": 1.0})
+        e2 = hb_energy_required({"kg_N": 1000.0})
+        assert abs(e2 - 1000.0 * e1) < 1e-6
+        ng1 = hb_nat_gas_required({"kg_N": 1.0})
+        ng2 = hb_nat_gas_required({"kg_N": 1000.0})
+        assert abs(ng2 - 1000.0 * ng1) < 1e-6
+        # Sanity: ~0.72 kg CH4 per kg N
+        assert 0.5 <= ng1 <= 1.0
+
+    def test_yield_loss_from_delay_breakpoints(self):
+        from hormuz_cascade_audit import yield_loss_from_delay
+        assert yield_loss_from_delay({"weeks_delay": 0}) == 0.00
+        assert abs(yield_loss_from_delay({"weeks_delay": 2}) - 0.08) < 1e-6
+        assert abs(yield_loss_from_delay({"weeks_delay": 4}) - 0.22) < 1e-6
+        assert abs(yield_loss_from_delay({"weeks_delay": 6}) - 0.40) < 1e-6
+        assert abs(yield_loss_from_delay({"weeks_delay": 8}) - 0.60) < 1e-6
+
+    def test_yield_loss_from_delay_monotonic_and_capped(self):
+        from hormuz_cascade_audit import yield_loss_from_delay
+        prev = -1.0
+        for w in (0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 26, 52, 100):
+            v = yield_loss_from_delay({"weeks_delay": w})
+            assert v >= prev
+            assert v <= 0.60
+            prev = v
+
+    def test_hormuz_coupling_loss_extremes(self):
+        from hormuz_cascade_audit import (
+            hormuz_coupling_loss, GLOBAL_N_TRADE_FRAC_HORMUZ,
+        )
+        # Full throughput -> zero loss
+        zero = hormuz_coupling_loss({
+            "hormuz_throughput_frac": 1.0,
+            "substitution_lag_months": 12.0,
+            "buffer_stock_months": 0.0,
+        })
+        assert zero == 0.0
+        # Full closure, long lag, no buffer -> approaches but does not
+        # exceed Hormuz's share of N trade
+        deep = hormuz_coupling_loss({
+            "hormuz_throughput_frac": 0.0,
+            "substitution_lag_months": 36.0,
+            "buffer_stock_months": 0.0,
+        })
+        assert 0.0 < deep <= GLOBAL_N_TRADE_FRAC_HORMUZ + 1e-9
+
+    def test_hormuz_coupling_buffer_dominates_short_lag(self):
+        """If buffer exceeds substitution lag, no loss accrues."""
+        from hormuz_cascade_audit import hormuz_coupling_loss
+        v = hormuz_coupling_loss({
+            "hormuz_throughput_frac": 0.0,
+            "substitution_lag_months": 2.0,
+            "buffer_stock_months": 6.0,
+        })
+        assert v == 0.0
+
+    def test_solar_minimum_modifier_range(self):
+        from hormuz_cascade_audit import (
+            solar_minimum_modifier,
+            SOLAR_MIN_YIELD_PENALTY_LOW,
+            SOLAR_MIN_YIELD_PENALTY_HIGH,
+        )
+        lo = solar_minimum_modifier({"solar_min_intensity": 0.0})
+        hi = solar_minimum_modifier({"solar_min_intensity": 1.0})
+        assert lo == SOLAR_MIN_YIELD_PENALTY_LOW
+        assert hi == SOLAR_MIN_YIELD_PENALTY_HIGH
+        mid = solar_minimum_modifier({"solar_min_intensity": 0.5})
+        assert lo < mid < hi
+
+    def test_excess_mortality_monotonic_in_deficit(self):
+        from hormuz_cascade_audit import (
+            excess_mortality_from_caloric_deficit,
+        )
+        prev = -1.0
+        for d in (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6):
+            v = excess_mortality_from_caloric_deficit({
+                "pop_exposed": 1e6,
+                "kcal_deficit_pct": d,
+                "duration_months": 6.0,
+                "buffer_redistribution": 0.2,
+            })
+            assert v >= prev
+            prev = v
+
+    def test_excess_mortality_capped_at_30pct(self):
+        """Physical ceiling: cumulative mortality rate <= 30%."""
+        from hormuz_cascade_audit import (
+            excess_mortality_from_caloric_deficit,
+        )
+        pop = 1e6
+        deaths = excess_mortality_from_caloric_deficit({
+            "pop_exposed": pop,
+            "kcal_deficit_pct": 0.6,
+            "duration_months": 60.0,    # very long
+            "buffer_redistribution": 0.0,
+        })
+        assert deaths <= 0.30 * pop + 1e-3
+
+    def test_excess_mortality_calibration_sudan(self):
+        """Sudan 2024 anchor: 17M @ 50% deficit x 6mo with buffer~0.1."""
+        from hormuz_cascade_audit import (
+            excess_mortality_from_caloric_deficit,
+        )
+        deaths = excess_mortality_from_caloric_deficit({
+            "pop_exposed": 17e6,
+            "kcal_deficit_pct": 0.5,
+            "duration_months": 6.0,
+            "buffer_redistribution": 0.1,
+        })
+        # Anchored to ~2.5M; tolerate +/- 30% from form approximations
+        assert 1.5e6 < deaths < 3.5e6
+
+    def test_build_scenarios_count_and_names(self):
+        from hormuz_cascade_audit import build_scenarios
+        scenarios = build_scenarios()
+        assert len(scenarios) == 5
+        names = {s.scenario for s in scenarios}
+        assert "FAO_baseline_broad_sharing" in names
+        assert "WFP_prolonged_moderate" in names
+        assert "presenter_low_concentrated" in names
+        assert "presenter_high_concentrated" in names
+        assert "solar_only_no_hormuz" in names
+
+    def test_cascade_run_execute_populates_all_results(self):
+        from hormuz_cascade_audit import build_scenarios
+        for s in build_scenarios():
+            r = s.execute()
+            for key in ("n_loss_frac_global", "kg_N_withheld",
+                        "timing_loss_frac", "solar_drag_frac",
+                        "total_yield_loss_frac", "kcal_lost",
+                        "person_years_unfed", "kcal_deficit_pct",
+                        "excess_deaths", "hb_energy_freed_J",
+                        "natgas_freed_kg"):
+                assert key in r
+
+    def test_solar_only_scenario_zero_n_loss(self):
+        """solar_only_no_hormuz: throughput=1.0 + no buffer overdraft
+        -> zero N loss, zero NG freed."""
+        from hormuz_cascade_audit import build_scenarios
+        s = next(s for s in build_scenarios()
+                 if s.scenario == "solar_only_no_hormuz")
+        s.execute()
+        assert s.results["n_loss_frac_global"] == 0.0
+        assert s.results["kg_N_withheld"] == 0.0
+        assert s.results["natgas_freed_kg"] == 0.0
+
+    def test_presenter_high_hits_physical_ceiling(self):
+        from hormuz_cascade_audit import (
+            build_scenarios, POP_DEPENDENT_ON_IMPORT_N,
+        )
+        s = next(s for s in build_scenarios()
+                 if s.scenario == "presenter_high_concentrated")
+        s.execute()
+        # Ceiling = 30% of import-dependent population
+        ceiling = 0.30 * POP_DEPENDENT_ON_IMPORT_N
+        assert s.results["excess_deaths"] <= ceiling + 1.0
+        # And it does reach (or essentially reach) the ceiling
+        assert s.results["excess_deaths"] >= 0.95 * ceiling
+
+    def test_fao_baseline_below_presenter_low(self):
+        """Broad-sharing FAO baseline should yield fewer deaths than
+        concentrated presenter scenarios."""
+        from hormuz_cascade_audit import build_scenarios
+        runs = {s.scenario: s for s in build_scenarios()}
+        for s in runs.values():
+            s.execute()
+        fao = runs["FAO_baseline_broad_sharing"].results["excess_deaths"]
+        plow = runs["presenter_low_concentrated"].results["excess_deaths"]
+        phigh = runs["presenter_high_concentrated"].results["excess_deaths"]
+        assert fao < plow
+        assert plow <= phigh
+
+    def test_sensitivity_sweep_returns_pairs_and_is_non_decreasing(self):
+        from hormuz_cascade_audit import sensitivity_sweep
+        result = sensitivity_sweep()
+        assert len(result) == 8
+        prev_deaths = -1.0
+        prev_va = -1.0
+        for va, deaths in result:
+            assert 0.0 <= va <= 1.0
+            assert va > prev_va
+            assert deaths >= prev_deaths
+            prev_va = va
+            prev_deaths = deaths
+
+    def test_audit_claims_structure(self):
+        from hormuz_cascade_audit import AUDIT_CLAIMS
+        assert len(AUDIT_CLAIMS) == 5
+        ids = [c["id"] for c in AUDIT_CLAIMS]
+        assert ids == ["C1", "C2", "C3", "C4", "C5"]
+        for c in AUDIT_CLAIMS:
+            assert callable(c["test"])
+            assert c["claim"]
+            assert c["passes_when"]
+
+    def test_all_audit_claims_pass_on_documented_scenarios(self):
+        """Every claim must pass against its targeted scenario in the
+        documented configuration; the audit's value is that it's
+        internally consistent before being applied elsewhere."""
+        from hormuz_cascade_audit import (
+            build_scenarios, AUDIT_CLAIMS,
+        )
+        runs = {s.scenario: s for s in build_scenarios()}
+        for s in runs.values():
+            s.execute()
+
+        def pick(claim_id):
+            if claim_id == "C1":
+                return runs["presenter_high_concentrated"].results
+            if claim_id == "C2":
+                return runs["FAO_baseline_broad_sharing"].results
+            if claim_id == "C3":
+                return runs["solar_only_no_hormuz"].results
+            return runs["presenter_high_concentrated"].results
+
+        for c in AUDIT_CLAIMS:
+            r = pick(c["id"])
+            assert c["test"](r), f"audit claim {c['id']} failed: {c['claim']}"
+
+    def test_fmt_formats_magnitudes(self):
+        from hormuz_cascade_audit import fmt
+        assert fmt(None) == "-"
+        assert fmt(0) == "0.000"
+        assert "k" in fmt(2500)
+        assert "M" in fmt(2.5e6)
+        assert "B" in fmt(2.5e9)
+        assert "T" in fmt(2.5e12)
+
+    def test_earth_system_map_mentions_key_layers(self):
+        from hormuz_cascade_audit import EARTH_SYSTEM_MAP
+        for term in ("electromagnetic", "ionosphere", "hydrosphere",
+                     "lithosphere", "biosphere", "Haber-Bosch",
+                     "HORMUZ CHOKEPOINT"):
+            assert term in EARTH_SYSTEM_MAP
