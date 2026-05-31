@@ -1,0 +1,95 @@
+[
+  {
+    "cid": "RW-01",
+    "statement": "Ringwoodite stores 0-3 wt% structural water across the lower transition zone (~525-660 km, ~18-23 GPa).",
+    "evidence": "MEASURED",
+    "unit": "wt_percent_H2O",
+    "sanity": [
+      0.0,
+      3.0
+    ],
+    "falsifier": "Hydrous ringwoodite inclusions / electrical conductivity show storage capacity outside 0-3 wt% under TZ P-T.",
+    "references": [
+      "Pearson et al. 2014 (diamond inclusion, ~1.4 wt%)",
+      "Schmandt et al. 2014 (dehydration melting atop 660)"
+    ],
+    "status": "SUPPORTED",
+    "note": ""
+  },
+  {
+    "cid": "RW-02",
+    "statement": "Hydrous ringwoodite descending across the 660 km boundary (rw -> bridgmanite + ferropericlase) sheds water because the lower-mantle assemblage stores far less.",
+    "evidence": "MEASURED",
+    "unit": "kg_H2O_per_kg_rock",
+    "sanity": [
+      0.0,
+      0.03
+    ],
+    "falsifier": "Lower-mantle phases shown to retain ~rw-level water, erasing the dehydration contrast at 660.",
+    "references": [
+      "Schmandt et al. 2014"
+    ],
+    "status": "SUPPORTED",
+    "note": ""
+  },
+  {
+    "cid": "CPL-01",
+    "statement": "Mantle water content lowers effective viscosity (hydrolytic weakening), modulating heat delivered to the base of the crust on >10 kyr timescales.",
+    "evidence": "DERIVED",
+    "unit": "dimensionless_log10_eta_drop_per_wt_percent",
+    "sanity": [
+      0.5,
+      2.5
+    ],
+    "falsifier": "Olivine/ringwoodite rheology shows <0.5 decade viscosity drop per wt% water at TZ conditions.",
+    "references": [
+      "Mei & Kohlstedt 2000 (hydrolytic weakening)"
+    ],
+    "status": "OPEN",
+    "note": ""
+  },
+  {
+    "cid": "CPL-02",
+    "statement": "Deep-water boundary state sets a SLOW background sensitivity; it does NOT trigger human-timescale floods directly. Mantle overturn ~1e8-1e9 yr >> narrative window ~1e4-1e5 yr.",
+    "evidence": "DERIVED",
+    "unit": "years_mantle_overturn",
+    "sanity": [
+      100000000.0,
+      2000000000.0
+    ],
+    "falsifier": "Demonstrated regional deep-water pulse with surface expression on <1e4 yr timescale.",
+    "references": [
+      "whole-mantle convection overturn estimates"
+    ],
+    "status": "SUPPORTED",
+    "note": "This is the honesty spine. Ringwoodite is the dimmer switch, not the trigger. The trigger is fast forcing on a sensitive base."
+  },
+  {
+    "cid": "EVT-01",
+    "statement": "Surface water-emergence/flood events cluster where FAST forcings (orbital insolation, glacial unloading, solar, Chandler/annual wobble) constructively align ON TOP OF a high deep-water sensitivity baseline.",
+    "evidence": "SPECULATIVE",
+    "unit": "event_probability",
+    "sanity": [
+      0.0,
+      1.0
+    ],
+    "falsifier": "Adding the deep-water baseline term does NOT improve hit-rate of predicted windows vs fast-forcing-only model above a random-shuffle baseline.",
+    "references": [],
+    "status": "OPEN",
+    "note": "The whole model lives or dies here. If the baseline term is inert, drop it and keep the fast-forcing model."
+  },
+  {
+    "cid": "NAR-01",
+    "statement": "Geographic/temporal clustering of flood & island-subsidence narratives correlates with predicted high-probability windows better than chance.",
+    "evidence": "SPECULATIVE",
+    "unit": "hit_rate_minus_random",
+    "sanity": [
+      -1.0,
+      1.0
+    ],
+    "falsifier": "Narrative-cluster dates show no excess overlap with predicted windows beyond a Monte-Carlo shuffle null.",
+    "references": [],
+    "status": "OPEN",
+    "note": "Requires a real, dated narrative dataset. Placeholder shipped."
+  }
+]
