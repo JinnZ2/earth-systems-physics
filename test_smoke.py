@@ -9031,3 +9031,248 @@ class TestNarrativeCrossval:
 
         result = run_falsification()
         assert result["verdict"] == "NOT_SUPPORTED"
+
+
+# ── GEOTHERMAL REFUGIA (SNOWBALL EARTH) ───────────────────────────────────────
+
+class TestGeothermalRefugia:
+    def test_import(self):
+        import geothermal_refugia
+
+    def test_sea_ice_equilibrium_thickness_in_range(self):
+        from geothermal_refugia import sea_ice_equilibrium_thickness
+        for q in (0.06, 0.10, 0.25):
+            h = sea_ice_equilibrium_thickness(q)
+            assert 50.0 <= h <= 3000.0, f"H_eq={h} m out of range at Q={q}"
+
+    def test_sea_ice_thickness_decreases_with_q(self):
+        from geothermal_refugia import sea_ice_equilibrium_thickness
+        h_low  = sea_ice_equilibrium_thickness(0.06)
+        h_high = sea_ice_equilibrium_thickness(0.30)
+        assert h_low > h_high
+
+    def test_sea_ice_ocean_stays_liquid(self):
+        """At every PROVINCES ocean Q value the deep ocean stays liquid."""
+        from geothermal_refugia import sea_ice_equilibrium_thickness, PROVINCES
+        ocean_depth = 3700.0
+        for name, frac, q, kind in PROVINCES:
+            if kind == "ocean":
+                h = sea_ice_equilibrium_thickness(q)
+                assert h < ocean_depth, (
+                    f"{name}: H_eq={h:.0f} m exceeds ocean depth {ocean_depth} m"
+                )
+
+    def test_pressure_melting_point_is_negative(self):
+        from geothermal_refugia import pressure_melting_point_c
+        for H in (100, 500, 1000, 3000):
+            pmp = pressure_melting_point_c(float(H))
+            assert pmp <= 0.0
+
+    def test_pressure_melting_point_more_negative_for_thicker_ice(self):
+        from geothermal_refugia import pressure_melting_point_c
+        assert pressure_melting_point_c(3000.0) < pressure_melting_point_c(500.0)
+
+    def test_subglacial_state_cold_for_thin_craton_ice(self):
+        from geothermal_refugia import subglacial_state
+        st = subglacial_state(q_geo=0.045, h_ice_m=300.0)
+        assert st["regime"] == "COLD_BASED_FROZEN"
+        assert st["basal_melt_rate_m_per_yr"] == 0.0
+
+    def test_subglacial_state_wet_for_thick_ice_high_flux(self):
+        from geothermal_refugia import subglacial_state
+        st = subglacial_state(q_geo=0.30, h_ice_m=1000.0)
+        assert st["regime"] == "WET_BASED_REFUGIUM"
+        assert st["basal_melt_rate_m_per_yr"] > 0.0
+
+    def test_subglacial_state_craton_goes_wet_under_thick_ice(self):
+        from geothermal_refugia import subglacial_state
+        st_thin  = subglacial_state(0.045, 1000.0)
+        st_thick = subglacial_state(0.045, 3000.0)
+        assert st_thin["regime"]  == "COLD_BASED_FROZEN"
+        assert st_thick["regime"] == "WET_BASED_REFUGIUM"
+
+    def test_refugia_inventory_has_expected_keys(self):
+        from geothermal_refugia import refugia_inventory
+        inv = refugia_inventory()
+        for key in ("subice_liquid_fraction", "open_water_fraction",
+                    "albedo_verdict", "life_verdict", "provinces"):
+            assert key in inv, f"Missing key: {key}"
+
+    def test_refugia_inventory_subice_fraction_positive(self):
+        from geothermal_refugia import refugia_inventory
+        inv = refugia_inventory()
+        assert inv["subice_liquid_fraction"] > 0.0
+
+    def test_refugia_inventory_open_water_near_zero(self):
+        """GEO-04: open water ~ 0 in hard Snowball -> albedo unchanged."""
+        from geothermal_refugia import refugia_inventory
+        inv = refugia_inventory()
+        assert inv["open_water_fraction"] < 0.02
+
+    def test_refugia_inventory_albedo_verdict_contains_co2(self):
+        from geothermal_refugia import refugia_inventory
+        inv = refugia_inventory()
+        assert "CO2" in inv["albedo_verdict"]
+
+    def test_refugia_thicker_ice_more_wet_based(self):
+        from geothermal_refugia import refugia_inventory
+        inv_thin  = refugia_inventory(continental_ice_m=500.0)
+        inv_thick = refugia_inventory(continental_ice_m=3000.0)
+        assert inv_thick["subice_liquid_fraction"] >= inv_thin["subice_liquid_fraction"]
+
+    def test_refugia_all_provinces_present(self):
+        from geothermal_refugia import refugia_inventory, PROVINCES
+        inv = refugia_inventory()
+        province_names = {row[0] for row in inv["provinces"]}
+        expected = {p[0] for p in PROVINCES}
+        assert province_names == expected
+
+
+# ── AQUIFER PRESSURE HEAD ─────────────────────────────────────────────────────
+
+class TestAquiferPressureHead:
+    def test_import(self):
+        import aquifer_pressure_head
+
+    def test_seismic_energy_density_positive(self):
+        from aquifer_pressure_head import seismic_energy_density
+        e = seismic_energy_density(6.0, 100.0)
+        assert e > 0.0
+
+    def test_seismic_energy_density_decreases_with_distance(self):
+        from aquifer_pressure_head import seismic_energy_density
+        e_near = seismic_energy_density(6.0, 50.0)
+        e_far  = seismic_energy_density(6.0, 200.0)
+        assert e_near > e_far
+
+    def test_seismic_energy_density_increases_with_magnitude(self):
+        from aquifer_pressure_head import seismic_energy_density
+        e_small = seismic_energy_density(4.0, 100.0)
+        e_large = seismic_energy_density(7.0, 100.0)
+        assert e_large > e_small
+
+    def test_classify_none_for_small_distant_quake(self):
+        from aquifer_pressure_head import seismic_energy_density, classify_response
+        e = seismic_energy_density(3.5, 300.0)
+        assert classify_response(e) == "NONE"
+
+    def test_classify_liquefaction_for_large_near_quake(self):
+        from aquifer_pressure_head import seismic_energy_density, classify_response
+        e = seismic_energy_density(7.0, 50.0)
+        assert classify_response(e) == "LIQUEFACTION_UPWELLING"
+
+    def test_classify_water_level_for_moderate_quake(self):
+        from aquifer_pressure_head import seismic_energy_density, classify_response
+        e = seismic_energy_density(5.0, 100.0)
+        cls = classify_response(e)
+        assert cls in ("WATER_LEVEL", "SPRING")
+
+    def test_primed_baseline_lowers_threshold(self):
+        """AQ-03: high s_base promotes NONE -> non-NONE or same."""
+        from aquifer_pressure_head import seismic_energy_density, classify_response
+        e = seismic_energy_density(4.5, 150.0)
+        classes = ("NONE", "WATER_LEVEL", "SPRING", "LIQUEFACTION_UPWELLING")
+        cls_dry    = classify_response(e, s_base=0.0)
+        cls_primed = classify_response(e, s_base=1.0)
+        assert classes.index(cls_primed) >= classes.index(cls_dry)
+
+    def test_poroelastic_pressure_positive(self):
+        from aquifer_pressure_head import poroelastic_pressure_pa, seismic_energy_density
+        e = seismic_energy_density(6.0, 100.0)
+        dp = poroelastic_pressure_pa(e)
+        assert dp > 0.0
+
+    def test_water_head_change_returns_expected_keys(self):
+        from aquifer_pressure_head import water_head_change_m
+        res = water_head_change_m(6.5, 80.0)
+        for key in ("magnitude", "r_km", "e_J_m3", "dp_Pa",
+                    "dh_m", "classification", "s_base"):
+            assert key in res
+
+    def test_water_head_change_classification_valid(self):
+        from aquifer_pressure_head import water_head_change_m, RESPONSE_CLASSES
+        for M in (4.0, 5.0, 6.5, 7.5):
+            res = water_head_change_m(M, 100.0)
+            assert res["classification"] in RESPONSE_CLASSES
+
+
+# ── PALEOSEISMIC CROSSVAL ─────────────────────────────────────────────────────
+
+class TestPaleoseismicCrossval:
+    def test_import(self):
+        import paleoseismic_crossval
+
+    def test_syn01_returns_supported_on_placeholder(self):
+        from paleoseismic_crossval import syn01_mechanism_check
+        result = syn01_mechanism_check()
+        assert result["verdict"] == "SUPPORTED"
+
+    def test_syn01_plausible_fraction_above_threshold(self):
+        from paleoseismic_crossval import syn01_mechanism_check, PLAUSIBLE_FRACTION
+        result = syn01_mechanism_check()
+        assert result["plausible_fraction"] >= PLAUSIBLE_FRACTION
+
+    def test_syn01_details_have_classification(self):
+        from paleoseismic_crossval import syn01_mechanism_check
+        result = syn01_mechanism_check()
+        for d in result["details"]:
+            assert "classification" in d
+            assert d["classification"] in ("NONE", "WATER_LEVEL",
+                                            "SPRING", "LIQUEFACTION_UPWELLING")
+
+    def test_syn01_none_for_all_small_distant_events(self):
+        from paleoseismic_crossval import syn01_mechanism_check
+        tiny_events = [
+            {"t_bp": 10000, "date_smear_yr": 500, "region": "A",
+             "M_context": 3.0, "r_context_km": 500, "source": "test"},
+            {"t_bp": 20000, "date_smear_yr": 500, "region": "B",
+             "M_context": 2.5, "r_context_km": 600, "source": "test"},
+            {"t_bp": 30000, "date_smear_yr": 500, "region": "C",
+             "M_context": 3.0, "r_context_km": 400, "source": "test"},
+        ]
+        result = syn01_mechanism_check(tiny_events)
+        assert result["verdict"] == "NOT_SUPPORTED"
+
+    def test_syn02_returns_not_supported_on_placeholder(self):
+        from paleoseismic_crossval import syn02_synchrony_test
+        result = syn02_synchrony_test()
+        assert result["verdict"] == "NOT_SUPPORTED"
+
+    def test_syn02_not_supported_due_to_smear(self):
+        from paleoseismic_crossval import syn02_synchrony_test
+        result = syn02_synchrony_test()
+        assert result.get("n_tight", 0) == 0
+
+    def test_syn02_supported_with_tight_clustered_dates(self):
+        """Inject tight-dated, tightly-clustered events -> SUPPORTED."""
+        from paleoseismic_crossval import syn02_synchrony_test
+        tight_events = [
+            {"t_bp": 12000, "date_smear_yr": 200, "region": "A",
+             "M_context": 6.5, "r_context_km": 60, "source": "test"},
+            {"t_bp": 12100, "date_smear_yr": 200, "region": "B",
+             "M_context": 6.5, "r_context_km": 60, "source": "test"},
+            {"t_bp": 12050, "date_smear_yr": 200, "region": "C",
+             "M_context": 6.5, "r_context_km": 60, "source": "test"},
+        ]
+        result = syn02_synchrony_test(tight_events)
+        assert result["verdict"] == "SUPPORTED"
+
+    def test_run_falsification_returns_both_verdicts(self):
+        from paleoseismic_crossval import run_falsification
+        result = run_falsification()
+        assert "syn01_verdict" in result
+        assert "syn02_verdict" in result
+
+    def test_run_falsification_expected_defaults(self):
+        from paleoseismic_crossval import run_falsification
+        result = run_falsification()
+        assert result["syn01_verdict"] == "SUPPORTED"
+        assert result["syn02_verdict"] == "NOT_SUPPORTED"
+
+    def test_ledger_now_has_15_claims(self):
+        from claim_ledger import LEDGER
+        assert len(LEDGER) == 15
+        cids = {c.cid for c in LEDGER}
+        for cid in ("GEO-01", "GEO-02", "GEO-03", "GEO-04",
+                    "AQ-01", "AQ-02", "AQ-03", "SYN-01", "SYN-02"):
+            assert cid in cids, f"Missing claim {cid}"

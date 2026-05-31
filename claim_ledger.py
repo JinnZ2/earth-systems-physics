@@ -162,6 +162,139 @@ LEDGER = [
         status=Status.OPEN,
         note="Requires a real, dated narrative dataset. Placeholder shipped.",
     ),
+    Claim(
+        cid="AQ-01",
+        statement="Coseismic / crustal-stress change drives pore-pressure "
+                  "change in saturated aquifers via undrained poroelastic "
+                  "(Skempton) coupling, dp = B * d_sigma_mean.",
+        evidence=Evidence.MEASURED,
+        unit="Pa_pore_pressure_change",
+        sanity=(0.0, 5.0e6),
+        falsifier="Observed water-level/spring response to known coseismic "
+                  "strain departs from poroelastic prediction with B in 0.4-0.9.",
+        references=["Skempton 1954", "Roeloffs 1996", "Manga & Wang 2010"],
+        status=Status.SUPPORTED,
+    ),
+    Claim(
+        cid="AQ-02",
+        statement="Liquefaction / forced upwelling ('water from the ground') "
+                  "occurs above a seismic-energy-density threshold "
+                  "(~0.1 J/m^3); milder hydrologic response (spring/level) "
+                  "extends to ~1e-3 J/m^3. e(M,r) per Wang 2007.",
+        evidence=Evidence.MEASURED,
+        unit="J_per_m3_energy_density",
+        sanity=(1.0e-4, 1.0e4),
+        falsifier="Documented liquefaction at e well below 1e-2 J/m^3, or "
+                  "no liquefaction well above 1 J/m^3 in saturated loose soil.",
+        references=["Wang 2007 GRL (seismic energy density)",
+                    "Wang & Manga 2010"],
+        status=Status.SUPPORTED,
+    ),
+    Claim(
+        cid="AQ-03",
+        statement="A primed deep-water baseline (low effective stress / "
+                  "pre-overpressured aquifers) lowers the energy-density "
+                  "threshold for forced emergence, linking the SLOW mantle "
+                  "state to FAST seismic triggering.",
+        evidence=Evidence.SPECULATIVE,
+        unit="dimensionless_threshold_scale",
+        sanity=(0.3, 1.0),
+        falsifier="Sites over high-sensitivity zones show no lower emergence "
+                  "threshold than matched control sites at equal M and r.",
+        references=[],
+        status=Status.OPEN,
+        note="The bridge between the mantle model and the seismic mechanism.",
+    ),
+    Claim(
+        cid="SYN-01",
+        statement="Emergence narratives in disconnected cultures co-date with "
+                  "regional paleoseismic markers (turbidites, liquefaction "
+                  "features, tsunami deposits) better than chance.",
+        evidence=Evidence.SPECULATIVE,
+        unit="hit_rate_minus_random",
+        sanity=(-1.0, 1.0),
+        falsifier="Emergence-narrative dates show no excess overlap with "
+                  "paleoseismic-marker dates beyond a shuffle null.",
+        references=[],
+        status=Status.OPEN,
+        note="Each region triggers LOCALLY. Apparent cross-continental "
+             "synchrony is a SEPARATE claim (SYN-02): test it against dating "
+             "resolution and a Poisson clustering null before believing it.",
+    ),
+    Claim(
+        cid="SYN-02",
+        statement="Cross-continental TEMPORAL synchrony of emergence events "
+                  "exceeds what independent regional seismicity produces by "
+                  "chance (i.e. there is a common pacing, not coincidence).",
+        evidence=Evidence.SPECULATIVE,
+        unit="synchrony_excess_over_poisson",
+        sanity=(-1.0, 1.0),
+        falsifier="Observed cross-region clustering is consistent with "
+                  "independent Poisson seismicity once dating uncertainty is "
+                  "convolved in. Then synchrony is an artifact, drop it.",
+        references=[],
+        status=Status.OPEN,
+        note="The seductive claim. Most likely to be a dating-resolution "
+             "illusion. Built to be killed unless the data is overwhelming.",
+    ),
+    Claim(
+        cid="GEO-01",
+        statement="A Snowball ocean does NOT freeze solid: geothermal flux "
+                  "sets a maximum sea-ice thickness H_eq = k(T_f - T_surf)/Q; "
+                  "liquid ocean persists below it.",
+        evidence=Evidence.MEASURED,
+        unit="m_equilibrium_sea_ice_thickness",
+        sanity=(100.0, 2000.0),
+        falsifier="Energy balance with k~2.1 W/m/K and Q~0.06-0.3 W/m^2 yields "
+                  "H_eq exceeding ocean depth (freeze-to-bottom) at plausible "
+                  "Snowball T_surf.",
+        references=["McKay 2000", "Goodman & Pierrehumbert 2003",
+                    "Warren et al. 2002 (sea-ice thickness)"],
+        status=Status.SUPPORTED,
+    ),
+    Claim(
+        cid="GEO-02",
+        statement="Grounded ice over crust is wet-based (subglacial melt "
+                  "refugium) only where Q_geo > k(T_pmp(H) - T_surf)/H. Crustal "
+                  "heat-flux heterogeneity therefore makes refugia PATCHY, not "
+                  "uniform; thick ice + high flux melt, thin ice + craton freeze.",
+        evidence=Evidence.DERIVED,
+        unit="dimensionless_refugial_area_fraction",
+        sanity=(0.0, 1.0),
+        falsifier="Basal thermal model shows refugial fraction insensitive to "
+                  "the Q-province map (i.e. uniform-flux assumption is adequate).",
+        references=["Pollard & Kasting 2005 (subglacial)"],
+        status=Status.OPEN,
+    ),
+    Claim(
+        cid="GEO-03",
+        statement="Combined sub-ice ocean + hydrothermal/subglacial refugia "
+                  "provide enough liquid-water volume for eukaryote/metazoan "
+                  "survival through Cryogenian glaciations.",
+        evidence=Evidence.SPECULATIVE,
+        unit="refugial_volume_fraction_of_ocean",
+        sanity=(0.0, 1.0),
+        falsifier="Refugial liquid volume falls below survival/connectivity "
+                  "threshold for the relevant clades at plausible Q and T_surf.",
+        references=[],
+        status=Status.OPEN,
+    ),
+    Claim(
+        cid="GEO-04",
+        statement="Geothermal refugia do NOT end Snowball; deglaciation is "
+                  "CO2/albedo-driven. Refugial+open-water area is too small to "
+                  "flip planetary albedo on its own.",
+        evidence=Evidence.SPECULATIVE,
+        unit="planetary_albedo",
+        sanity=(0.2, 0.8),
+        falsifier="Refugial+open-water fraction is large enough to drop "
+                  "planetary albedo below the runaway-deglaciation threshold "
+                  "without the CO2 greenhouse. Then refugia DO matter for exit.",
+        references=["Hoffman et al. 1998 (CO2 deglaciation)"],
+        status=Status.SUPPORTED,
+        note="Keeps the refugia idea from overreaching into 'refugia melted "
+             "the planet'. They sustain life; CO2 ends the freeze.",
+    ),
 ]
 
 
