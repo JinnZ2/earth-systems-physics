@@ -1,0 +1,104 @@
+{
+  "schema": "atmospheric_instability claim table v1",
+  "note": "Each claim is a falsifiable hypothesis. model_value is the in-repo computed result. If reanalysis or radiosonde data contradicts a claim, update the claim and the mechanism — do not retune the model to fit.",
+  "claims": [
+    {
+      "id": "A1",
+      "statement": "Lower-tropospheric Eady growth rate falls monotonically with warming while upper-tropospheric Eady growth rate rises — the jet/storm-track tug-of-war.",
+      "mechanism": "Arctic amplification weakens lower-level dT/dy -> thermal wind shear falls -> sigma = 0.31*f*Lambda/N drops. Tropical upper-troposphere warming strengthens upper-level dT/dy -> upper shear rises -> upper sigma rises.",
+      "confidence": "robust",
+      "layer": "climate_state.apply_warming + instabilities.baroclinic_eady",
+      "verification_status": "reproduced_from_first_principles",
+      "model_value": {
+        "lat_deg": 45,
+        "lower_sigma_w0_1e5": 0.851,
+        "lower_sigma_w1_1e5": 0.424,
+        "upper_sigma_w0_1e5": 0.532,
+        "upper_sigma_w1_1e5": 0.650,
+        "units": "1/s x1e5"
+      },
+      "falsification_condition": "ERA5 or radiosonde composites show lower-level Eady growth NOT falling poleward of 40N over the 1980-2024 record, or upper-level sigma NOT rising in the subtropical jet."
+    },
+    {
+      "id": "A2",
+      "statement": "The crossover warming index w* at which upper-level Eady growth exceeds lower-level occurs near w=0.6 at 45N — consistent with the observed mid-century shift in North Atlantic storm-track elevation.",
+      "mechanism": "Both trajectories are monotone (A1); crossover is the unique intersection. At 45N the lower gradient is initially stronger, so upper overtakes somewhere in (0.5, 0.7). Exact w* is sensitive to the Arctic amplification coefficient (0.45) and tropical moist factor (0.35) in apply_warming.",
+      "confidence": "moderate",
+      "layer": "explorer.sweep_warming",
+      "verification_status": "verified_in_repo",
+      "model_value": {
+        "lat_deg": 45,
+        "crossover_w_star": 0.6,
+        "method": "sweep_warming 21 steps, lower vs upper baroclinic_eady growth"
+      },
+      "falsification_condition": "Reanalysis trend shows the crossover latitude migrating faster (or slower) than w*=0.6 implies, or no statistically significant shift in storm-track elevation over the observational record."
+    },
+    {
+      "id": "A3",
+      "statement": "Arctic amplification drives lower-tropospheric Ri from ~14 to ~57 across w=0..1, keeping KH instability inactive throughout — reduced shear dominates over increased N.",
+      "mechanism": "Thermal wind shear Lambda = -(g/fT)*dT/dy falls 46% (shear 2.98e-3 -> 1.62e-3 s-1) as dT/dy weakens. N rises only 8.6% (1.12 -> 1.22e-2 s-1). Ri = N2/S2 rises steeply. KH threshold Ri<0.25 is never approached in the zonal-mean background.",
+      "confidence": "robust",
+      "layer": "explorer.sweep_warming (level=lower)",
+      "verification_status": "verified_in_repo",
+      "model_value": {
+        "lat_deg": 45,
+        "Ri_w0": 14.1,
+        "Ri_w1": 56.9,
+        "shear_w0_1e3": 2.984,
+        "shear_w1_1e3": 1.616,
+        "N_w0_1e2": 1.122,
+        "N_w1_1e2": 1.219,
+        "KH_active_any_w": false
+      },
+      "falsification_condition": "Radiosonde profiles at Arctic-proximal stations show Ri < 1 (not just < 0.25) becoming more frequent at 850-700 hPa over 2000-2024, which would indicate the background-state KH claim is wrong even if the zonal-mean trajectory is right."
+    },
+    {
+      "id": "A4",
+      "statement": "Rossby/barotropic instability (Rayleigh-Kuo: beta - d2U/dy2 < 0) activates poleward of ~55N for w >= 0.5, but not at 45N across the full warming range — jet curvature sharpening under warming crosses the PV gradient reversal threshold at high latitudes first.",
+      "mechanism": "apply_warming increases d2U/dy2 by 60% at w=1 (contested mechanism: wavier jet). At 60N, beta is smaller (cos term), so d2U/dy2 overtakes beta at w~0.5. At 45N the larger beta keeps pv_grad positive even at w=1.",
+      "confidence": "contested",
+      "layer": "instabilities.rossby_barotropic + climate_state.apply_warming",
+      "verification_status": "verified_in_repo",
+      "model_value": {
+        "lat_45_active_any_w": false,
+        "lat_60_active_w0": false,
+        "lat_60_active_w0p5": true,
+        "lat_60_pv_grad_w0": 1.446e-12,
+        "lat_60_pv_grad_w1": -4.554e-12,
+        "units_pv_grad": "1/(m s)"
+      },
+      "falsification_condition": "MERRA-2 or ERA5 jet-stream curvature analysis shows d2U/dy2 NOT increasing with warming at 60N, or shows Rossby activation occurring equatorward of 50N — which would require revising the d2Udy2 scaling in apply_warming."
+    },
+    {
+      "id": "A5",
+      "statement": "Symmetric, inertial, convective, KH, and gravity-wave modes do not activate in the deterministic zonal-mean background at 45N across w=0..1. This is a structural scope statement, not a prediction that those modes are absent in the real atmosphere.",
+      "mechanism": "The baseline state is a winter-ish zonal mean. Symmetric/inertial instability requires frontal zones (strong local PV anomalies not in zonal mean). Convection requires N2<0 (not reached at 6.5 K/km lapse). GW saturation amplitude (~900 m/s for 200 km wave) far exceeds the 8 m/s baseline forcing. KH Ri stays >>0.25 (see A3). These modes are active in the real atmosphere at mesoscale / frontal scale — they are out of scope of this zonal-mean model, not falsely suppressed.",
+      "confidence": "robust",
+      "layer": "explorer.evaluate_state + ensemble.ensemble (activation_prob = 0 for these modes)",
+      "verification_status": "verified_in_repo",
+      "model_value": {
+        "modes_never_active": ["kelvin_helmholtz", "convective", "inertial", "symmetric"],
+        "gravity_wave_note": "baseline amplitude 8 m/s << saturation ~N/k; requires mesoscale wavelength update",
+        "scope": "zonal_mean_background_only"
+      },
+      "falsification_condition": "Not falsifiable at the scope of this model. Falsification of the underlying physics would require showing that mid-latitude zonal-mean winter profiles regularly have N2<0 at 850-500 hPa, which observational climatology does not support."
+    },
+    {
+      "id": "A6",
+      "statement": "Baroclinic + Rossby co-activation probability under synoptic noise (12% relative sigma) jumps from 1.9% at w=0.5 to 12.0% at w=0.7 — a step-change in joint instability probability rather than a gradual increase.",
+      "mechanism": "At w<0.6 Rossby is inactive in the deterministic state at 45N and only noise-driven excursions into d2Udy2 space activate it — low probability. Beyond w=0.6 the deterministic state sits closer to the Rayleigh-Kuo threshold, so the same noise amplitude produces a much larger activation fraction. The step is set by w* from A2 and the noise level.",
+      "confidence": "moderate",
+      "layer": "ensemble.ensemble (lat=45, n=4000, rel_sigma=0.12, seed=1)",
+      "verification_status": "verified_in_repo",
+      "model_value": {
+        "lat_deg": 45,
+        "co_activation_prob_w0p5": 0.019,
+        "co_activation_prob_w0p7": 0.120,
+        "n": 4000,
+        "rel_sigma": 0.12,
+        "seed": 1
+      },
+      "falsification_condition": "ERA5 synoptic composites show no increase in the fraction of days with simultaneous high-amplitude Eady growth AND Rossby-wave breaking signatures between the 1980-2000 and 2010-2024 sub-periods, at latitudes 45-65N."
+    }
+  ]
+}
