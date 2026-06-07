@@ -8657,3 +8657,622 @@ class TestVillageNClosure:
         for nut in ("N", "P2O5", "K2O"):
             assert nut in EXAMPLE_VILLAGE.nutrient_need
             assert nut in EXAMPLE_VILLAGE.deficit
+
+
+# ── RINGWOODITE EARTH COUPLING ────────────────────────────────────────────────
+
+class TestClaimLedger:
+    def test_import(self):
+        import claim_ledger
+
+    def test_quantity_rejects_missing_unit(self):
+        from claim_ledger import Quantity
+        import pytest
+        with pytest.raises(ValueError, match="missing unit"):
+            Quantity(value=1.0, unit="", lo=0.0, hi=2.0)
+
+    def test_quantity_rejects_bad_range(self):
+        from claim_ledger import Quantity
+        import pytest
+        with pytest.raises(ValueError):
+            Quantity(value=1.0, unit="kg", lo=5.0, hi=2.0)
+
+    def test_quantity_in_range(self):
+        from claim_ledger import Quantity
+        q = Quantity(value=1.0, unit="kg", lo=0.0, hi=2.0)
+        assert q.in_range()
+
+    def test_quantity_out_of_range(self):
+        from claim_ledger import Quantity
+        q = Quantity(value=5.0, unit="kg", lo=0.0, hi=2.0)
+        assert not q.in_range()
+
+    def test_quantity_assert_sane_raises(self):
+        from claim_ledger import Quantity
+        import pytest
+        q = Quantity(value=5.0, unit="kg", lo=0.0, hi=2.0)
+        with pytest.raises(ValueError):
+            q.assert_sane("mass")
+
+    def test_gate_passes_value_through(self):
+        from claim_ledger import gate, Quantity
+        val = gate(Quantity(1.5, "wt%", 0.0, 3.0), "water")
+        assert val == 1.5
+
+    def test_ledger_has_required_claims(self):
+        from claim_ledger import LEDGER
+        cids = {c.cid for c in LEDGER}
+        for required in ("RW-01", "RW-02", "CPL-01", "CPL-02", "EVT-01", "NAR-01"):
+            assert required in cids, f"Missing claim {required}"
+
+    def test_every_claim_has_falsifier(self):
+        from claim_ledger import LEDGER
+        for c in LEDGER:
+            assert c.falsifier.strip(), f"Claim {c.cid} has no falsifier"
+
+    def test_claim_rejects_missing_falsifier(self):
+        from claim_ledger import Claim, Evidence, Status
+        import pytest
+        with pytest.raises(ValueError, match="falsifier"):
+            Claim(cid="X-00", statement="test", evidence=Evidence.MEASURED,
+                  unit="kg", sanity=(0, 1), falsifier="")
+
+    def test_dump_ledger_writes_json(self, tmp_path):
+        from claim_ledger import dump_ledger
+        import json
+        p = str(tmp_path / "test_ledger.json")
+        dump_ledger(path=p)
+        with open(p) as f:
+            data = json.load(f)
+        assert isinstance(data, list)
+        assert len(data) >= 6
+        for entry in data:
+            assert "cid" in entry
+            assert "falsifier" in entry
+            assert "evidence" in entry
+
+
+class TestRingwooditePhase:
+    def test_import(self):
+        import ringwoodite_phase
+
+    def test_water_capacity_at_reference_temperature(self):
+        from ringwoodite_phase import water_capacity_wt_percent
+        # At T_ref ~1850 K the capacity should be in MEASURED range [0, 3]
+        cap = water_capacity_wt_percent(1850.0)
+        assert 0.0 <= cap <= 3.0
+
+    def test_water_capacity_decreases_with_temperature(self):
+        from ringwoodite_phase import water_capacity_wt_percent
+        assert water_capacity_wt_percent(1500.0) > water_capacity_wt_percent(2000.0)
+
+    def test_boundary_660_cold_slab_deepens(self):
+        from ringwoodite_phase import boundary_660_depth_km
+        # Cold slab: T < T_ref -> boundary deepens (positive Clapeyron direction)
+        depth_cold = boundary_660_depth_km(1600.0)
+        depth_hot  = boundary_660_depth_km(2100.0)
+        assert depth_cold > depth_hot
+
+    def test_boundary_660_in_physical_range(self):
+        from ringwoodite_phase import boundary_660_depth_km
+        for T in (1600, 1900, 2100):
+            d = boundary_660_depth_km(float(T))
+            assert 600.0 <= d <= 720.0, f"boundary depth {d} km out of range at T={T}"
+
+    def test_dehydration_flux_zero_at_zero_water(self):
+        from ringwoodite_phase import dehydration_flux
+        f = dehydration_flux(downwelling_m_per_yr=0.01,
+                             temperature_k=1850.0,
+                             rw_water_wt=0.0)
+        assert f == 0.0
+
+    def test_dehydration_flux_positive(self):
+        from ringwoodite_phase import dehydration_flux
+        f = dehydration_flux(0.01, 1850.0, rw_water_wt=1.4)
+        assert f > 0.0
+
+    def test_dehydration_flux_increases_with_water_content(self):
+        from ringwoodite_phase import dehydration_flux
+        f_low  = dehydration_flux(0.01, 1850.0, rw_water_wt=0.5)
+        f_high = dehydration_flux(0.01, 1850.0, rw_water_wt=2.0)
+        assert f_high > f_low
+
+    def test_deep_water_baseline_in_range(self):
+        from ringwoodite_phase import deep_water_baseline
+        for rw in (0.0, 0.5, 1.0, 1.4, 2.0):
+            b = deep_water_baseline(1850.0, 0.01, rw)
+            assert 0.0 <= b <= 1.0, f"baseline {b} out of [0,1] at rw={rw}"
+
+    def test_deep_water_baseline_increases_with_water(self):
+        from ringwoodite_phase import deep_water_baseline
+        b_low  = deep_water_baseline(1850.0, 0.01, 0.2)
+        b_high = deep_water_baseline(1850.0, 0.01, 2.0)
+        assert b_high > b_low
+
+    def test_depth_to_pressure_gpa(self):
+        from ringwoodite_phase import depth_to_pressure_gpa
+        p = depth_to_pressure_gpa(660.0)
+        assert 20.0 <= p <= 28.0
+
+
+class TestMantleCrustCoupling:
+    def test_import(self):
+        import mantle_crust_coupling
+
+    def test_viscosity_log10_decreases_with_water(self):
+        from mantle_crust_coupling import viscosity_log10
+        eta_dry = viscosity_log10(0.0)
+        eta_wet = viscosity_log10(1.4)
+        assert eta_wet < eta_dry
+
+    def test_viscosity_in_physical_range(self):
+        from mantle_crust_coupling import viscosity_log10
+        for w in (0.0, 0.5, 1.0, 1.4, 2.0):
+            eta = viscosity_log10(w)
+            assert 17.0 <= eta <= 23.0
+
+    def test_heat_flux_modulation_increases_with_baseline(self):
+        from mantle_crust_coupling import heat_flux_modulation
+        assert heat_flux_modulation(1.0) > heat_flux_modulation(0.0)
+
+    def test_heat_flux_modulation_above_one(self):
+        from mantle_crust_coupling import heat_flux_modulation
+        assert heat_flux_modulation(0.5) >= 1.0
+
+    def test_pore_headroom_decreases_with_baseline(self):
+        from mantle_crust_coupling import pore_pressure_headroom
+        assert pore_pressure_headroom(0.0) > pore_pressure_headroom(1.0)
+
+    def test_pore_headroom_in_range(self):
+        from mantle_crust_coupling import pore_pressure_headroom
+        for b in (0.0, 0.5, 1.0):
+            h = pore_pressure_headroom(b)
+            assert 0.0 <= h <= 1.0
+
+    def test_crustal_sensitivity_in_range(self):
+        from mantle_crust_coupling import crustal_sensitivity
+        for b in (0.0, 0.3, 0.6, 1.0):
+            s = crustal_sensitivity(b)
+            assert 0.0 <= s <= 1.0
+
+    def test_crustal_sensitivity_increases_with_baseline(self):
+        from mantle_crust_coupling import crustal_sensitivity
+        s_low  = crustal_sensitivity(0.0)
+        s_high = crustal_sensitivity(1.0)
+        assert s_high > s_low
+
+
+class TestForcingFunctions:
+    def test_import(self):
+        import forcing_functions
+
+    def test_forcing_alignment_in_range(self):
+        from forcing_functions import forcing_alignment
+        for t in (0, 1000, 10000, 50000, 100000, 150000):
+            a = forcing_alignment(float(t))
+            assert 0.0 <= a <= 1.0, f"alignment {a} out of [0,1] at t={t}"
+
+    def test_solar_returns_in_minus_one_to_one(self):
+        from forcing_functions import solar
+        for t in (0, 5000, 20000, 80000):
+            s = solar(float(t))
+            assert -1.0 <= s <= 1.0
+
+    def test_insolation_returns_in_valid_range(self):
+        from forcing_functions import insolation
+        for t in (0, 10000, 50000, 130000):
+            ins = insolation(float(t))
+            # eccentricity modulated: bounded between -1 and 1
+            assert -1.5 <= ins <= 1.5
+
+    def test_glacial_unloading_in_minus_one_to_one(self):
+        from forcing_functions import glacial_unloading
+        for t in (0, 10000, 20000, 100000):
+            g = glacial_unloading(float(t))
+            assert -1.0 <= g <= 1.0
+
+    def test_chandler_is_bounded(self):
+        from forcing_functions import chandler
+        for t in (0, 500, 1000, 5000):
+            c = chandler(float(t))
+            assert -1.0 <= c <= 1.0
+
+    def test_forcing_breakdown_has_all_keys(self):
+        from forcing_functions import forcing_breakdown, FORCINGS
+        bd = forcing_breakdown(0.0)
+        for key in FORCINGS:
+            assert key in bd
+
+
+class TestCoupledModel:
+    def test_import(self):
+        import coupled_model
+
+    def test_event_probability_in_range(self):
+        from coupled_model import event_probability
+        for t in (0, 10000, 50000, 150000):
+            p = event_probability(float(t), s_base=0.5)
+            assert 0.0 <= p <= 1.0
+
+    def test_null_model_alpha_zero(self):
+        from coupled_model import event_probability
+        # alpha=0: result depends only on forcing, not s_base
+        p1 = event_probability(20000.0, s_base=0.1, alpha=0.0)
+        p2 = event_probability(20000.0, s_base=0.9, alpha=0.0)
+        assert abs(p1 - p2) < 1e-9, "alpha=0 should be independent of s_base"
+
+    def test_higher_alpha_amplifies_high_baseline(self):
+        from coupled_model import event_probability
+        t = 20000.0
+        p_low_alpha  = event_probability(t, s_base=0.8, alpha=0.0)
+        p_high_alpha = event_probability(t, s_base=0.8, alpha=0.6)
+        assert p_high_alpha >= p_low_alpha
+
+    def test_run_returns_expected_keys(self):
+        from coupled_model import run
+        res = run(t_start_bp=10000, t_end_bp=0, step_yr=1000)
+        assert "t" in res and "p" in res and "peaks" in res and "s_base" in res
+
+    def test_run_timeseries_length(self):
+        from coupled_model import run
+        res = run(t_start_bp=10000, t_end_bp=0, step_yr=1000)
+        assert len(res["t"]) == len(res["p"])
+        assert len(res["t"]) > 0
+
+    def test_run_probabilities_all_in_range(self):
+        from coupled_model import run
+        res = run(t_start_bp=50000, t_end_bp=0, step_yr=2500)
+        for p in res["p"]:
+            assert 0.0 <= p <= 1.0
+
+    def test_null_model_returns_dict(self):
+        from coupled_model import run
+        res = run(alpha=0.0, t_start_bp=10000, t_end_bp=0, step_yr=1000)
+        assert res["alpha"] == 0.0
+
+    def test_to_earth_systems_forcing_structure(self):
+        from coupled_model import run, to_earth_systems_forcing
+        res = run(t_start_bp=5000, t_end_bp=0, step_yr=1000)
+        forcing = to_earth_systems_forcing(res)
+        assert len(forcing) == len(res["t"])
+        for rec in forcing:
+            assert "t_bp_yr" in rec
+            assert "hydrosphere_emergence_forcing" in rec
+            assert rec["unit"] == "event_probability"
+
+    def test_peaks_are_local_maxima(self):
+        from coupled_model import run, _find_peaks
+        res = run(t_start_bp=50000, t_end_bp=0, step_yr=500)
+        # Every peak must be above the minimum threshold
+        for t, p in res["peaks"]:
+            assert p >= 0.5
+
+
+class TestNarrativeCrossval:
+    def test_import(self):
+        import narrative_crossval
+
+    def test_hit_count_zero_when_no_narratives(self):
+        from narrative_crossval import hit_count
+        assert hit_count([], [10000, 50000]) == 0
+
+    def test_hit_count_zero_when_no_peaks(self):
+        from narrative_crossval import hit_count
+        assert hit_count([10000, 50000], []) == 0
+
+    def test_hit_count_exact_match(self):
+        from narrative_crossval import hit_count
+        assert hit_count([10000], [10000], window_yr=1) == 1
+
+    def test_hit_count_within_window(self):
+        from narrative_crossval import hit_count
+        assert hit_count([10000], [12000], window_yr=5000) == 1
+
+    def test_hit_count_outside_window(self):
+        from narrative_crossval import hit_count
+        assert hit_count([10000], [20000], window_yr=5000) == 0
+
+    def test_hit_rate_normalized(self):
+        from narrative_crossval import hit_rate
+        assert 0.0 <= hit_rate([10000, 50000], [10000]) <= 1.0
+
+    def test_monte_carlo_null_returns_dict(self):
+        from narrative_crossval import monte_carlo_null
+        mc = monte_carlo_null(peak_times=[10000, 50000, 100000],
+                              n_narratives=5,
+                              n_trials=100)
+        assert "mean" in mc and "p95" in mc
+        assert 0.0 <= mc["mean"] <= 1.0
+        assert 0.0 <= mc["p95"] <= 1.0
+
+    def test_monte_carlo_deterministic_with_seed(self):
+        from narrative_crossval import monte_carlo_null
+        peaks = [20000, 60000, 120000]
+        mc1 = monte_carlo_null(peaks, n_narratives=5, n_trials=50, seed=99)
+        mc2 = monte_carlo_null(peaks, n_narratives=5, n_trials=50, seed=99)
+        assert mc1["mean"] == mc2["mean"]
+
+    def test_falsification_returns_not_supported_on_placeholder(self):
+        from narrative_crossval import run_falsification
+        result = run_falsification()
+        assert result["verdict"] == "NOT_SUPPORTED"
+
+    def test_falsification_result_has_required_keys(self):
+        from narrative_crossval import run_falsification
+        result = run_falsification()
+        for key in ("verdict", "reason", "hit_rate_full", "hit_rate_null",
+                    "mc_p95", "n_narratives", "n_peaks_full", "n_peaks_null"):
+            assert key in result, f"Missing key: {key}"
+
+    def test_falsification_narrates_reason(self):
+        from narrative_crossval import run_falsification
+        result = run_falsification()
+        assert len(result["reason"]) > 10  # non-trivial reason string
+
+    def test_pipeline_end_to_end(self):
+        """Full pipeline: ringwoodite -> coupling -> forcing -> model -> falsifier."""
+        from ringwoodite_phase import deep_water_baseline
+        from mantle_crust_coupling import crustal_sensitivity
+        from forcing_functions import forcing_alignment
+        from coupled_model import event_probability
+        from narrative_crossval import run_falsification
+
+        base = deep_water_baseline(1850.0, 0.01, 1.4)
+        assert 0.0 <= base <= 1.0
+
+        s = crustal_sensitivity(base, 1.4)
+        assert 0.0 <= s <= 1.0
+
+        align = forcing_alignment(20000.0)
+        assert 0.0 <= align <= 1.0
+
+        p = event_probability(20000.0, s_base=s)
+        assert 0.0 <= p <= 1.0
+
+        result = run_falsification()
+        assert result["verdict"] == "NOT_SUPPORTED"
+
+
+# ── GEOTHERMAL REFUGIA (SNOWBALL EARTH) ───────────────────────────────────────
+
+class TestGeothermalRefugia:
+    def test_import(self):
+        import geothermal_refugia
+
+    def test_sea_ice_equilibrium_thickness_in_range(self):
+        from geothermal_refugia import sea_ice_equilibrium_thickness
+        for q in (0.06, 0.10, 0.25):
+            h = sea_ice_equilibrium_thickness(q)
+            assert 50.0 <= h <= 3000.0, f"H_eq={h} m out of range at Q={q}"
+
+    def test_sea_ice_thickness_decreases_with_q(self):
+        from geothermal_refugia import sea_ice_equilibrium_thickness
+        h_low  = sea_ice_equilibrium_thickness(0.06)
+        h_high = sea_ice_equilibrium_thickness(0.30)
+        assert h_low > h_high
+
+    def test_sea_ice_ocean_stays_liquid(self):
+        """At every PROVINCES ocean Q value the deep ocean stays liquid."""
+        from geothermal_refugia import sea_ice_equilibrium_thickness, PROVINCES
+        ocean_depth = 3700.0
+        for name, frac, q, kind in PROVINCES:
+            if kind == "ocean":
+                h = sea_ice_equilibrium_thickness(q)
+                assert h < ocean_depth, (
+                    f"{name}: H_eq={h:.0f} m exceeds ocean depth {ocean_depth} m"
+                )
+
+    def test_pressure_melting_point_is_negative(self):
+        from geothermal_refugia import pressure_melting_point_c
+        for H in (100, 500, 1000, 3000):
+            pmp = pressure_melting_point_c(float(H))
+            assert pmp <= 0.0
+
+    def test_pressure_melting_point_more_negative_for_thicker_ice(self):
+        from geothermal_refugia import pressure_melting_point_c
+        assert pressure_melting_point_c(3000.0) < pressure_melting_point_c(500.0)
+
+    def test_subglacial_state_cold_for_thin_craton_ice(self):
+        from geothermal_refugia import subglacial_state
+        st = subglacial_state(q_geo=0.045, h_ice_m=300.0)
+        assert st["regime"] == "COLD_BASED_FROZEN"
+        assert st["basal_melt_rate_m_per_yr"] == 0.0
+
+    def test_subglacial_state_wet_for_thick_ice_high_flux(self):
+        from geothermal_refugia import subglacial_state
+        st = subglacial_state(q_geo=0.30, h_ice_m=1000.0)
+        assert st["regime"] == "WET_BASED_REFUGIUM"
+        assert st["basal_melt_rate_m_per_yr"] > 0.0
+
+    def test_subglacial_state_craton_goes_wet_under_thick_ice(self):
+        from geothermal_refugia import subglacial_state
+        st_thin  = subglacial_state(0.045, 1000.0)
+        st_thick = subglacial_state(0.045, 3000.0)
+        assert st_thin["regime"]  == "COLD_BASED_FROZEN"
+        assert st_thick["regime"] == "WET_BASED_REFUGIUM"
+
+    def test_refugia_inventory_has_expected_keys(self):
+        from geothermal_refugia import refugia_inventory
+        inv = refugia_inventory()
+        for key in ("subice_liquid_fraction", "open_water_fraction",
+                    "albedo_verdict", "life_verdict", "provinces"):
+            assert key in inv, f"Missing key: {key}"
+
+    def test_refugia_inventory_subice_fraction_positive(self):
+        from geothermal_refugia import refugia_inventory
+        inv = refugia_inventory()
+        assert inv["subice_liquid_fraction"] > 0.0
+
+    def test_refugia_inventory_open_water_near_zero(self):
+        """GEO-04: open water ~ 0 in hard Snowball -> albedo unchanged."""
+        from geothermal_refugia import refugia_inventory
+        inv = refugia_inventory()
+        assert inv["open_water_fraction"] < 0.02
+
+    def test_refugia_inventory_albedo_verdict_contains_co2(self):
+        from geothermal_refugia import refugia_inventory
+        inv = refugia_inventory()
+        assert "CO2" in inv["albedo_verdict"]
+
+    def test_refugia_thicker_ice_more_wet_based(self):
+        from geothermal_refugia import refugia_inventory
+        inv_thin  = refugia_inventory(continental_ice_m=500.0)
+        inv_thick = refugia_inventory(continental_ice_m=3000.0)
+        assert inv_thick["subice_liquid_fraction"] >= inv_thin["subice_liquid_fraction"]
+
+    def test_refugia_all_provinces_present(self):
+        from geothermal_refugia import refugia_inventory, PROVINCES
+        inv = refugia_inventory()
+        province_names = {row[0] for row in inv["provinces"]}
+        expected = {p[0] for p in PROVINCES}
+        assert province_names == expected
+
+
+# ── AQUIFER PRESSURE HEAD ─────────────────────────────────────────────────────
+
+class TestAquiferPressureHead:
+    def test_import(self):
+        import aquifer_pressure_head
+
+    def test_seismic_energy_density_positive(self):
+        from aquifer_pressure_head import seismic_energy_density
+        e = seismic_energy_density(6.0, 100.0)
+        assert e > 0.0
+
+    def test_seismic_energy_density_decreases_with_distance(self):
+        from aquifer_pressure_head import seismic_energy_density
+        e_near = seismic_energy_density(6.0, 50.0)
+        e_far  = seismic_energy_density(6.0, 200.0)
+        assert e_near > e_far
+
+    def test_seismic_energy_density_increases_with_magnitude(self):
+        from aquifer_pressure_head import seismic_energy_density
+        e_small = seismic_energy_density(4.0, 100.0)
+        e_large = seismic_energy_density(7.0, 100.0)
+        assert e_large > e_small
+
+    def test_classify_none_for_small_distant_quake(self):
+        from aquifer_pressure_head import seismic_energy_density, classify_response
+        e = seismic_energy_density(3.5, 300.0)
+        assert classify_response(e) == "NONE"
+
+    def test_classify_liquefaction_for_large_near_quake(self):
+        from aquifer_pressure_head import seismic_energy_density, classify_response
+        e = seismic_energy_density(7.0, 50.0)
+        assert classify_response(e) == "LIQUEFACTION_UPWELLING"
+
+    def test_classify_water_level_for_moderate_quake(self):
+        from aquifer_pressure_head import seismic_energy_density, classify_response
+        e = seismic_energy_density(5.0, 100.0)
+        cls = classify_response(e)
+        assert cls in ("WATER_LEVEL", "SPRING")
+
+    def test_primed_baseline_lowers_threshold(self):
+        """AQ-03: high s_base promotes NONE -> non-NONE or same."""
+        from aquifer_pressure_head import seismic_energy_density, classify_response
+        e = seismic_energy_density(4.5, 150.0)
+        classes = ("NONE", "WATER_LEVEL", "SPRING", "LIQUEFACTION_UPWELLING")
+        cls_dry    = classify_response(e, s_base=0.0)
+        cls_primed = classify_response(e, s_base=1.0)
+        assert classes.index(cls_primed) >= classes.index(cls_dry)
+
+    def test_poroelastic_pressure_positive(self):
+        from aquifer_pressure_head import poroelastic_pressure_pa, seismic_energy_density
+        e = seismic_energy_density(6.0, 100.0)
+        dp = poroelastic_pressure_pa(e)
+        assert dp > 0.0
+
+    def test_water_head_change_returns_expected_keys(self):
+        from aquifer_pressure_head import water_head_change_m
+        res = water_head_change_m(6.5, 80.0)
+        for key in ("magnitude", "r_km", "e_J_m3", "dp_Pa",
+                    "dh_m", "classification", "s_base"):
+            assert key in res
+
+    def test_water_head_change_classification_valid(self):
+        from aquifer_pressure_head import water_head_change_m, RESPONSE_CLASSES
+        for M in (4.0, 5.0, 6.5, 7.5):
+            res = water_head_change_m(M, 100.0)
+            assert res["classification"] in RESPONSE_CLASSES
+
+
+# ── PALEOSEISMIC CROSSVAL ─────────────────────────────────────────────────────
+
+class TestPaleoseismicCrossval:
+    def test_import(self):
+        import paleoseismic_crossval
+
+    def test_syn01_returns_supported_on_placeholder(self):
+        from paleoseismic_crossval import syn01_mechanism_check
+        result = syn01_mechanism_check()
+        assert result["verdict"] == "SUPPORTED"
+
+    def test_syn01_plausible_fraction_above_threshold(self):
+        from paleoseismic_crossval import syn01_mechanism_check, PLAUSIBLE_FRACTION
+        result = syn01_mechanism_check()
+        assert result["plausible_fraction"] >= PLAUSIBLE_FRACTION
+
+    def test_syn01_details_have_classification(self):
+        from paleoseismic_crossval import syn01_mechanism_check
+        result = syn01_mechanism_check()
+        for d in result["details"]:
+            assert "classification" in d
+            assert d["classification"] in ("NONE", "WATER_LEVEL",
+                                            "SPRING", "LIQUEFACTION_UPWELLING")
+
+    def test_syn01_none_for_all_small_distant_events(self):
+        from paleoseismic_crossval import syn01_mechanism_check
+        tiny_events = [
+            {"t_bp": 10000, "date_smear_yr": 500, "region": "A",
+             "M_context": 3.0, "r_context_km": 500, "source": "test"},
+            {"t_bp": 20000, "date_smear_yr": 500, "region": "B",
+             "M_context": 2.5, "r_context_km": 600, "source": "test"},
+            {"t_bp": 30000, "date_smear_yr": 500, "region": "C",
+             "M_context": 3.0, "r_context_km": 400, "source": "test"},
+        ]
+        result = syn01_mechanism_check(tiny_events)
+        assert result["verdict"] == "NOT_SUPPORTED"
+
+    def test_syn02_returns_not_supported_on_placeholder(self):
+        from paleoseismic_crossval import syn02_synchrony_test
+        result = syn02_synchrony_test()
+        assert result["verdict"] == "NOT_SUPPORTED"
+
+    def test_syn02_not_supported_due_to_smear(self):
+        from paleoseismic_crossval import syn02_synchrony_test
+        result = syn02_synchrony_test()
+        assert result.get("n_tight", 0) == 0
+
+    def test_syn02_supported_with_tight_clustered_dates(self):
+        """Inject tight-dated, tightly-clustered events -> SUPPORTED."""
+        from paleoseismic_crossval import syn02_synchrony_test
+        tight_events = [
+            {"t_bp": 12000, "date_smear_yr": 200, "region": "A",
+             "M_context": 6.5, "r_context_km": 60, "source": "test"},
+            {"t_bp": 12100, "date_smear_yr": 200, "region": "B",
+             "M_context": 6.5, "r_context_km": 60, "source": "test"},
+            {"t_bp": 12050, "date_smear_yr": 200, "region": "C",
+             "M_context": 6.5, "r_context_km": 60, "source": "test"},
+        ]
+        result = syn02_synchrony_test(tight_events)
+        assert result["verdict"] == "SUPPORTED"
+
+    def test_run_falsification_returns_both_verdicts(self):
+        from paleoseismic_crossval import run_falsification
+        result = run_falsification()
+        assert "syn01_verdict" in result
+        assert "syn02_verdict" in result
+
+    def test_run_falsification_expected_defaults(self):
+        from paleoseismic_crossval import run_falsification
+        result = run_falsification()
+        assert result["syn01_verdict"] == "SUPPORTED"
+        assert result["syn02_verdict"] == "NOT_SUPPORTED"
+
+    def test_ledger_now_has_15_claims(self):
+        from claim_ledger import LEDGER
+        assert len(LEDGER) == 15
+        cids = {c.cid for c in LEDGER}
+        for cid in ("GEO-01", "GEO-02", "GEO-03", "GEO-04",
+                    "AQ-01", "AQ-02", "AQ-03", "SYN-01", "SYN-02"):
+            assert cid in cids, f"Missing claim {cid}"
