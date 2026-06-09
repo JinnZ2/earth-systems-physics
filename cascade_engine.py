@@ -170,6 +170,50 @@ BASELINE = {
 
 
 # ─────────────────────────────────────────────
+# LAYER 3→4 COUPLING VALIDATOR
+# Checks that atmospheric freshwater forcing stays within bounds that
+# preserve thermohaline circulation geometry before cascade propagates.
+# Flag: AMOC_COUPLING_INVALID
+# ─────────────────────────────────────────────
+
+# Precipitable water above this value implies a freshwater flux anomaly
+# over the subpolar North Atlantic that deforms thermohaline geometry
+# beyond the calibration range of the Holocene-regime AMOC coefficients.
+# ~38 mm ≈ T_surface 291 K ≈ +3 K above the 288 K Holocene baseline.
+_AMOC_PW_COUPLING_BOUND_MM = 38.0
+
+
+def _check_atmo_hydro_freshwater_coupling(atmo_state: dict) -> dict:
+    """
+    Validate that layer_3 atmospheric freshwater forcing is within the bounds
+    that preserve thermohaline circulation geometry for layer_4 coupling.
+
+    Uses precipitable_water_mm from the atmosphere state as the proxy for
+    North Atlantic freshwater flux anomaly. If PW exceeds the coupling bound
+    the Holocene-calibrated AMOC coefficients in layer_4 are operating outside
+    their valid regime; cascade propagation should not proceed with those
+    coefficients.
+
+    atmo_state : dict returned by layer_3_atmosphere.coupling_state()
+    returns    : validation dict; AMOC_COUPLING_INVALID=True if bound exceeded
+    """
+    pw = atmo_state.get("precipitable_water_mm", 0.0)
+    exceeded = pw > _AMOC_PW_COUPLING_BOUND_MM
+    return {
+        "AMOC_COUPLING_INVALID":   exceeded,
+        "precipitable_water_mm":   pw,
+        "coupling_bound_mm":       _AMOC_PW_COUPLING_BOUND_MM,
+        "excess_mm":               max(0.0, pw - _AMOC_PW_COUPLING_BOUND_MM),
+        "reason": (
+            f"Precipitable water {pw:.1f} mm exceeds coupling bound "
+            f"{_AMOC_PW_COUPLING_BOUND_MM} mm. Implied North Atlantic freshwater "
+            f"flux anomaly deforms thermohaline geometry beyond Holocene-regime "
+            f"calibration range of layer_4 AMOC coefficients."
+        ) if exceeded else "Atmospheric freshwater forcing within coupling bounds.",
+    }
+
+
+# ─────────────────────────────────────────────
 # LAYER RUNNERS
 # Each runs its coupling_state with current parameter set
 # ─────────────────────────────────────────────
@@ -242,6 +286,17 @@ def run_all_layers(p):
         latitude_deg = p["latitude"],
         delta_omega  = p["delta_omega"],
     )
+    # ── Layer 3→4 coupling validation ────────────────────────────────────
+    _fw_check = _check_atmo_hydro_freshwater_coupling(states[3])
+    states["AMOC_COUPLING_INVALID"] = _fw_check["AMOC_COUPLING_INVALID"]
+    if _fw_check["AMOC_COUPLING_INVALID"]:
+        import warnings
+        warnings.warn(
+            f"AMOC_COUPLING_INVALID at layer 3→4 boundary: {_fw_check['reason']}",
+            UserWarning, stacklevel=2,
+        )
+    # ─────────────────────────────────────────────────────────────────────
+
     states[4] = hydro_state(
         T_ocean_C    = p["T_ocean_C"],
         S_ocean      = p["S_ocean"],

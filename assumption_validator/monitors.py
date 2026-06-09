@@ -518,6 +518,55 @@ class EarthSystemsMonitor:
 
 
 # ─────────────────────────────────────────────
+# AMOC PHASE DETECTOR
+# Standalone function: checks 30°N density gradient from a hydro state dict.
+# Threshold 0.8 kg/m³ matches layer_4_hydrosphere.AMOC_DENSITY_GRADIENT_CRITICAL.
+# ─────────────────────────────────────────────
+
+def amoc_phase_detector(hydro_state: Dict) -> Dict:
+    """
+    Evaluate AMOC phase-transition status from a hydrosphere layer state dict.
+    Checks the explicit 30°N density gradient against the 0.8 kg/m³
+    Holocene-regime threshold (Caesar et al. 2021; Boers 2021;
+    Ditlevsen & Ditlevsen 2023).
+
+    hydro_state : dict returned by layer_4_hydrosphere.coupling_state()
+    returns     : detection dict with status, margin, and validity flag
+    """
+    CRITICAL = 0.8   # kg/m³ — must match AMOC_DENSITY_GRADIENT_CRITICAL in layer_4
+
+    gradient = hydro_state.get("amoc_density_gradient_30N_kgm3")
+    if gradient is None:
+        return {
+            "status":  "NO_DATA",
+            "message": ("amoc_density_gradient_30N_kgm3 not present in hydro_state; "
+                        "layer_4_hydrosphere requires 2024-2026 update"),
+        }
+
+    margin   = gradient - CRITICAL
+    imminent = gradient < CRITICAL
+    valid    = hydro_state.get("amoc_coupling_coeffs_valid", not imminent)
+
+    return {
+        "status":                    "REGIME_SHIFT" if imminent else "HOLOCENE_REGIME",
+        "density_gradient_30N_kgm3": gradient,
+        "critical_threshold_kgm3":   CRITICAL,
+        "margin_kgm3":               margin,
+        "regime_shift_imminent":     imminent,
+        "coupling_coeffs_valid":     valid,
+        "salinity_front_shift_deg":  hydro_state.get("amoc_front_shift_deg", 0.0),
+        "message": (
+            f"AMOC gradient {gradient:.3f} kg/m³ BELOW critical {CRITICAL} kg/m³ "
+            f"(margin {margin:.3f}). Holocene-regime coupling coefficients invalid. "
+            "Regime-shift cascade protocol triggered."
+        ) if imminent else (
+            f"AMOC gradient {gradient:.3f} kg/m³, margin {margin:.3f} kg/m³ above "
+            f"threshold {CRITICAL} kg/m³. Holocene regime — coefficients valid."
+        ),
+    }
+
+
+# ─────────────────────────────────────────────
 # CONSOLE REPORTER
 # Prints monitor output in single-tap-copyable format
 # ─────────────────────────────────────────────
