@@ -22,6 +22,9 @@ from layer_2_ionosphere import (
 # FUNDAMENTAL CONSTANTS — ATMOSPHERIC
 # ─────────────────────────────────────────────
 
+O2_BASELINE_FRAC         = 0.2095     # current atmospheric O2 mole fraction
+O2_ATMOSPHERIC_MASS_GtO2 = 1.185e6   # total atmospheric O2 mass (Gt O2)
+
 R_dry    = 287.05   # J/(kg·K) — specific gas constant dry air
 R_vapor  = 461.5    # J/(kg·K) — specific gas constant water vapor
 cp_dry   = 1005.0   # J/(kg·K) — specific heat dry air constant pressure
@@ -336,6 +339,49 @@ def convective_available_potential_energy(T_parcel, T_env, z_top, z_base):
 
 
 # ─────────────────────────────────────────────
+# OXYGEN — FORCED BY BIOSPHERE (LAYER 6)
+# Biosphere net O2 flux is the primary driver of atmospheric O2 on geological
+# timescales and the coupling forcing here. The flux changes the O2 fraction,
+# which governs oxidation chemistry (OH, O3) and diffuses into soil to
+# control the soil redox state (feedback loop back to soil_interface).
+# ─────────────────────────────────────────────
+
+def oxidation_chemistry(O2_fraction):
+    """
+    O2-dependent atmospheric oxidative chemistry.
+    Governs OH radical production (primary CH4 and VOC sink),
+    tropospheric ozone formation, and oxidative capacity of the atmosphere.
+    Below ~18% O2, oxidation chemistry is significantly impaired.
+    O2_fraction : atmospheric O2 mole fraction (current ~0.2095)
+    returns: dict with OH proxy, O3 proxy, and regime flag
+    """
+    rel = O2_fraction / O2_BASELINE_FRAC  # relative to present
+    OH_proxy = rel          # OH scales approximately linearly with O2
+    O3_proxy = rel ** 0.5   # tropospheric ozone formation, simplified
+    return {
+        "OH_radical_proxy":        OH_proxy,
+        "O3_formation_proxy":      O3_proxy,
+        "oxidation_chemistry_active": O2_fraction > 0.18,
+        "O2_fraction":             O2_fraction,
+    }
+
+
+def O2_soil_diffusion_feedback(O2_atm_fraction, soil_moisture=0.40):
+    """
+    Atmospheric O2 diffusing into soil pore space controls aerobic microbial activity.
+    High soil moisture fills pores, blocking O2 diffusion → anaerobic conditions.
+    Uses Millington-Quirk tortuosity model for gas diffusion in porous media.
+    O2_atm_fraction : atmospheric O2 mole fraction
+    soil_moisture   : volumetric soil water content (0–1)
+    returns: effective O2 fraction in soil air space
+    """
+    total_porosity   = 0.45
+    air_filled       = max(0.0, total_porosity - soil_moisture)
+    tortuosity       = (air_filled / total_porosity) ** 1.5
+    return max(0.0, O2_atm_fraction * tortuosity)
+
+
+# ─────────────────────────────────────────────
 # AEROSOL AND CHEMISTRY
 # ─────────────────────────────────────────────
 
@@ -374,22 +420,31 @@ def ozone_column_forcing(delta_DU):
 def coupling_state(T_surface, T_pole, P_surface, q_surface,
                    delta_CO2_ppm=140.0, AOD=0.1,
                    latitude_deg=45.0, delta_omega=0.0,
-                   delta_T_stratosphere=0.0):
+                   delta_T_stratosphere=0.0,
+                   net_O2_flux_GtO2_yr=0.0,
+                   soil_moisture=0.40,
+                   anthro_heat_forcing_Wm2=0.0):
     """
     Full atmosphere state vector for adjacent layer consumption.
-    T_surface        : surface temperature (K)
-    T_pole           : polar temperature (K)
-    P_surface        : surface pressure (Pa)
-    q_surface        : surface specific humidity (kg/kg)
-    delta_CO2_ppm    : CO2 increase above pre-industrial (ppm)
-    AOD              : aerosol optical depth
-    latitude_deg     : reference latitude
-    delta_omega      : Earth rotation perturbation (rad/s) from layer 1
-    delta_T_strato   : stratospheric temperature anomaly (K)
+    T_surface              : surface temperature (K)
+    T_pole                 : polar temperature (K)
+    P_surface              : surface pressure (Pa)
+    q_surface              : surface specific humidity (kg/kg)
+    delta_CO2_ppm          : CO2 increase above pre-industrial (ppm)
+    AOD                    : aerosol optical depth
+    latitude_deg           : reference latitude
+    delta_omega            : Earth rotation perturbation (rad/s) from layer 1
+    delta_T_strato         : stratospheric temperature anomaly (K)
+    anthro_heat_forcing_Wm2: direct anthropogenic waste heat + albedo forcing
+                             (W/m² global average) from stabilizing_capacity layer
     """
     f           = coriolis_parameter_perturbed(latitude_deg, delta_omega)
     T_eff       = effective_radiating_temperature()
     GHG_forcing = greenhouse_forcing(delta_CO2_ppm)
+    # O2 fraction forced by biosphere net flux (lagged one coupling step)
+    _O2_frac    = O2_BASELINE_FRAC + net_O2_flux_GtO2_yr / O2_ATMOSPHERIC_MASS_GtO2
+    _O2_chem    = oxidation_chemistry(_O2_frac)
+    _O2_soil_diff = O2_soil_diffusion_feedback(_O2_frac, soil_moisture)
     DALR        = dry_adiabatic_lapse_rate()
     H           = scale_height(T_surface)
     es          = saturation_vapor_pressure(T_surface)
@@ -404,7 +459,8 @@ def coupling_state(T_surface, T_pole, P_surface, q_surface,
         "T_effective_K":               T_eff,
         "GHG_forcing_Wm2":             GHG_forcing,
         "aerosol_forcing_Wm2":         aerosol_f,
-        "net_forcing_Wm2":             GHG_forcing + aerosol_f,
+        "anthro_heat_forcing_Wm2":     anthro_heat_forcing_Wm2,
+        "net_forcing_Wm2":             GHG_forcing + aerosol_f + anthro_heat_forcing_Wm2,
         "DALR_Km":                     DALR * 1000,
         "scale_height_m":              H,
         "saturation_vapor_Pa":         es,
@@ -420,6 +476,13 @@ def coupling_state(T_surface, T_pole, P_surface, q_surface,
         "cascade_to_hydrosphere":      "precipitation + evaporation + runoff",
         "cascade_to_biosphere":        "temperature + CO2 + UV + precipitation timing",
         "rotation_perturbation_active": abs(delta_omega) > 1e-15,
+        "O2_fraction_atm":             _O2_frac,
+        "O2_delta_frac_per_yr":        net_O2_flux_GtO2_yr / O2_ATMOSPHERIC_MASS_GtO2,
+        "OH_radical_proxy":            _O2_chem["OH_radical_proxy"],
+        "O3_formation_proxy":          _O2_chem["O3_formation_proxy"],
+        "oxidation_chemistry_active":  _O2_chem["oxidation_chemistry_active"],
+        "O2_soil_diffusion_proxy":     _O2_soil_diff,
+        "net_O2_flux_GtO2_yr":         net_O2_flux_GtO2_yr,
         "note": "temperature is an output variable here, not a forcing function"
     }
 

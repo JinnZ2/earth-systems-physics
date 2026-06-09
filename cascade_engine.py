@@ -19,6 +19,12 @@ from layer_minus1_orbital     import (
     cumulative_delta_omega as _orbital_cumulative_delta_omega,
     SIDEREAL_YEAR_S as _ORBITAL_SIDEREAL_YEAR_S,
 )
+from soil_interface            import coupling_state as soil_iface_state
+from stabilizing_capacity      import (
+    total_anthropogenic_forcing as _anthro_forcing,
+    margin_to_phase_transitions as _anthro_margins,
+    InfrastructureLoad          as _InfraLoad,
+)
 from layer_0_electromagnetics import coupling_state as em_state
 from layer_1_magnetosphere    import coupling_state as mag_state
 from layer_2_ionosphere       import coupling_state as iono_state
@@ -160,6 +166,34 @@ BASELINE = {
     "anthro_GtC":       10.0,
     "AMOC_bio_Sv":      16.0,
 
+    # Anthropogenic forcing (from stabilizing_capacity layer)
+    # Flanner (2009, GRL): global mean direct waste heat ~0.028 W/m² in 2005.
+    # Updated to 2024 baseline including UHI albedo and data-center heat.
+    "anthro_heat_Wm2":          0.035,  # W/m² total direct anthropogenic heat forcing
+    "anthro_population_B":      8.1,    # billions (2024)
+    "anthro_city_count":        500.0,  # cities ≥ 1M population
+    "anthro_city_pop_M":        2.0,    # avg city population (millions)
+    "anthro_city_area_km2":     1500.0, # avg city footprint (km²)
+    "anthro_dc_count":          10000.0,# data centers
+    "anthro_ai_training_yr":    500.0,  # large-model training runs/yr
+    "anthro_ai_queries_day":    2e10,   # AI inference queries/day
+    "anthro_gpu_count":         1e8,    # installed GPUs
+    "anthro_cement_gt_yr":      4.0,    # cement production Gt/yr
+    "anthro_water_km3_yr":      4000.0, # freshwater withdrawal km³/yr
+
+    # Soil interface (between Layer 5 and Layer 6)
+    "SOM_kgm2":             10.0,   # soil organic matter stock kg C/m²
+    "microbial_biomass_kgm2": 0.5,  # microbial biomass C kg/m²
+    "soil_N_avail_gm2":     5.0,    # available N pool g/m²
+    "soil_P_avail_gm2":     0.5,    # available P pool g/m²
+    "soil_K_avail_gm2":     2.0,    # available K pool g/m²
+    "soil_pH":              6.5,
+    "soil_moisture":        0.40,   # volumetric water content (field capacity)
+    "soil_T_K":             283.0,  # soil temperature K (~10°C)
+    "crustal_weathering_rate_m_yr": 5e-5,  # m/yr chemical weathering
+    "GPP_gC_m2_day":        5.0,    # per-m² GPP for soil nutrient demand
+    "net_O2_flux_GtO2_yr":  0.0,    # net biosphere O2 flux (lagged from L6)
+
     # Layer 7 — Infrastructure (built environment)
     "dB_dt_Ts":          1e-11,     # quiet-day dB/dt T/s (~0.01 nT/s)
     "soil_rho_ohm_m":    100.0,     # ground resistivity ohm·m
@@ -280,6 +314,74 @@ def _check_field_particle_trapping_coupling(mag_state_dict: dict) -> dict:
 
 
 # ─────────────────────────────────────────────
+# SOIL→BIOSPHERE COUPLING VALIDATOR
+# Checks nutrient supply to biosphere before L6 runs.
+# Flag: NUTRIENT_STRESS
+# ─────────────────────────────────────────────
+
+def _check_nutrient_supply_coupling(soil_state: dict) -> dict:
+    """
+    Validate soil→biosphere nutrient coupling.
+    Reads nutrient_stress_factor from the soil_interface state.
+    Flags NUTRIENT_STRESS when stress_factor falls below 0.5 (Liebig minimum
+    less than half of unrestricted demand), which shifts GPP into the
+    nutrient-limited regime and invalidates carbon-cycle coefficients calibrated
+    for nutrient-replete conditions.
+
+    soil_state : dict returned by soil_interface.coupling_state()
+    returns    : validation dict; NUTRIENT_STRESS=True when factor < 0.5
+    """
+    stress = soil_state.get("nutrient_stress_factor", 1.0)
+    stressed = stress < 0.5
+    if stressed:
+        import warnings
+        limiting = soil_state.get("limiting_nutrient", "unknown")
+        warnings.warn(
+            f"NUTRIENT_STRESS at soil→biosphere boundary: stress_factor={stress:.3f}, "
+            f"limiting nutrient={limiting}. GPP coefficients outside calibration range.",
+            UserWarning, stacklevel=2,
+        )
+    return {
+        "NUTRIENT_STRESS":        stressed,
+        "nutrient_stress_factor": stress,
+        "limiting_nutrient":      soil_state.get("limiting_nutrient", "unknown"),
+    }
+
+
+# ─────────────────────────────────────────────
+# BIOSPHERE→ATMOSPHERE O2 COUPLING VALIDATOR
+# Checks O2 generation after L6 runs.
+# Flag: O2_DEFICIT
+# ─────────────────────────────────────────────
+
+def _check_O2_generation_coupling(bio_state: dict) -> dict:
+    """
+    Validate biosphere→atmosphere O2 flux after layer_6 runs.
+    Flags O2_DEFICIT when net_O2_flux drops below -50 Gt O2/yr, indicating
+    the biosphere has become a net O2 consumer of a magnitude that would
+    detectably deplete atmospheric O2 on decadal timescales.
+
+    bio_state : dict returned by layer_6_biosphere.coupling_state()
+    returns   : validation dict; O2_DEFICIT=True when flux < -50 Gt O2/yr
+    """
+    net_O2 = bio_state.get("net_O2_flux_GtO2_yr", 0.0)
+    deficit = net_O2 < -50.0
+    surplus = net_O2 > 100.0
+    if deficit:
+        import warnings
+        warnings.warn(
+            f"O2_DEFICIT at biosphere→atmosphere boundary: net_O2={net_O2:.1f} Gt O2/yr. "
+            f"Biosphere consuming O2 faster than photosynthesis replaces it.",
+            UserWarning, stacklevel=2,
+        )
+    return {
+        "O2_DEFICIT":            deficit,
+        "O2_SURPLUS":            surplus,
+        "net_O2_flux_GtO2_yr":   net_O2,
+    }
+
+
+# ─────────────────────────────────────────────
 # LAYER RUNNERS
 # Each runs its coupling_state with current parameter set
 # ─────────────────────────────────────────────
@@ -366,6 +468,9 @@ def run_all_layers(p):
         AOD          = p["AOD"],
         latitude_deg = p["latitude"],
         delta_omega  = p["delta_omega"],
+        net_O2_flux_GtO2_yr     = p.get("net_O2_flux_GtO2_yr", 0.0),
+        soil_moisture           = p.get("soil_moisture", 0.40),
+        anthro_heat_forcing_Wm2 = p.get("anthro_heat_Wm2", 0.0),
     )
     # ── Layer 3→4 coupling validation ────────────────────────────────────
     _fw_check = _check_atmo_hydro_freshwater_coupling(states[3])
@@ -406,6 +511,32 @@ def run_all_layers(p):
         SO2_volcanic_Tg  = p["SO2_volcanic"],
         delta_omega_orbital_rads = delta_omega_orbital,
     )
+    # Soil interface — runs between L5 (lithosphere) and L6 (biosphere).
+    # Receives: L5 crustal weathering rate, L3 O2 fraction, BASELINE soil state.
+    # Exports: nutrient stress factor, redox potential, decomp rate → L6.
+    _GPP_gC_m2_day = p["GPP_GtC"] * 1e15 / 1.5e14 / 365.0
+    states["soil"] = soil_iface_state(
+        SOM_kgm2                   = p.get("SOM_kgm2", 10.0),
+        microbial_biomass_kgm2     = p.get("microbial_biomass_kgm2", 0.5),
+        N_avail_gm2                = p.get("soil_N_avail_gm2", 5.0),
+        P_avail_gm2                = p.get("soil_P_avail_gm2", 0.5),
+        K_avail_gm2                = p.get("soil_K_avail_gm2", 2.0),
+        pH                         = p.get("soil_pH", 6.5),
+        theta_v                    = p.get("soil_moisture", 0.40),
+        T_soil_K                   = p.get("soil_T_K", 283.0),
+        crustal_weathering_rate_m_yr = states[5].get(
+            "erosion_rate_m_yr",
+            p.get("crustal_weathering_rate_m_yr", 5e-5)),
+        O2_atm_fraction            = states[3].get("O2_fraction_atm", 0.2095),
+        GPP_gC_m2_day              = _GPP_gC_m2_day,
+    )
+    _nutrient_check = _check_nutrient_supply_coupling(states["soil"])
+    states["NUTRIENT_STRESS"] = _nutrient_check["NUTRIENT_STRESS"]
+
+    # Convert soil decomp from kg C/m²/yr to global Gt C/yr for L6
+    _soil_decomp_GtC_yr = (states["soil"]["decomp_rate_kgm2_yr"]
+                           * 1.5e14 / 1e12)
+
     states[6] = bio_state(
         T_surface_K      = p["T_surface_K"],
         CO2_ppm          = p["CO2_ppm"],
@@ -418,7 +549,50 @@ def run_all_layers(p):
         GPP_GtC_yr       = p["GPP_GtC"],
         anthropogenic_GtC_yr = p["anthro_GtC"],
         AMOC_Sv          = p["AMOC_bio_Sv"],
+        nutrient_stress  = states["soil"]["nutrient_stress_factor"],
+        soil_Eh_mV       = states["soil"]["Eh_mV"],
+        soil_decomp_GtC_yr = _soil_decomp_GtC_yr,
     )
+    _O2_check = _check_O2_generation_coupling(states[6])
+    states["O2_DEFICIT"] = _O2_check["O2_DEFICIT"]
+    # Store net O2 flux for next coupling iteration (L3 in next run_all_layers call)
+    states["net_O2_flux_GtO2_yr"] = states[6]["net_O2_flux_GtO2_yr"]
+
+    # Anthropogenic stabilizing capacity — compute forcing and margins
+    # from BASELINE infrastructure parameters and current layer states.
+    _infra_load = _InfraLoad(
+        total_population      = p.get("anthro_population_B",     8.1),
+        city_count            = p.get("anthro_city_count",        500.0),
+        avg_city_pop_millions = p.get("anthro_city_pop_M",        2.0),
+        avg_city_area_km2     = p.get("anthro_city_area_km2",     1500.0),
+        dc_count              = p.get("anthro_dc_count",          10_000.0),
+        ai_training_runs_yr   = p.get("anthro_ai_training_yr",    500.0),
+        ai_daily_queries      = p.get("anthro_ai_queries_day",    2e10),
+        gpu_count             = p.get("anthro_gpu_count",         1e8),
+        cement_gt_yr          = p.get("anthro_cement_gt_yr",      4.0),
+        water_use_km3_yr      = p.get("anthro_water_km3_yr",      4000.0),
+    )
+    _anthro_f   = _anthro_forcing(_infra_load)
+    _anthro_m   = _anthro_margins(
+                      _anthro_f.total_Wm2,
+                      atmo_state=states[3],
+                      bio_state=states[6],
+                      hydro_state=states[4],
+                      soil_state=states["soil"],
+                  )
+    states["stabilizing_capacity"] = {
+        "anthro_forcing_Wm2":       _anthro_f.total_Wm2,
+        "energy_margin_Wm2":        _anthro_m.energy_budget_Wm2,
+        "AMOC_margin_Sv":           _anthro_m.AMOC_freshwater_Sv,
+        "amazon_margin":            _anthro_m.amazon_tipping,
+        "permafrost_margin_C":      _anthro_m.permafrost_C,
+        "soil_SOM_margin_kgm2":     _anthro_m.soil_SOM_kgm2,
+        "most_constrained":         _anthro_m.most_constrained,
+        "sustainable":              (_anthro_m.energy_budget_Wm2 > 0.0
+                                     and _anthro_m.AMOC_freshwater_Sv > 0.0
+                                     and _anthro_m.amazon_tipping > 0.0
+                                     and _anthro_m.permafrost_C > 0.0),
+    }
 
     # Layer 7 — Infrastructure. Pure downstream sink; consumes
     # surface dB/dt (from L1/L2 cascade) and soil resistivity (L5).

@@ -40,6 +40,8 @@ PAR_fraction          = 0.45    # fraction of solar radiation photosynthetically
 max_photosyn_eff      = 0.11    # theoretical max photosynthetic efficiency
 typical_photosyn_eff  = 0.02    # realized global mean ~2%
 
+O2_C_MASS_RATIO = 32.0 / 12.0  # kg O2 per kg C (photosynthesis / respiration stoichiometry)
+
 # ─────────────────────────────────────────────
 # PRIMARY PRODUCTIVITY
 # ─────────────────────────────────────────────
@@ -478,6 +480,70 @@ def planetary_boundary_status(CO2_ppm, extinction_rate_relative,
 
 
 # ─────────────────────────────────────────────
+# OXYGEN GENERATION — EXPLICIT BIOSPHERE OUTPUT
+# Photosynthesis produces O2; plant and microbial respiration consume it.
+# Net O2 flux to atmosphere = GPP O2 − autotrophic respiration O2 − heterotrophic O2.
+# At steady state this is near-zero; deviations force atmospheric O2 change.
+# ─────────────────────────────────────────────
+
+def photosynthetic_O2_flux(GPP_GtC_yr):
+    """
+    O2 released by global photosynthesis (gross production).
+    6CO2 + 6H2O → C6H12O6 + 6O2 → 1 mol C fixed produces 1 mol O2.
+    GPP_GtC_yr : gross primary productivity (Gt C/yr)
+    returns: O2 production (Gt O2/yr)
+    """
+    return GPP_GtC_yr * O2_C_MASS_RATIO
+
+
+def plant_respiration_O2_demand(GPP_GtC_yr):
+    """
+    O2 consumed by autotrophic (plant) respiration.
+    Autotrophic respiration ≈ 50% of GPP — the carbon cost of maintaining
+    plant tissue and driving biosynthesis.
+    GPP_GtC_yr : gross primary productivity (Gt C/yr)
+    returns: O2 consumed by plants (Gt O2/yr)
+    """
+    Ra_GtC = GPP_GtC_yr * 0.50
+    return Ra_GtC * O2_C_MASS_RATIO
+
+
+def decomposition_O2_demand(heterotrophic_resp_GtC_yr):
+    """
+    O2 consumed by aerobic heterotrophic (soil microbial) decomposition.
+    Anaerobic decomposition does not consume O2 (methanogenesis, fermentation).
+    heterotrophic_resp_GtC_yr : heterotrophic carbon release (Gt C/yr)
+    returns: O2 consumed by soil microbes (Gt O2/yr)
+    """
+    return heterotrophic_resp_GtC_yr * O2_C_MASS_RATIO
+
+
+def net_biosphere_O2_flux(GPP_GtC_yr, soil_decomp_GtC_yr=None):
+    """
+    Net O2 flux from biosphere to atmosphere (Gt O2/yr).
+    Positive: biosphere net O2 source (carbon burial phase).
+    Negative: biosphere net O2 sink (respiration exceeds production).
+    At multi-year steady state this is ≈ 0 (balanced ecosystem).
+
+    GPP_GtC_yr         : global gross primary productivity (Gt C/yr)
+    soil_decomp_GtC_yr : aerobic heterotrophic respiration from soil (Gt C/yr).
+                          If None, estimated as 50% of GPP (balanced steady state).
+    returns: dict with component and net O2 fluxes
+    """
+    O2_photosyn    = photosynthetic_O2_flux(GPP_GtC_yr)
+    O2_plant_resp  = plant_respiration_O2_demand(GPP_GtC_yr)
+    Rh_GtC         = (GPP_GtC_yr * 0.50) if soil_decomp_GtC_yr is None else soil_decomp_GtC_yr
+    O2_decomp      = decomposition_O2_demand(Rh_GtC)
+    net            = O2_photosyn - O2_plant_resp - O2_decomp
+    return {
+        "O2_photosyn_GtO2_yr":    O2_photosyn,
+        "O2_plant_resp_GtO2_yr":  O2_plant_resp,
+        "O2_decomp_GtO2_yr":      O2_decomp,
+        "net_O2_flux_GtO2_yr":    net,
+    }
+
+
+# ─────────────────────────────────────────────
 # COUPLING INTERFACES
 # ─────────────────────────────────────────────
 
@@ -489,14 +555,17 @@ def coupling_state(T_surface_K, CO2_ppm, ocean_pH,
                    drought_index=0.4,
                    GPP_GtC_yr=120.0,
                    anthropogenic_GtC_yr=10.0,
-                   AMOC_Sv=17.0):
+                   AMOC_Sv=17.0,
+                   nutrient_stress=1.0,
+                   soil_Eh_mV=400.0,
+                   soil_decomp_GtC_yr=None):
     """
     Full biosphere state vector for adjacent layer consumption.
     """
     T_C         = T_surface_K - 273.15
-    NEP         = net_ecosystem_productivity(
-                    gross_primary_productivity(200, T_surface_K, CO2_ppm),
-                    T_surface_K)
+    # nutrient_stress scales local GPP — 1.0 = unlimited, 0.0 = fully nutrient-limited
+    _gpp_local  = gross_primary_productivity(200, T_surface_K, CO2_ppm) * nutrient_stress
+    NEP         = net_ecosystem_productivity(_gpp_local, T_surface_K)
     permafrost  = permafrost_thaw_carbon_flux(permafrost_area_m2,
                                                T_permafrost_anomaly)
     acidify     = ocean_acidification(CO2_ppm - 280)
@@ -507,11 +576,17 @@ def coupling_state(T_surface_K, CO2_ppm, ocean_pH,
                     GPP_GtC_yr, GPP_GtC_yr * 0.55,
                     2.5, anthropogenic_GtC_yr,
                     permafrost["total_GtC_yr"])
-    CH4         = methane_budget(180, permafrost["CH4_flux_GtC_yr"] * 1000,
+    # soil_Eh_mV: anaerobic conditions (Eh < 0) suppress aerobic decomposition
+    # and increase methanogenic pathway fraction in CH4 budget
+    anaerobic_factor = 1.0 if soil_Eh_mV > 0.0 else 1.5
+    CH4         = methane_budget(180 * anaerobic_factor,
+                                  permafrost["CH4_flux_GtC_yr"] * 1000,
                                   100, 580)
     boundaries  = planetary_boundary_status(
                     CO2_ppm, 100, 150, 14, 2600, 0.50,
                     acidify["current_pH"], 0.15, 295)
+
+    _O2 = net_biosphere_O2_flux(GPP_GtC_yr, soil_decomp_GtC_yr)
 
     return {
         "NEP_carbon_sink":               NEP["carbon_sink"],
@@ -527,11 +602,19 @@ def coupling_state(T_surface_K, CO2_ppm, ocean_pH,
         "atmospheric_CO2_accumulation":  budget["ppm_per_year"],
         "CH4_accumulation_GWP":          CH4["GWP_CO2_equivalent"],
         "planetary_boundaries_crossed":  boundaries["boundaries_crossed"],
-        "cascade_to_atmosphere":         "CO2, CH4, N2O, ET, albedo, aerosols",
+        "O2_photosyn_GtO2_yr":           _O2["O2_photosyn_GtO2_yr"],
+        "O2_plant_resp_GtO2_yr":         _O2["O2_plant_resp_GtO2_yr"],
+        "O2_decomp_GtO2_yr":             _O2["O2_decomp_GtO2_yr"],
+        "net_O2_flux_GtO2_yr":           _O2["net_O2_flux_GtO2_yr"],
+        "nutrient_stress":               nutrient_stress,
+        "soil_Eh_mV":                    soil_Eh_mV,
+        "soil_anaerobic":                soil_Eh_mV < 0.0,
+        "cascade_to_atmosphere":         "CO2, CH4, N2O, ET, albedo, aerosols, O2 flux",
         "cascade_to_hydrosphere":        "ocean chemistry, dead zones, river discharge",
         "cascade_to_lithosphere":        "soil formation, root weathering, peat",
         "cascade_from_atmosphere":       "CO2, temperature, precipitation, UV",
         "cascade_from_hydrosphere":      "nutrients, pH, stratification, AMOC",
+        "cascade_from_soil":             "nutrient_stress, Eh_mV, decomp_rate",
         "self_amplifying_feedbacks": [
             "permafrost thaw -> CH4/CO2 -> warming -> more thaw",
             "Amazon dieback -> CO2 + albedo -> warming -> more dieback",
