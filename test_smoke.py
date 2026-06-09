@@ -203,7 +203,8 @@ class TestCascadeEngine:
     def test_run_all_layers_baseline(self):
         from cascade_engine import run_all_layers, BASELINE, LAYER_INDICES
         states = run_all_layers(BASELINE)
-        assert set(states.keys()) == set(LAYER_INDICES)
+        # Layer indices must all be present; extra string keys are coupling-validator flags
+        assert set(LAYER_INDICES).issubset(set(states.keys()))
         for i in LAYER_INDICES:
             assert isinstance(states[i], dict)
             assert len(states[i]) > 0
@@ -212,14 +213,14 @@ class TestCascadeEngine:
         from cascade_engine import run_cascade, SCENARIOS, LAYER_INDICES
         result = run_cascade(SCENARIOS["co2_pulse_100ppm"], verbose=False)
         assert result.forcing is not None
-        assert set(result.layer_states.keys()) == set(LAYER_INDICES)
+        assert set(LAYER_INDICES).issubset(set(result.layer_states.keys()))
 
     def test_run_cascade_all_scenarios(self):
         from cascade_engine import run_cascade, SCENARIOS, LAYER_INDICES
         for name, scenario in SCENARIOS.items():
             result = run_cascade(scenario, verbose=False)
             assert result.forcing is not None, f"Scenario {name} failed"
-            assert set(result.layer_states.keys()) == set(LAYER_INDICES), \
+            assert set(LAYER_INDICES).issubset(set(result.layer_states.keys())), \
                 f"Scenario {name} missing layers"
 
     def test_cascade_result_has_summary(self):
@@ -308,6 +309,8 @@ class TestBaselineSanity:
         from cascade_engine import run_all_layers, BASELINE
         states = run_all_layers(BASELINE)
         for layer_num, state in states.items():
+            if not isinstance(state, dict):  # skip coupling-validator flag entries
+                continue
             for key, val in state.items():
                 if isinstance(val, (int, float)):
                     # Temperature keys should be positive
@@ -467,7 +470,7 @@ class TestMagnonicSublayer:
         from cascade_engine import run_cascade, SCENARIOS, LAYER_INDICES
         result = run_cascade(SCENARIOS["geomagnetic_field_weakening"], verbose=False)
         assert result.forcing is not None
-        assert set(result.layer_states.keys()) == set(LAYER_INDICES)
+        assert set(LAYER_INDICES).issubset(set(result.layer_states.keys()))
 
 
 # ─────────────────────────────────────────────
@@ -562,7 +565,7 @@ class TestMagnomechanicalSublayer:
                      "bif_magnonic_crystal"]:
             result = run_cascade(SCENARIOS[name], verbose=False)
             assert result.forcing is not None, f"Scenario {name} failed"
-            assert set(result.layer_states.keys()) == set(LAYER_INDICES)
+            assert set(LAYER_INDICES).issubset(set(result.layer_states.keys()))
 
     def test_magnomechanical_feedback_loop_exists(self):
         """The Magnomechanical-EM loop should be in KNOWN_LOOPS."""
@@ -4176,7 +4179,7 @@ class TestCascadeHistory:
         )
         t = history_preset_paleo_lgm(n_samples=121)
         r = run_cascade_history(t, verbose=False)
-        assert set(r.final_states.keys()) == set(LAYER_INDICES)
+        assert set(LAYER_INDICES).issubset(set(r.final_states.keys()))
 
     def test_history_rejects_nonuniform_grid(self):
         from cascade_engine import run_cascade_history

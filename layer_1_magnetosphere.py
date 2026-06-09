@@ -23,6 +23,52 @@ from layer_0_electromagnetics import (
 # Earth's magnetic dipole moment (A·m^2)
 M_EARTH = 8.0e22
 
+FIELD_WEAKENING_CRITICAL_FRACTION = -0.10  # 10% dipole loss triggers weakening flag
+
+
+def particle_trapping_efficiency(M_dipole_Am2, M_reference_Am2=M_EARTH):
+    """
+    Van Allen belt particle trapping efficiency as function of instantaneous
+    dipole moment. Belt volume scales with magnetopause standoff distance
+    (~M^(1/6))^3; here simplified to linear in moment fraction for
+    tractability in the zonal-mean model.
+    M_dipole_Am2   : current dipole moment (A·m²)
+    M_reference_Am2: reference dipole moment (A·m²)
+    returns: trapping efficiency (0.0–1.0)
+    """
+    if M_reference_Am2 <= 0.0:
+        return 1.0
+    return max(0.0, min(1.0, M_dipole_Am2 / M_reference_Am2))
+
+
+def auroral_coupling_efficiency(B_surface, B_reference=3.0e-5):
+    """
+    Auroral energy coupling efficiency as function of instantaneous field
+    strength. Weaker field → wider loss cone → higher precipitation fraction
+    for the same particle flux. Loss cone angle ∝ sqrt(B_eq / B_mirror)
+    drives this inverse B dependence.
+    B_surface   : current equatorial surface field (T)
+    B_reference : 20th-century equatorial reference field (T), ~3e-5 T
+    returns: coupling efficiency (1.0 at reference; >1 when field weakens)
+    """
+    if B_surface <= 0.0 or B_reference <= 0.0:
+        return 1.0
+    return B_reference / B_surface
+
+
+def field_weakening_flag(M_dipole_Am2, M_reference_Am2=M_EARTH):
+    """
+    Flag when geomagnetic dipole moment has fallen below the critical
+    weakening threshold relative to the reference epoch moment.
+    M_dipole_Am2   : current dipole moment (A·m²)
+    M_reference_Am2: reference dipole moment (A·m²)
+    returns: True when fractional change < FIELD_WEAKENING_CRITICAL_FRACTION
+    """
+    if M_reference_Am2 == 0.0:
+        return False
+    return (M_dipole_Am2 - M_reference_Am2) / M_reference_Am2 < FIELD_WEAKENING_CRITICAL_FRACTION
+
+
 def dipole_field_magnitude(M, r, theta):
     """
     Magnetic field magnitude of a dipole at distance r and colatitude theta.
@@ -252,14 +298,22 @@ def rotation_rate_to_field_drift(delta_omega):
 # Outputs consumed by Layer 0, Layer 2 (Ionosphere), Layer 5 (Lithosphere)
 # ─────────────────────────────────────────────
 
-def coupling_state(B_surface, n_sw, v_sw, Bz_imf, kp, delta_omega=0.0):
+def coupling_state(B_surface, n_sw, v_sw, Bz_imf, kp, delta_omega=0.0,
+                   M_dipole_Am2=M_EARTH):
     """
     Full magnetosphere state vector for adjacent layer consumption.
+    M_dipole_Am2 : current geomagnetic dipole moment (A·m²); feeds
+                   particle trapping and field weakening diagnostics.
+                   Default: M_EARTH (reference epoch). Pass
+                   states[0]['M_dipole_Am2'] for live orbital-drift value.
     """
-    standoff = magnetopause_standoff(B_surface, n_sw, v_sw)
-    imf      = interplanetary_magnetic_field_coupling(Bz_imf)
-    v_A      = alfven_speed(B_surface, n_sw)
-    rotation = rotation_rate_to_field_drift(delta_omega)
+    standoff   = magnetopause_standoff(B_surface, n_sw, v_sw)
+    imf        = interplanetary_magnetic_field_coupling(Bz_imf)
+    v_A        = alfven_speed(B_surface, n_sw)
+    rotation   = rotation_rate_to_field_drift(delta_omega)
+    trap_eff   = particle_trapping_efficiency(M_dipole_Am2)
+    aurora_eff = auroral_coupling_efficiency(B_surface)
+    field_weak = field_weakening_flag(M_dipole_Am2)
 
     return {
         "magnetopause_standoff_m":       standoff,
@@ -273,4 +327,8 @@ def coupling_state(B_surface, n_sw, v_sw, Bz_imf, kp, delta_omega=0.0):
         "cascade_to_ionosphere":         imf["efficiency"] > 0.1,
         "cascade_to_crust":              abs(delta_omega) > 1e-15,
         "field_energy_density_Jm3":      magnetic_energy_density(B_surface),
+        "particle_trapping_efficiency":  trap_eff,
+        "auroral_coupling_efficiency":   aurora_eff,
+        "FIELD_WEAKENING":               field_weak,
+        "M_dipole_Am2":                  M_dipole_Am2,
     }

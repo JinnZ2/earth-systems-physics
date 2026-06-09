@@ -85,6 +85,8 @@ BASELINE = {
     # Layer 0 — Electromagnetics
     "n_e":              1e12,       # F2 electron density m^-3
     "B_surface":        5e-5,       # Earth surface field T
+    "B_surface_reference": 5e-5,   # historical reference field T (fixed; compare against forcing scenarios)
+    "T_mantle_K":       4000.0,     # mantle temperature K (drives dynamo efficiency)
     "E_surface":        1e-4,       # surface electric field V/m
     "freq_range":       (1e3, 1e7), # Hz
     "magnonic_material": None,      # magnonic sublayer material (None = Magnetite default)
@@ -214,6 +216,70 @@ def _check_atmo_hydro_freshwater_coupling(atmo_state: dict) -> dict:
 
 
 # ─────────────────────────────────────────────
+# LAYER 0→1 COUPLING VALIDATOR
+# Checks mantle→dynamo→field integrity before magnetosphere state is computed.
+# Flag: DYNAMO_PHASE_SHIFT
+# ─────────────────────────────────────────────
+
+def _check_mantle_dynamo_field_coupling(em_state_dict: dict) -> dict:
+    """
+    Validate mantle→dynamo→field coupling at the layer 0/1 boundary.
+    Reads DYNAMO_PHASE_SHIFT and dynamo_efficiency from the layer_0 state.
+    Warns when mantle convection has slowed below the critical threshold,
+    placing dynamo-derived field geometry outputs in the uncertain regime.
+
+    em_state_dict : dict returned by layer_0_electromagnetics.coupling_state()
+    returns       : validation dict; DYNAMO_PHASE_SHIFT=True when convection critical
+    """
+    phase_shift = em_state_dict.get("DYNAMO_PHASE_SHIFT", False)
+    if phase_shift:
+        import warnings
+        eff = em_state_dict.get("dynamo_efficiency", 1.0)
+        warnings.warn(
+            f"DYNAMO_PHASE_SHIFT at layer 0→1 boundary: dynamo_efficiency={eff:.3f}. "
+            f"Mantle convection below critical threshold; field geometry outputs uncertain.",
+            UserWarning, stacklevel=2,
+        )
+    return {
+        "DYNAMO_PHASE_SHIFT":        phase_shift,
+        "dynamo_efficiency":         em_state_dict.get("dynamo_efficiency", 1.0),
+        "mantle_convection_rate_m_s": em_state_dict.get("mantle_convection_rate_m_s"),
+    }
+
+
+# ─────────────────────────────────────────────
+# LAYER 1→2 COUPLING VALIDATOR
+# Checks field geometry→particle trapping before ionosphere state is computed.
+# Flag: FIELD_WEAKENING
+# ─────────────────────────────────────────────
+
+def _check_field_particle_trapping_coupling(mag_state_dict: dict) -> dict:
+    """
+    Validate field geometry→particle trapping coupling at the layer 1/2 boundary.
+    Reads FIELD_WEAKENING, particle_trapping_efficiency from the layer_1 state.
+    Warns when the dipole moment has passed the 10% weakening threshold, which
+    shifts the ionospheric coupling regime outside its historical calibration.
+
+    mag_state_dict : dict returned by layer_1_magnetosphere.coupling_state()
+    returns        : validation dict; FIELD_WEAKENING=True when threshold crossed
+    """
+    field_weak = mag_state_dict.get("FIELD_WEAKENING", False)
+    if field_weak:
+        import warnings
+        trap_eff = mag_state_dict.get("particle_trapping_efficiency", 1.0)
+        warnings.warn(
+            f"FIELD_WEAKENING at layer 1→2 boundary: trapping_efficiency={trap_eff:.3f}. "
+            f"Dipole moment past 10% weakening threshold; ionospheric coupling regime shifted.",
+            UserWarning, stacklevel=2,
+        )
+    return {
+        "FIELD_WEAKENING":              field_weak,
+        "particle_trapping_efficiency": mag_state_dict.get("particle_trapping_efficiency", 1.0),
+        "auroral_coupling_efficiency":  mag_state_dict.get("auroral_coupling_efficiency", 1.0),
+    }
+
+
+# ─────────────────────────────────────────────
 # LAYER RUNNERS
 # Each runs its coupling_state with current parameter set
 # ─────────────────────────────────────────────
@@ -256,7 +322,14 @@ def run_all_layers(p):
         magnomech_mineral_fraction = p.get("magnomech_mineral_fraction", 0.02),
         dM_dipole_per_yr_Am2 = dM_dipole_per_yr,
         dt_orbital_yr        = p.get("dt_orbital_yr", 0.0),
+        T_mantle_K           = p.get("T_mantle_K", 4000.0),
     )
+    # ── Layer 0→1 coupling validation ────────────────────────────────────
+    # Mantle→dynamo→field: check DYNAMO_PHASE_SHIFT before magnetosphere runs.
+    _dynamo_check = _check_mantle_dynamo_field_coupling(states[0])
+    states["DYNAMO_PHASE_SHIFT"] = _dynamo_check["DYNAMO_PHASE_SHIFT"]
+    # ─────────────────────────────────────────────────────────────────────
+
     states[1] = mag_state(
         B_surface    = p["B_surface"],
         n_sw         = p["n_sw"],
@@ -264,7 +337,14 @@ def run_all_layers(p):
         Bz_imf       = p["Bz_imf"],
         kp           = p["kp"],
         delta_omega  = p["delta_omega"],
+        M_dipole_Am2 = states[0]["M_dipole_Am2"],
     )
+    # ── Layer 1→2 coupling validation ────────────────────────────────────
+    # Field geometry→particle trapping: check FIELD_WEAKENING before ionosphere runs.
+    _field_check = _check_field_particle_trapping_coupling(states[1])
+    states["FIELD_WEAKENING"] = _field_check["FIELD_WEAKENING"]
+    # ─────────────────────────────────────────────────────────────────────
+
     states[2] = iono_state(
         n_e_F2       = p["n_e_F2"],
         B_surface    = p["B_surface"],
@@ -275,6 +355,7 @@ def run_all_layers(p):
         delta_T_thermo = p["delta_T_thermo"],
         metallic_aerosol_kg_m3 = p.get("metallic_aerosol_kg_m3", 0.0),
         sigma_atm_baseline_S_m = p.get("sigma_atm_baseline_S_m", 1e-4),
+        B_reference  = p.get("B_surface_reference", BASELINE["B_surface"]),
     )
     states[3] = atmo_state(
         T_surface    = p["T_surface"],

@@ -566,6 +566,84 @@ def amoc_phase_detector(hydro_state: Dict) -> Dict:
     }
 
 
+def dynamo_phase_detector(em_state: Dict) -> Dict:
+    """
+    Evaluate geodynamo phase status from EM layer state dict.
+    Checks DYNAMO_PHASE_SHIFT flag and dynamo_efficiency exported by
+    mantle_temperature_forcing() in layer_0_electromagnetics.
+
+    em_state : dict returned by layer_0_electromagnetics.coupling_state()
+    returns  : detection dict with status, efficiency, and convection rate
+    """
+    phase_shift = em_state.get("DYNAMO_PHASE_SHIFT")
+    if phase_shift is None:
+        return {
+            "status":  "NO_DATA",
+            "message": ("DYNAMO_PHASE_SHIFT not present in em_state; "
+                        "layer_0_electromagnetics requires 2026 mantle update"),
+        }
+
+    eff  = em_state.get("dynamo_efficiency", 1.0)
+    conv = em_state.get("mantle_convection_rate_m_s")
+
+    return {
+        "status":                    "PHASE_SHIFT" if phase_shift else "NORMAL",
+        "DYNAMO_PHASE_SHIFT":        phase_shift,
+        "dynamo_efficiency":         eff,
+        "mantle_convection_rate_m_s": conv,
+        "T_mantle_K":                em_state.get("T_mantle_K"),
+        "message": (
+            f"Dynamo efficiency {eff:.3f} below 0.5 — mantle convection slowed below "
+            f"critical threshold. Geodynamo entering phase-shift regime; "
+            f"field geometry outputs carry increased uncertainty."
+        ) if phase_shift else (
+            f"Dynamo efficiency {eff:.3f} — mantle convection above critical threshold, "
+            f"geodynamo in normal operating regime."
+        ),
+    }
+
+
+def field_strength_validator(em_state: Dict, mag_state: Dict) -> Dict:
+    """
+    Cross-validate geomagnetic field strength between EM and magnetosphere layers.
+    Reads FIELD_WEAKENING and particle_trapping_efficiency from layer_1 state,
+    and field_strength_T from layer_0 state.
+
+    em_state  : dict returned by layer_0_electromagnetics.coupling_state()
+    mag_state : dict returned by layer_1_magnetosphere.coupling_state()
+    returns   : validation dict with status, trapping efficiency, auroral coupling
+    """
+    field_weak = mag_state.get("FIELD_WEAKENING")
+    if field_weak is None:
+        return {
+            "status":  "NO_DATA",
+            "message": ("FIELD_WEAKENING not present in mag_state; "
+                        "layer_1_magnetosphere requires 2026 field-geometry update"),
+        }
+
+    field_strength = em_state.get("field_strength_T")
+    trap_eff       = mag_state.get("particle_trapping_efficiency", 1.0)
+    aurora_eff     = mag_state.get("auroral_coupling_efficiency", 1.0)
+
+    return {
+        "status":                        "WEAKENING" if field_weak else "NORMAL",
+        "FIELD_WEAKENING":               field_weak,
+        "field_strength_T":              field_strength,
+        "particle_trapping_efficiency":  trap_eff,
+        "auroral_coupling_efficiency":   aurora_eff,
+        "M_dipole_Am2":                  mag_state.get("M_dipole_Am2"),
+        "message": (
+            f"Field strength {field_strength:.3e} T — dipole moment past 10% weakening "
+            f"threshold. Trapping efficiency {trap_eff:.3f}, "
+            f"auroral coupling {aurora_eff:.3f}. "
+            f"Ionospheric coupling regime shift expected."
+        ) if field_weak else (
+            f"Field within historical bounds. Field strength {field_strength:.3e} T, "
+            f"trapping efficiency {trap_eff:.3f}."
+        ),
+    }
+
+
 # ─────────────────────────────────────────────
 # CONSOLE REPORTER
 # Prints monitor output in single-tap-copyable format
