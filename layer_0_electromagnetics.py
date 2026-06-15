@@ -181,6 +181,55 @@ def lorentz_force(q, E_field, v, B_field):
 
 M_EARTH = 8.0e22   # A·m^2  present-epoch geomagnetic dipole moment
 
+MANTLE_CONVECTION_CRITICAL_M_S = 3.0e-10   # m/s — ~1 cm/yr; below this dynamo efficiency falls
+MANTLE_TEMP_REFERENCE_K        = 4000.0    # K — reference mantle temperature for convection scaling
+
+
+def dynamo_efficiency(mantle_convection_rate_m_s):
+    """
+    Geodynamo efficiency as function of mantle convection rate.
+    Below the critical threshold, CMB heat flux falls and outer-core
+    convective driving of the geodynamo weakens proportionally.
+    mantle_convection_rate_m_s : mantle convection speed (m/s)
+    returns: efficiency (0.0–1.0)
+    """
+    if mantle_convection_rate_m_s <= 0.0:
+        return 0.0
+    return min(1.0, mantle_convection_rate_m_s / MANTLE_CONVECTION_CRITICAL_M_S)
+
+
+def mantle_temperature_forcing(T_mantle_K, T_mantle_reference_K=MANTLE_TEMP_REFERENCE_K):
+    """
+    Translate mantle temperature into convection rate and dynamo efficiency.
+    Convection vigor scales linearly with temperature excess above reference
+    over a ~500 K window; below reference the dynamo enters the weakening regime.
+    T_mantle_K          : current mantle temperature (K)
+    T_mantle_reference_K: reference mantle temperature (K)
+    returns: dict with convection_rate_m_s, dynamo_efficiency, DYNAMO_PHASE_SHIFT
+    """
+    delta_T = T_mantle_K - T_mantle_reference_K
+    convection_rate = MANTLE_CONVECTION_CRITICAL_M_S * (1.0 + delta_T / 500.0)
+    convection_rate = max(0.0, convection_rate)
+    eff = dynamo_efficiency(convection_rate)
+    return {
+        "convection_rate_m_s": convection_rate,
+        "dynamo_efficiency":   eff,
+        "DYNAMO_PHASE_SHIFT":  eff < 0.5,
+    }
+
+
+def field_drift_velocity(M_dipole_Am2, dM_per_yr_Am2):
+    """
+    Fractional drift rate of the geomagnetic dipole moment.
+    Negative value indicates a weakening field.
+    M_dipole_Am2  : current dipole moment (A·m²)
+    dM_per_yr_Am2 : secular drift rate (A·m²/yr)
+    returns: fractional drift rate (yr⁻¹)
+    """
+    if M_dipole_Am2 == 0.0:
+        return 0.0
+    return dM_per_yr_Am2 / M_dipole_Am2
+
 
 def dipole_drift_response(M0, dM_dipole_per_yr_Am2, dt_yr):
     """
@@ -219,7 +268,9 @@ def coupling_state(n_e, B_surface, E_surface, frequency_range,
                    magnomech_mineral_fraction=0.02,
                    magnomech_T=290.0,
                    dM_dipole_per_yr_Am2=0.0,
-                   dt_orbital_yr=0.0):
+                   dt_orbital_yr=0.0,
+                   T_mantle_K=MANTLE_TEMP_REFERENCE_K,
+                   T_mantle_reference_K=MANTLE_TEMP_REFERENCE_K):
     """
     State vector exported to adjacent layers.
     n_e                  : electron density at interface (m^-3)
@@ -247,6 +298,9 @@ def coupling_state(n_e, B_surface, E_surface, frequency_range,
     M_dipole_now = dipole_drift_response(M_EARTH, dM_dipole_per_yr_Am2,
                                          dt_orbital_yr)
 
+    _mantle    = mantle_temperature_forcing(T_mantle_K, T_mantle_reference_K)
+    _drift_vel = field_drift_velocity(M_dipole_now, dM_dipole_per_yr_Am2)
+
     f_plasma = plasma_frequency(n_e)
     delta = skin_depth(frequency_range[0], 1e-4)  # upper atmosphere conductivity ~1e-4 S/m
     f_cyclotron = cyclotron_frequency(e, B_surface, m_e)
@@ -268,6 +322,12 @@ def coupling_state(n_e, B_surface, E_surface, frequency_range,
             (M_dipole_now - M_EARTH) / M_EARTH if M_EARTH else 0.0
         ),
         "B_surface_dipole_eq_T":     surface_field_from_dipole(M_dipole_now),
+        "field_strength_T":          surface_field_from_dipole(M_dipole_now),
+        "field_drift_velocity_per_yr": _drift_vel,
+        "dynamo_efficiency":         _mantle["dynamo_efficiency"],
+        "DYNAMO_PHASE_SHIFT":        _mantle["DYNAMO_PHASE_SHIFT"],
+        "mantle_convection_rate_m_s": _mantle["convection_rate_m_s"],
+        "T_mantle_K":                T_mantle_K,
         "constraint": gauss_magnetic(),
     }
 

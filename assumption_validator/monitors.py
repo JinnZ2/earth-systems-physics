@@ -518,6 +518,362 @@ class EarthSystemsMonitor:
 
 
 # ─────────────────────────────────────────────
+# AMOC PHASE DETECTOR
+# Standalone function: checks 30°N density gradient from a hydro state dict.
+# Threshold 0.8 kg/m³ matches layer_4_hydrosphere.AMOC_DENSITY_GRADIENT_CRITICAL.
+# ─────────────────────────────────────────────
+
+def amoc_phase_detector(hydro_state: Dict) -> Dict:
+    """
+    Evaluate AMOC phase-transition status from a hydrosphere layer state dict.
+    Checks the explicit 30°N density gradient against the 0.8 kg/m³
+    Holocene-regime threshold (Caesar et al. 2021; Boers 2021;
+    Ditlevsen & Ditlevsen 2023).
+
+    hydro_state : dict returned by layer_4_hydrosphere.coupling_state()
+    returns     : detection dict with status, margin, and validity flag
+    """
+    CRITICAL = 0.8   # kg/m³ — must match AMOC_DENSITY_GRADIENT_CRITICAL in layer_4
+
+    gradient = hydro_state.get("amoc_density_gradient_30N_kgm3")
+    if gradient is None:
+        return {
+            "status":  "NO_DATA",
+            "message": ("amoc_density_gradient_30N_kgm3 not present in hydro_state; "
+                        "layer_4_hydrosphere requires 2024-2026 update"),
+        }
+
+    margin   = gradient - CRITICAL
+    imminent = gradient < CRITICAL
+    valid    = hydro_state.get("amoc_coupling_coeffs_valid", not imminent)
+
+    return {
+        "status":                    "REGIME_SHIFT" if imminent else "HOLOCENE_REGIME",
+        "density_gradient_30N_kgm3": gradient,
+        "critical_threshold_kgm3":   CRITICAL,
+        "margin_kgm3":               margin,
+        "regime_shift_imminent":     imminent,
+        "coupling_coeffs_valid":     valid,
+        "salinity_front_shift_deg":  hydro_state.get("amoc_front_shift_deg", 0.0),
+        "message": (
+            f"AMOC gradient {gradient:.3f} kg/m³ BELOW critical {CRITICAL} kg/m³ "
+            f"(margin {margin:.3f}). Holocene-regime coupling coefficients invalid. "
+            "Regime-shift cascade protocol triggered."
+        ) if imminent else (
+            f"AMOC gradient {gradient:.3f} kg/m³, margin {margin:.3f} kg/m³ above "
+            f"threshold {CRITICAL} kg/m³. Holocene regime — coefficients valid."
+        ),
+    }
+
+
+def dynamo_phase_detector(em_state: Dict) -> Dict:
+    """
+    Evaluate geodynamo phase status from EM layer state dict.
+    Checks DYNAMO_PHASE_SHIFT flag and dynamo_efficiency exported by
+    mantle_temperature_forcing() in layer_0_electromagnetics.
+
+    em_state : dict returned by layer_0_electromagnetics.coupling_state()
+    returns  : detection dict with status, efficiency, and convection rate
+    """
+    phase_shift = em_state.get("DYNAMO_PHASE_SHIFT")
+    if phase_shift is None:
+        return {
+            "status":  "NO_DATA",
+            "message": ("DYNAMO_PHASE_SHIFT not present in em_state; "
+                        "layer_0_electromagnetics requires 2026 mantle update"),
+        }
+
+    eff  = em_state.get("dynamo_efficiency", 1.0)
+    conv = em_state.get("mantle_convection_rate_m_s")
+
+    return {
+        "status":                    "PHASE_SHIFT" if phase_shift else "NORMAL",
+        "DYNAMO_PHASE_SHIFT":        phase_shift,
+        "dynamo_efficiency":         eff,
+        "mantle_convection_rate_m_s": conv,
+        "T_mantle_K":                em_state.get("T_mantle_K"),
+        "message": (
+            f"Dynamo efficiency {eff:.3f} below 0.5 — mantle convection slowed below "
+            f"critical threshold. Geodynamo entering phase-shift regime; "
+            f"field geometry outputs carry increased uncertainty."
+        ) if phase_shift else (
+            f"Dynamo efficiency {eff:.3f} — mantle convection above critical threshold, "
+            f"geodynamo in normal operating regime."
+        ),
+    }
+
+
+def field_strength_validator(em_state: Dict, mag_state: Dict) -> Dict:
+    """
+    Cross-validate geomagnetic field strength between EM and magnetosphere layers.
+    Reads FIELD_WEAKENING and particle_trapping_efficiency from layer_1 state,
+    and field_strength_T from layer_0 state.
+
+    em_state  : dict returned by layer_0_electromagnetics.coupling_state()
+    mag_state : dict returned by layer_1_magnetosphere.coupling_state()
+    returns   : validation dict with status, trapping efficiency, auroral coupling
+    """
+    field_weak = mag_state.get("FIELD_WEAKENING")
+    if field_weak is None:
+        return {
+            "status":  "NO_DATA",
+            "message": ("FIELD_WEAKENING not present in mag_state; "
+                        "layer_1_magnetosphere requires 2026 field-geometry update"),
+        }
+
+    field_strength = em_state.get("field_strength_T")
+    trap_eff       = mag_state.get("particle_trapping_efficiency", 1.0)
+    aurora_eff     = mag_state.get("auroral_coupling_efficiency", 1.0)
+
+    return {
+        "status":                        "WEAKENING" if field_weak else "NORMAL",
+        "FIELD_WEAKENING":               field_weak,
+        "field_strength_T":              field_strength,
+        "particle_trapping_efficiency":  trap_eff,
+        "auroral_coupling_efficiency":   aurora_eff,
+        "M_dipole_Am2":                  mag_state.get("M_dipole_Am2"),
+        "message": (
+            f"Field strength {field_strength:.3e} T — dipole moment past 10% weakening "
+            f"threshold. Trapping efficiency {trap_eff:.3f}, "
+            f"auroral coupling {aurora_eff:.3f}. "
+            f"Ionospheric coupling regime shift expected."
+        ) if field_weak else (
+            f"Field within historical bounds. Field strength {field_strength:.3e} T, "
+            f"trapping efficiency {trap_eff:.3f}."
+        ),
+    }
+
+
+def nutrient_flux_balance(litho_state: Dict, soil_state: Dict, bio_state: Dict) -> Dict:
+    """
+    Check crustal weathering rate against biological nutrient uptake rate.
+    Flag NUTRIENT_LEACHING when weathering supply > 2× uptake demand
+      (nutrients washing out of ecosystem faster than plants can use them).
+    Flag ECOSYSTEM_STRESS when Liebig minimum stress_factor < 0.5
+      (biological demand exceeds supply — nutrient deficiency).
+
+    litho_state : dict from layer_5_lithosphere.coupling_state()
+    soil_state  : dict from soil_interface.coupling_state()
+    bio_state   : dict from layer_6_biosphere.coupling_state()
+    returns     : validation dict with leaching and stress flags
+    """
+    stress_factor  = soil_state.get("nutrient_stress_factor")
+    if stress_factor is None:
+        return {
+            "status":  "NO_DATA",
+            "message": ("nutrient_stress_factor not in soil_state; "
+                        "soil_interface module required"),
+        }
+
+    leaching       = soil_state.get("nutrient_leaching_risk", False)
+    limiting       = soil_state.get("limiting_nutrient", "unknown")
+    eco_stress     = stress_factor < 0.5
+    geo_co2        = litho_state.get("geological_co2_GtC_yr", 0.0)
+
+    status = "LEACHING" if leaching else ("ECOSYSTEM_STRESS" if eco_stress else "BALANCED")
+    return {
+        "status":               status,
+        "NUTRIENT_LEACHING":    leaching,
+        "ECOSYSTEM_STRESS":     eco_stress,
+        "nutrient_stress_factor": stress_factor,
+        "limiting_nutrient":    limiting,
+        "geological_co2_GtC_yr": geo_co2,
+        "N_supply_ratio":       soil_state.get("N_supply_ratio", 1.0),
+        "P_supply_ratio":       soil_state.get("P_supply_ratio", 1.0),
+        "K_supply_ratio":       soil_state.get("K_supply_ratio", 1.0),
+        "message": (
+            f"Leaching risk: weathering supply > 2× plant uptake demand. "
+            f"Limiting nutrient: {limiting}, stress factor {stress_factor:.3f}."
+        ) if leaching else (
+            f"Ecosystem stress: nutrient supply < half demand. "
+            f"Limiting: {limiting}, stress factor {stress_factor:.3f}. "
+            f"Productivity constrained."
+        ) if eco_stress else (
+            f"Nutrient supply balanced. Stress factor {stress_factor:.3f}, "
+            f"limiting nutrient: {limiting}."
+        ),
+    }
+
+
+def oxygen_generation_validity(bio_state: Dict, atmo_state: Dict) -> Dict:
+    """
+    Check that net O2 output from biosphere is consistent with atmospheric O2 demand.
+    Flag O2_DEFICIT when biosphere is net O2 consumer (net_O2_flux < -50 Gt O2/yr).
+    Flag O2_SURPLUS when biosphere produces >100 Gt O2/yr net (geological burial signal).
+
+    bio_state  : dict from layer_6_biosphere.coupling_state()
+    atmo_state : dict from layer_3_atmosphere.coupling_state()
+    returns    : validation dict
+    """
+    net_O2 = bio_state.get("net_O2_flux_GtO2_yr")
+    if net_O2 is None:
+        return {
+            "status":  "NO_DATA",
+            "message": ("net_O2_flux_GtO2_yr not in bio_state; "
+                        "layer_6_biosphere requires O2 generation update"),
+        }
+
+    O2_deficit  = net_O2 < -50.0
+    O2_surplus  = net_O2 > 100.0
+    O2_frac_atm = atmo_state.get("O2_fraction_atm", 0.2095)
+    oxidation_ok = atmo_state.get("oxidation_chemistry_active", True)
+
+    if O2_deficit:
+        status = "O2_DEFICIT"
+    elif O2_surplus:
+        status = "O2_SURPLUS"
+    else:
+        status = "BALANCED"
+
+    return {
+        "status":                    status,
+        "O2_DEFICIT":                O2_deficit,
+        "O2_SURPLUS":                O2_surplus,
+        "net_O2_flux_GtO2_yr":       net_O2,
+        "O2_photosyn_GtO2_yr":       bio_state.get("O2_photosyn_GtO2_yr"),
+        "O2_plant_resp_GtO2_yr":     bio_state.get("O2_plant_resp_GtO2_yr"),
+        "O2_decomp_GtO2_yr":         bio_state.get("O2_decomp_GtO2_yr"),
+        "O2_fraction_atm":           O2_frac_atm,
+        "oxidation_chemistry_active": oxidation_ok,
+        "message": (
+            f"O2 deficit: biosphere net consumer at {net_O2:.1f} Gt O2/yr. "
+            f"Atmospheric O2 fraction {O2_frac_atm:.4f}. "
+            f"Respiration exceeds photosynthesis — ecosystem carbon source."
+        ) if O2_deficit else (
+            f"O2 surplus: {net_O2:.1f} Gt O2/yr — organic carbon burial signal. "
+            f"Atmospheric O2 {O2_frac_atm:.4f}."
+        ) if O2_surplus else (
+            f"O2 generation balanced at {net_O2:.1f} Gt O2/yr. "
+            f"Atmospheric O2 {O2_frac_atm:.4f}."
+        ),
+    }
+
+
+def soil_redox_validator(soil_state: Dict) -> Dict:
+    """
+    Monitor soil Eh; flag when anoxia emerges.
+    Anoxia kills aerobic microbial communities, triggers anaerobic decomposition
+    (methanogenesis, fermentation), alters N cycling (denitrification), and
+    drives soil phase shift from aerobic to reducing nutrient dynamics.
+
+    soil_state : dict from soil_interface.coupling_state()
+    returns    : validation dict with anoxia flag and Eh status
+    """
+    Eh_mV = soil_state.get("Eh_mV")
+    if Eh_mV is None:
+        return {
+            "status":  "NO_DATA",
+            "message": "Eh_mV not in soil_state; soil_interface module required",
+        }
+
+    from soil_interface import EH_ANOXIA_THRESHOLD_MV, EH_SUBOXIC_THRESHOLD_MV
+
+    anoxia  = Eh_mV < EH_ANOXIA_THRESHOLD_MV
+    suboxic = Eh_mV < EH_SUBOXIC_THRESHOLD_MV
+
+    if anoxia:
+        status = "ANOXIC"
+    elif suboxic:
+        status = "SUBOXIC"
+    else:
+        status = "AEROBIC"
+
+    return {
+        "status":              status,
+        "Eh_mV":               Eh_mV,
+        "anoxia_active":       anoxia,
+        "suboxic_active":      suboxic,
+        "aerobic":             not suboxic,
+        "SOM_kgm2":            soil_state.get("SOM_kgm2"),
+        "decomp_rate_kgm2_yr": soil_state.get("decomp_rate_kgm2_yr"),
+        "O2_soil_fraction":    soil_state.get("O2_soil_fraction"),
+        "message": (
+            f"Anoxic soil: Eh {Eh_mV:.0f} mV below threshold 0 mV. "
+            f"Aerobic microbial communities suppressed. Anaerobic decomposition active. "
+            f"CH4 production, denitrification, nutrient cycle disruption."
+        ) if anoxia else (
+            f"Suboxic soil: Eh {Eh_mV:.0f} mV, below {EH_SUBOXIC_THRESHOLD_MV} mV. "
+            f"O2 depleted in pore space; aerobic decomposition rate falling."
+        ) if suboxic else (
+            f"Aerobic soil: Eh {Eh_mV:.0f} mV. Normal decomposition and nutrient cycling."
+        ),
+    }
+
+
+def phase_transition_detector(soil_state: Dict, bio_state: Dict) -> Dict:
+    """
+    Ecosystem collapse detector.
+    Collapse criterion: SOM below critical threshold AND soil in persistent anoxia.
+    Both conditions must co-occur — SOM depletion alone can recover; persistent
+    anoxia alone disrupts but does not necessarily collapse the ecosystem.
+    Their combination creates a self-reinforcing cascade:
+      low SOM → less microbial habitat → less O2 demand satisfied → deeper anoxia
+      → anaerobic decomp inhibits SOM recovery → lower SOM.
+    This phase transition is largely irreversible on decadal timescales.
+
+    soil_state : dict from soil_interface.coupling_state()
+    bio_state  : dict from layer_6_biosphere.coupling_state()
+    returns    : detection dict with collapse risk level
+    """
+    SOM_kgm2     = soil_state.get("SOM_kgm2")
+    anoxia_active = soil_state.get("anoxia_active")
+
+    if SOM_kgm2 is None or anoxia_active is None:
+        return {
+            "status":  "NO_DATA",
+            "message": ("SOM_kgm2 or anoxia_active not in soil_state; "
+                        "soil_interface module required"),
+        }
+
+    from soil_interface import SOM_COLLAPSE_THRESHOLD_KGM2
+
+    SOM_depleted  = SOM_kgm2 < SOM_COLLAPSE_THRESHOLD_KGM2
+    nutrient_stress = soil_state.get("nutrient_stress_factor", 1.0)
+    amazon_prox   = bio_state.get("amazon_tipping_proximity", 0.0)
+    NEP_source    = bio_state.get("NEP_gC_m2_day", 0.0) < 0
+
+    collapse_risk = SOM_depleted and anoxia_active
+
+    if collapse_risk:
+        status = "COLLAPSE"
+    elif SOM_depleted or anoxia_active:
+        status = "HIGH_RISK"
+    elif SOM_kgm2 < SOM_COLLAPSE_THRESHOLD_KGM2 * 3 or nutrient_stress < 0.5:
+        status = "ELEVATED"
+    else:
+        status = "STABLE"
+
+    return {
+        "status":                   status,
+        "ECOSYSTEM_COLLAPSE_RISK":  collapse_risk,
+        "SOM_kgm2":                 SOM_kgm2,
+        "SOM_depleted":             SOM_depleted,
+        "anoxia_active":            anoxia_active,
+        "nutrient_stress_factor":   nutrient_stress,
+        "amazon_tipping_proximity": amazon_prox,
+        "NEP_carbon_source":        NEP_source,
+        "reversibility": (
+            "largely irreversible on decadal timescales" if collapse_risk else
+            "recovery possible with reduced stressor loading" if status == "HIGH_RISK"
+            else "recoverable"
+        ),
+        "message": (
+            f"ECOSYSTEM COLLAPSE: SOM {SOM_kgm2:.2f} kg/m² below threshold "
+            f"{SOM_COLLAPSE_THRESHOLD_KGM2} kg/m² AND anoxia active (Eh < 0 mV). "
+            f"Self-reinforcing cascade: low SOM → habitat loss → deeper anoxia → "
+            f"less recovery. Phase transition largely irreversible."
+        ) if collapse_risk else (
+            f"High risk: SOM {SOM_kgm2:.2f} kg/m² depleted={SOM_depleted}, "
+            f"anoxia={anoxia_active}. Single stressor present — "
+            f"co-occurrence will trigger collapse cascade."
+        ) if status == "HIGH_RISK" else (
+            f"Soil ecosystem {status.lower()}: SOM {SOM_kgm2:.2f} kg/m², "
+            f"anoxia={anoxia_active}, nutrient stress {nutrient_stress:.2f}."
+        ),
+    }
+
+
+# ─────────────────────────────────────────────
 # CONSOLE REPORTER
 # Prints monitor output in single-tap-copyable format
 # ─────────────────────────────────────────────

@@ -19,6 +19,12 @@ from layer_minus1_orbital     import (
     cumulative_delta_omega as _orbital_cumulative_delta_omega,
     SIDEREAL_YEAR_S as _ORBITAL_SIDEREAL_YEAR_S,
 )
+from soil_interface            import coupling_state as soil_iface_state
+from stabilizing_capacity      import (
+    total_anthropogenic_forcing as _anthro_forcing,
+    margin_to_phase_transitions as _anthro_margins,
+    InfrastructureLoad          as _InfraLoad,
+)
 from layer_0_electromagnetics import coupling_state as em_state
 from layer_1_magnetosphere    import coupling_state as mag_state
 from layer_2_ionosphere       import coupling_state as iono_state
@@ -85,6 +91,8 @@ BASELINE = {
     # Layer 0 — Electromagnetics
     "n_e":              1e12,       # F2 electron density m^-3
     "B_surface":        5e-5,       # Earth surface field T
+    "B_surface_reference": 5e-5,   # historical reference field T (fixed; compare against forcing scenarios)
+    "T_mantle_K":       4000.0,     # mantle temperature K (drives dynamo efficiency)
     "E_surface":        1e-4,       # surface electric field V/m
     "freq_range":       (1e3, 1e7), # Hz
     "magnonic_material": None,      # magnonic sublayer material (None = Magnetite default)
@@ -158,6 +166,34 @@ BASELINE = {
     "anthro_GtC":       10.0,
     "AMOC_bio_Sv":      16.0,
 
+    # Anthropogenic forcing (from stabilizing_capacity layer)
+    # Flanner (2009, GRL): global mean direct waste heat ~0.028 W/m² in 2005.
+    # Updated to 2024 baseline including UHI albedo and data-center heat.
+    "anthro_heat_Wm2":          0.035,  # W/m² total direct anthropogenic heat forcing
+    "anthro_population_B":      8.1,    # billions (2024)
+    "anthro_city_count":        500.0,  # cities ≥ 1M population
+    "anthro_city_pop_M":        2.0,    # avg city population (millions)
+    "anthro_city_area_km2":     1500.0, # avg city footprint (km²)
+    "anthro_dc_count":          10000.0,# data centers
+    "anthro_ai_training_yr":    500.0,  # large-model training runs/yr
+    "anthro_ai_queries_day":    2e10,   # AI inference queries/day
+    "anthro_gpu_count":         1e8,    # installed GPUs
+    "anthro_cement_gt_yr":      4.0,    # cement production Gt/yr
+    "anthro_water_km3_yr":      4000.0, # freshwater withdrawal km³/yr
+
+    # Soil interface (between Layer 5 and Layer 6)
+    "SOM_kgm2":             10.0,   # soil organic matter stock kg C/m²
+    "microbial_biomass_kgm2": 0.5,  # microbial biomass C kg/m²
+    "soil_N_avail_gm2":     5.0,    # available N pool g/m²
+    "soil_P_avail_gm2":     0.5,    # available P pool g/m²
+    "soil_K_avail_gm2":     2.0,    # available K pool g/m²
+    "soil_pH":              6.5,
+    "soil_moisture":        0.40,   # volumetric water content (field capacity)
+    "soil_T_K":             283.0,  # soil temperature K (~10°C)
+    "crustal_weathering_rate_m_yr": 5e-5,  # m/yr chemical weathering
+    "GPP_gC_m2_day":        5.0,    # per-m² GPP for soil nutrient demand
+    "net_O2_flux_GtO2_yr":  0.0,    # net biosphere O2 flux (lagged from L6)
+
     # Layer 7 — Infrastructure (built environment)
     "dB_dt_Ts":          1e-11,     # quiet-day dB/dt T/s (~0.01 nT/s)
     "soil_rho_ohm_m":    100.0,     # ground resistivity ohm·m
@@ -167,6 +203,182 @@ BASELINE = {
     "transfer_A_per_V_per_km": 50.0, # GIC network transfer
     "transformer_threshold_A": 10.0, # transformer saturation threshold
 }
+
+
+# ─────────────────────────────────────────────
+# LAYER 3→4 COUPLING VALIDATOR
+# Checks that atmospheric freshwater forcing stays within bounds that
+# preserve thermohaline circulation geometry before cascade propagates.
+# Flag: AMOC_COUPLING_INVALID
+# ─────────────────────────────────────────────
+
+# Precipitable water above this value implies a freshwater flux anomaly
+# over the subpolar North Atlantic that deforms thermohaline geometry
+# beyond the calibration range of the Holocene-regime AMOC coefficients.
+# ~38 mm ≈ T_surface 291 K ≈ +3 K above the 288 K Holocene baseline.
+_AMOC_PW_COUPLING_BOUND_MM = 38.0
+
+
+def _check_atmo_hydro_freshwater_coupling(atmo_state: dict) -> dict:
+    """
+    Validate that layer_3 atmospheric freshwater forcing is within the bounds
+    that preserve thermohaline circulation geometry for layer_4 coupling.
+
+    Uses precipitable_water_mm from the atmosphere state as the proxy for
+    North Atlantic freshwater flux anomaly. If PW exceeds the coupling bound
+    the Holocene-calibrated AMOC coefficients in layer_4 are operating outside
+    their valid regime; cascade propagation should not proceed with those
+    coefficients.
+
+    atmo_state : dict returned by layer_3_atmosphere.coupling_state()
+    returns    : validation dict; AMOC_COUPLING_INVALID=True if bound exceeded
+    """
+    pw = atmo_state.get("precipitable_water_mm", 0.0)
+    exceeded = pw > _AMOC_PW_COUPLING_BOUND_MM
+    return {
+        "AMOC_COUPLING_INVALID":   exceeded,
+        "precipitable_water_mm":   pw,
+        "coupling_bound_mm":       _AMOC_PW_COUPLING_BOUND_MM,
+        "excess_mm":               max(0.0, pw - _AMOC_PW_COUPLING_BOUND_MM),
+        "reason": (
+            f"Precipitable water {pw:.1f} mm exceeds coupling bound "
+            f"{_AMOC_PW_COUPLING_BOUND_MM} mm. Implied North Atlantic freshwater "
+            f"flux anomaly deforms thermohaline geometry beyond Holocene-regime "
+            f"calibration range of layer_4 AMOC coefficients."
+        ) if exceeded else "Atmospheric freshwater forcing within coupling bounds.",
+    }
+
+
+# ─────────────────────────────────────────────
+# LAYER 0→1 COUPLING VALIDATOR
+# Checks mantle→dynamo→field integrity before magnetosphere state is computed.
+# Flag: DYNAMO_PHASE_SHIFT
+# ─────────────────────────────────────────────
+
+def _check_mantle_dynamo_field_coupling(em_state_dict: dict) -> dict:
+    """
+    Validate mantle→dynamo→field coupling at the layer 0/1 boundary.
+    Reads DYNAMO_PHASE_SHIFT and dynamo_efficiency from the layer_0 state.
+    Warns when mantle convection has slowed below the critical threshold,
+    placing dynamo-derived field geometry outputs in the uncertain regime.
+
+    em_state_dict : dict returned by layer_0_electromagnetics.coupling_state()
+    returns       : validation dict; DYNAMO_PHASE_SHIFT=True when convection critical
+    """
+    phase_shift = em_state_dict.get("DYNAMO_PHASE_SHIFT", False)
+    if phase_shift:
+        import warnings
+        eff = em_state_dict.get("dynamo_efficiency", 1.0)
+        warnings.warn(
+            f"DYNAMO_PHASE_SHIFT at layer 0→1 boundary: dynamo_efficiency={eff:.3f}. "
+            f"Mantle convection below critical threshold; field geometry outputs uncertain.",
+            UserWarning, stacklevel=2,
+        )
+    return {
+        "DYNAMO_PHASE_SHIFT":        phase_shift,
+        "dynamo_efficiency":         em_state_dict.get("dynamo_efficiency", 1.0),
+        "mantle_convection_rate_m_s": em_state_dict.get("mantle_convection_rate_m_s"),
+    }
+
+
+# ─────────────────────────────────────────────
+# LAYER 1→2 COUPLING VALIDATOR
+# Checks field geometry→particle trapping before ionosphere state is computed.
+# Flag: FIELD_WEAKENING
+# ─────────────────────────────────────────────
+
+def _check_field_particle_trapping_coupling(mag_state_dict: dict) -> dict:
+    """
+    Validate field geometry→particle trapping coupling at the layer 1/2 boundary.
+    Reads FIELD_WEAKENING, particle_trapping_efficiency from the layer_1 state.
+    Warns when the dipole moment has passed the 10% weakening threshold, which
+    shifts the ionospheric coupling regime outside its historical calibration.
+
+    mag_state_dict : dict returned by layer_1_magnetosphere.coupling_state()
+    returns        : validation dict; FIELD_WEAKENING=True when threshold crossed
+    """
+    field_weak = mag_state_dict.get("FIELD_WEAKENING", False)
+    if field_weak:
+        import warnings
+        trap_eff = mag_state_dict.get("particle_trapping_efficiency", 1.0)
+        warnings.warn(
+            f"FIELD_WEAKENING at layer 1→2 boundary: trapping_efficiency={trap_eff:.3f}. "
+            f"Dipole moment past 10% weakening threshold; ionospheric coupling regime shifted.",
+            UserWarning, stacklevel=2,
+        )
+    return {
+        "FIELD_WEAKENING":              field_weak,
+        "particle_trapping_efficiency": mag_state_dict.get("particle_trapping_efficiency", 1.0),
+        "auroral_coupling_efficiency":  mag_state_dict.get("auroral_coupling_efficiency", 1.0),
+    }
+
+
+# ─────────────────────────────────────────────
+# SOIL→BIOSPHERE COUPLING VALIDATOR
+# Checks nutrient supply to biosphere before L6 runs.
+# Flag: NUTRIENT_STRESS
+# ─────────────────────────────────────────────
+
+def _check_nutrient_supply_coupling(soil_state: dict) -> dict:
+    """
+    Validate soil→biosphere nutrient coupling.
+    Reads nutrient_stress_factor from the soil_interface state.
+    Flags NUTRIENT_STRESS when stress_factor falls below 0.5 (Liebig minimum
+    less than half of unrestricted demand), which shifts GPP into the
+    nutrient-limited regime and invalidates carbon-cycle coefficients calibrated
+    for nutrient-replete conditions.
+
+    soil_state : dict returned by soil_interface.coupling_state()
+    returns    : validation dict; NUTRIENT_STRESS=True when factor < 0.5
+    """
+    stress = soil_state.get("nutrient_stress_factor", 1.0)
+    stressed = stress < 0.5
+    if stressed:
+        import warnings
+        limiting = soil_state.get("limiting_nutrient", "unknown")
+        warnings.warn(
+            f"NUTRIENT_STRESS at soil→biosphere boundary: stress_factor={stress:.3f}, "
+            f"limiting nutrient={limiting}. GPP coefficients outside calibration range.",
+            UserWarning, stacklevel=2,
+        )
+    return {
+        "NUTRIENT_STRESS":        stressed,
+        "nutrient_stress_factor": stress,
+        "limiting_nutrient":      soil_state.get("limiting_nutrient", "unknown"),
+    }
+
+
+# ─────────────────────────────────────────────
+# BIOSPHERE→ATMOSPHERE O2 COUPLING VALIDATOR
+# Checks O2 generation after L6 runs.
+# Flag: O2_DEFICIT
+# ─────────────────────────────────────────────
+
+def _check_O2_generation_coupling(bio_state: dict) -> dict:
+    """
+    Validate biosphere→atmosphere O2 flux after layer_6 runs.
+    Flags O2_DEFICIT when net_O2_flux drops below -50 Gt O2/yr, indicating
+    the biosphere has become a net O2 consumer of a magnitude that would
+    detectably deplete atmospheric O2 on decadal timescales.
+
+    bio_state : dict returned by layer_6_biosphere.coupling_state()
+    returns   : validation dict; O2_DEFICIT=True when flux < -50 Gt O2/yr
+    """
+    net_O2 = bio_state.get("net_O2_flux_GtO2_yr", 0.0)
+    deficit = net_O2 < -50.0
+    surplus = net_O2 > 100.0
+    if deficit:
+        import warnings
+        warnings.warn(
+            f"O2_DEFICIT at biosphere→atmosphere boundary: net_O2={net_O2:.1f} Gt O2/yr. "
+            f"Biosphere consuming O2 faster than photosynthesis replaces it.",
+            UserWarning, stacklevel=2,
+        )
+    return {
+        "O2_DEFICIT":            deficit,
+        "O2_SURPLUS":            surplus,
+        "net_O2_flux_GtO2_yr":   net_O2,
+    }
 
 
 # ─────────────────────────────────────────────
@@ -212,7 +424,14 @@ def run_all_layers(p):
         magnomech_mineral_fraction = p.get("magnomech_mineral_fraction", 0.02),
         dM_dipole_per_yr_Am2 = dM_dipole_per_yr,
         dt_orbital_yr        = p.get("dt_orbital_yr", 0.0),
+        T_mantle_K           = p.get("T_mantle_K", 4000.0),
     )
+    # ── Layer 0→1 coupling validation ────────────────────────────────────
+    # Mantle→dynamo→field: check DYNAMO_PHASE_SHIFT before magnetosphere runs.
+    _dynamo_check = _check_mantle_dynamo_field_coupling(states[0])
+    states["DYNAMO_PHASE_SHIFT"] = _dynamo_check["DYNAMO_PHASE_SHIFT"]
+    # ─────────────────────────────────────────────────────────────────────
+
     states[1] = mag_state(
         B_surface    = p["B_surface"],
         n_sw         = p["n_sw"],
@@ -220,7 +439,14 @@ def run_all_layers(p):
         Bz_imf       = p["Bz_imf"],
         kp           = p["kp"],
         delta_omega  = p["delta_omega"],
+        M_dipole_Am2 = states[0]["M_dipole_Am2"],
     )
+    # ── Layer 1→2 coupling validation ────────────────────────────────────
+    # Field geometry→particle trapping: check FIELD_WEAKENING before ionosphere runs.
+    _field_check = _check_field_particle_trapping_coupling(states[1])
+    states["FIELD_WEAKENING"] = _field_check["FIELD_WEAKENING"]
+    # ─────────────────────────────────────────────────────────────────────
+
     states[2] = iono_state(
         n_e_F2       = p["n_e_F2"],
         B_surface    = p["B_surface"],
@@ -231,6 +457,7 @@ def run_all_layers(p):
         delta_T_thermo = p["delta_T_thermo"],
         metallic_aerosol_kg_m3 = p.get("metallic_aerosol_kg_m3", 0.0),
         sigma_atm_baseline_S_m = p.get("sigma_atm_baseline_S_m", 1e-4),
+        B_reference  = p.get("B_surface_reference", BASELINE["B_surface"]),
     )
     states[3] = atmo_state(
         T_surface    = p["T_surface"],
@@ -241,7 +468,21 @@ def run_all_layers(p):
         AOD          = p["AOD"],
         latitude_deg = p["latitude"],
         delta_omega  = p["delta_omega"],
+        net_O2_flux_GtO2_yr     = p.get("net_O2_flux_GtO2_yr", 0.0),
+        soil_moisture           = p.get("soil_moisture", 0.40),
+        anthro_heat_forcing_Wm2 = p.get("anthro_heat_Wm2", 0.0),
     )
+    # ── Layer 3→4 coupling validation ────────────────────────────────────
+    _fw_check = _check_atmo_hydro_freshwater_coupling(states[3])
+    states["AMOC_COUPLING_INVALID"] = _fw_check["AMOC_COUPLING_INVALID"]
+    if _fw_check["AMOC_COUPLING_INVALID"]:
+        import warnings
+        warnings.warn(
+            f"AMOC_COUPLING_INVALID at layer 3→4 boundary: {_fw_check['reason']}",
+            UserWarning, stacklevel=2,
+        )
+    # ─────────────────────────────────────────────────────────────────────
+
     states[4] = hydro_state(
         T_ocean_C    = p["T_ocean_C"],
         S_ocean      = p["S_ocean"],
@@ -270,6 +511,32 @@ def run_all_layers(p):
         SO2_volcanic_Tg  = p["SO2_volcanic"],
         delta_omega_orbital_rads = delta_omega_orbital,
     )
+    # Soil interface — runs between L5 (lithosphere) and L6 (biosphere).
+    # Receives: L5 crustal weathering rate, L3 O2 fraction, BASELINE soil state.
+    # Exports: nutrient stress factor, redox potential, decomp rate → L6.
+    _GPP_gC_m2_day = p["GPP_GtC"] * 1e15 / 1.5e14 / 365.0
+    states["soil"] = soil_iface_state(
+        SOM_kgm2                   = p.get("SOM_kgm2", 10.0),
+        microbial_biomass_kgm2     = p.get("microbial_biomass_kgm2", 0.5),
+        N_avail_gm2                = p.get("soil_N_avail_gm2", 5.0),
+        P_avail_gm2                = p.get("soil_P_avail_gm2", 0.5),
+        K_avail_gm2                = p.get("soil_K_avail_gm2", 2.0),
+        pH                         = p.get("soil_pH", 6.5),
+        theta_v                    = p.get("soil_moisture", 0.40),
+        T_soil_K                   = p.get("soil_T_K", 283.0),
+        crustal_weathering_rate_m_yr = states[5].get(
+            "erosion_rate_m_yr",
+            p.get("crustal_weathering_rate_m_yr", 5e-5)),
+        O2_atm_fraction            = states[3].get("O2_fraction_atm", 0.2095),
+        GPP_gC_m2_day              = _GPP_gC_m2_day,
+    )
+    _nutrient_check = _check_nutrient_supply_coupling(states["soil"])
+    states["NUTRIENT_STRESS"] = _nutrient_check["NUTRIENT_STRESS"]
+
+    # Convert soil decomp from kg C/m²/yr to global Gt C/yr for L6
+    _soil_decomp_GtC_yr = (states["soil"]["decomp_rate_kgm2_yr"]
+                           * 1.5e14 / 1e12)
+
     states[6] = bio_state(
         T_surface_K      = p["T_surface_K"],
         CO2_ppm          = p["CO2_ppm"],
@@ -282,7 +549,50 @@ def run_all_layers(p):
         GPP_GtC_yr       = p["GPP_GtC"],
         anthropogenic_GtC_yr = p["anthro_GtC"],
         AMOC_Sv          = p["AMOC_bio_Sv"],
+        nutrient_stress  = states["soil"]["nutrient_stress_factor"],
+        soil_Eh_mV       = states["soil"]["Eh_mV"],
+        soil_decomp_GtC_yr = _soil_decomp_GtC_yr,
     )
+    _O2_check = _check_O2_generation_coupling(states[6])
+    states["O2_DEFICIT"] = _O2_check["O2_DEFICIT"]
+    # Store net O2 flux for next coupling iteration (L3 in next run_all_layers call)
+    states["net_O2_flux_GtO2_yr"] = states[6]["net_O2_flux_GtO2_yr"]
+
+    # Anthropogenic stabilizing capacity — compute forcing and margins
+    # from BASELINE infrastructure parameters and current layer states.
+    _infra_load = _InfraLoad(
+        total_population      = p.get("anthro_population_B",     8.1),
+        city_count            = p.get("anthro_city_count",        500.0),
+        avg_city_pop_millions = p.get("anthro_city_pop_M",        2.0),
+        avg_city_area_km2     = p.get("anthro_city_area_km2",     1500.0),
+        dc_count              = p.get("anthro_dc_count",          10_000.0),
+        ai_training_runs_yr   = p.get("anthro_ai_training_yr",    500.0),
+        ai_daily_queries      = p.get("anthro_ai_queries_day",    2e10),
+        gpu_count             = p.get("anthro_gpu_count",         1e8),
+        cement_gt_yr          = p.get("anthro_cement_gt_yr",      4.0),
+        water_use_km3_yr      = p.get("anthro_water_km3_yr",      4000.0),
+    )
+    _anthro_f   = _anthro_forcing(_infra_load)
+    _anthro_m   = _anthro_margins(
+                      _anthro_f.total_Wm2,
+                      atmo_state=states[3],
+                      bio_state=states[6],
+                      hydro_state=states[4],
+                      soil_state=states["soil"],
+                  )
+    states["stabilizing_capacity"] = {
+        "anthro_forcing_Wm2":       _anthro_f.total_Wm2,
+        "energy_margin_Wm2":        _anthro_m.energy_budget_Wm2,
+        "AMOC_margin_Sv":           _anthro_m.AMOC_freshwater_Sv,
+        "amazon_margin":            _anthro_m.amazon_tipping,
+        "permafrost_margin_C":      _anthro_m.permafrost_C,
+        "soil_SOM_margin_kgm2":     _anthro_m.soil_SOM_kgm2,
+        "most_constrained":         _anthro_m.most_constrained,
+        "sustainable":              (_anthro_m.energy_budget_Wm2 > 0.0
+                                     and _anthro_m.AMOC_freshwater_Sv > 0.0
+                                     and _anthro_m.amazon_tipping > 0.0
+                                     and _anthro_m.permafrost_C > 0.0),
+    }
 
     # Layer 7 — Infrastructure. Pure downstream sink; consumes
     # surface dB/dt (from L1/L2 cascade) and soil resistivity (L5).

@@ -283,6 +283,46 @@ def gravity_wave_ionospheric_signature(wave_period_min, amplitude_ms):
 
 SIGMA_ATM_BASELINE_S_M = 1e-4    # baseline upper-atm conductivity (S/m)
 
+FIELD_COUPLING_REGIME_BREAK_THRESHOLD = -0.20   # 20% weakening → outside historical bounds
+B_SURFACE_REFERENCE_T = 5.0e-5                  # 20th-century surface reference field (T)
+
+
+def ionospheric_conductivity_scaling(B_surface, B_reference=B_SURFACE_REFERENCE_T):
+    """
+    Diagnostic ratio of current-to-reference surface field strength.
+    Pedersen and Hall conductivities already depend on B through the
+    gyrofrequency (omega_e = eB/m_e) inside their respective functions.
+    This ratio makes the field-strength sensitivity explicit for monitoring
+    and downstream validators.
+    B_surface   : current surface field (T)
+    B_reference : 20th-century reference surface field (T)
+    returns: dimensionless scaling factor (1.0 at reference state)
+    """
+    if B_reference <= 0.0:
+        return 1.0
+    return B_surface / B_reference
+
+
+def electric_circuit_field_weakening(B_surface, B_reference=B_SURFACE_REFERENCE_T):
+    """
+    Propagate geomagnetic field weakening into the atmospheric electric circuit.
+    Weaker field → reduced gyrofrequency → altered Pedersen/Hall balance →
+    global fair-weather current density shifts outside historical calibration.
+    B_surface   : current surface field (T)
+    B_reference : reference surface field (T)
+    returns: dict with ionospheric_coupling_regime_break flag and fractional change
+    """
+    if B_reference <= 0.0:
+        return {
+            "ionospheric_coupling_regime_break": False,
+            "field_fractional_change": 0.0,
+        }
+    frac = (B_surface - B_reference) / B_reference
+    return {
+        "ionospheric_coupling_regime_break": frac < FIELD_COUPLING_REGIME_BREAK_THRESHOLD,
+        "field_fractional_change": frac,
+    }
+
 
 def aerosol_conductivity_modulation(metallic_aerosol_kg_m3,
                                     baseline_sigma_Sm=SIGMA_ATM_BASELINE_S_M,
@@ -314,7 +354,8 @@ def aerosol_conductivity_modulation(metallic_aerosol_kg_m3,
 def coupling_state(n_e_F2, B_surface, kp, solar_flux,
                    nu_en=1e3, E_field=1e-3, delta_T_thermo=0.0,
                    metallic_aerosol_kg_m3=0.0,
-                   sigma_atm_baseline_S_m=SIGMA_ATM_BASELINE_S_M):
+                   sigma_atm_baseline_S_m=SIGMA_ATM_BASELINE_S_M,
+                   B_reference=B_SURFACE_REFERENCE_T):
     """
     Full ionosphere state vector for adjacent layer consumption.
     n_e_F2                 : F2 layer peak electron density (m^-3)
@@ -339,6 +380,8 @@ def coupling_state(n_e_F2, B_surface, kp, solar_flux,
     aurora_flux = auroral_energy_flux(kp)
     aerosol = aerosol_conductivity_modulation(metallic_aerosol_kg_m3,
                                               sigma_atm_baseline_S_m)
+    _b_scale    = ionospheric_conductivity_scaling(B_surface, B_reference)
+    _field_reg  = electric_circuit_field_weakening(B_surface, B_reference)
 
     return {
         "critical_frequency_hz":         f_c,
@@ -360,5 +403,8 @@ def coupling_state(n_e_F2, B_surface, kp, solar_flux,
         "cascade_to_infrastructure":     "Hall+Pedersen current sheets -> dB/dt -> ground GIC",
         "cascade_from_troposphere":      "gravity_waves, lightning, convection",
         "cascade_from_atmosphere":       "metallic aerosol loading -> sigma_atm shift",
+        "B_field_scaling_factor":        _b_scale,
+        "ionospheric_coupling_regime_break": _field_reg["ionospheric_coupling_regime_break"],
+        "field_fractional_change":       _field_reg["field_fractional_change"],
         "note": "ionosphere is not a boundary — it is a bidirectional coupling membrane"
     }

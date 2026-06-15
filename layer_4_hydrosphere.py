@@ -127,6 +127,101 @@ def amoc_freshwater_sensitivity(delta_S, baseline_gradient):
     }
 
 
+# ─────────────────────────────────────────────
+# AMOC EXPLICIT STATE VARIABLES  (2024–2026 literature update)
+# Density gradient, freshwater sensitivity, and salinity front tracked as
+# named state variables rather than implicit in flux calculations.
+# Critical threshold 0.8 kg/m³ across 30°N: Caesar et al. 2021,
+# Boers 2021, Ditlevsen & Ditlevsen 2023.
+# ─────────────────────────────────────────────
+
+AMOC_DENSITY_GRADIENT_CRITICAL = 0.8   # kg/m³ — phase-transition threshold at 30°N
+
+
+def amoc_freshwater_input_sensitivity(density_gradient_30N):
+    """
+    Rate of density-gradient change per unit freshwater input [kg/m³ per PSU].
+    Derived from haline contraction coefficient (beta_haline).
+    density_gradient_30N : current 30°N density gradient (kg/m³)
+    returns: sensitivity dict including PSU margin to phase-transition threshold
+    """
+    sensitivity         = beta_haline * rho_seawater   # kg/m³ per PSU
+    margin_to_threshold = density_gradient_30N - AMOC_DENSITY_GRADIENT_CRITICAL
+    psu_to_threshold    = (margin_to_threshold / sensitivity
+                           if sensitivity > 0 else float("inf"))
+    return {
+        "sensitivity_kgm3_per_PSU": sensitivity,
+        "margin_to_threshold_kgm3": margin_to_threshold,
+        "PSU_to_threshold":         psu_to_threshold,
+        "threshold_kgm3":           AMOC_DENSITY_GRADIENT_CRITICAL,
+    }
+
+
+def amoc_density_gradient_30N(T_north, S_north,
+                                T_south_30N=25.0, S_south_30N=36.5):
+    """
+    Explicit density gradient across the 30°N Atlantic latitude band.
+    Primary AMOC stability diagnostic in post-2021 literature.
+    T_north, S_north         : subpolar North Atlantic T (°C), S (PSU)
+    T_south_30N, S_south_30N : subtropical 30°N surface T (°C), S (PSU)
+    returns: gradient dict with regime flag
+    """
+    rho_n    = seawater_density(T_north,      S_north)
+    rho_s    = seawater_density(T_south_30N,  S_south_30N)
+    gradient = rho_n - rho_s
+    return {
+        "density_gradient_30N_kgm3": gradient,
+        "rho_north_kgm3":            rho_n,
+        "rho_south_30N_kgm3":        rho_s,
+        "above_critical_threshold":  gradient > AMOC_DENSITY_GRADIENT_CRITICAL,
+        "critical_threshold_kgm3":   AMOC_DENSITY_GRADIENT_CRITICAL,
+    }
+
+
+def amoc_salinity_front_position(S_north, S_north_baseline=35.0,
+                                  front_lat_baseline=50.0):
+    """
+    Approximate latitude of the North Atlantic salinity front.
+    Freshwater anomaly shifts the front equatorward; diagnostic of
+    thermohaline geometry deformation.
+    S_north           : current subpolar surface salinity (PSU)
+    S_north_baseline  : Holocene-regime reference salinity (PSU)
+    front_lat_baseline: Holocene-regime front latitude (°N)
+    returns: estimated front latitude (°N) and shift
+    """
+    delta_S        = S_north - S_north_baseline
+    front_shift    = delta_S * 10.0          # ~1° equatorward per 0.1 PSU freshening
+    front_lat      = front_lat_baseline + front_shift
+    return {
+        "salinity_front_lat_N": front_lat,
+        "front_shift_deg":      front_shift,
+        "delta_S_PSU":          delta_S,
+        "front_equatorward":    front_shift < 0,
+    }
+
+
+def amoc_phase_transition_check(density_gradient_30N_kgm3):
+    """
+    Flag regime-shift when the 30°N density gradient drops below the
+    critical Holocene-regime threshold (0.8 kg/m³).
+    Below threshold: linear thermohaline coupling coefficients invalid;
+    system approaches bistable collapse.
+    density_gradient_30N_kgm3 : density gradient across 30°N band (kg/m³)
+    returns: detection dict; regime_shift_imminent=True triggers cascade protocol
+    """
+    below     = density_gradient_30N_kgm3 < AMOC_DENSITY_GRADIENT_CRITICAL
+    margin    = density_gradient_30N_kgm3 - AMOC_DENSITY_GRADIENT_CRITICAL
+    return {
+        "density_gradient_30N_kgm3":   density_gradient_30N_kgm3,
+        "critical_threshold_kgm3":     AMOC_DENSITY_GRADIENT_CRITICAL,
+        "margin_kgm3":                 margin,
+        "regime_shift_imminent":       below,
+        "coupling_coefficients_valid": not below,
+        "note": ("Holocene-regime coefficients invalid. Bistable collapse regime."
+                 if below else "Holocene regime — coefficients valid"),
+    }
+
+
 def thermohaline_heat_transport(overturning_Sv, delta_T):
     """
     Heat transported poleward by thermohaline circulation.
@@ -731,6 +826,12 @@ def coupling_state(T_ocean_C, S_ocean, T_north_C, S_north,
     AMO             = atlantic_multidecadal_oscillation("warm", AMOC_Sv)
     inertia_yrs     = ocean_thermal_inertia()
 
+    # Explicit AMOC state variables (2024–2026 update)
+    amoc_30N     = amoc_density_gradient_30N(T_north_C, S_north)
+    amoc_fw_sens = amoc_freshwater_input_sensitivity(amoc_30N["density_gradient_30N_kgm3"])
+    amoc_front   = amoc_salinity_front_position(S_north)
+    amoc_phase   = amoc_phase_transition_check(amoc_30N["density_gradient_30N_kgm3"])
+
     # Bottom water formation — the engine driving thermohaline circulation
     # Ice formation rate scales inversely with ice fraction loss
     ice_formation_rate = max(0, ice_fraction * 0.8)  # m/yr, scales with ice extent
@@ -785,6 +886,15 @@ def coupling_state(T_ocean_C, S_ocean, T_north_C, S_north,
         "cascade_from_atmosphere":       "wind stress, heat flux, freshwater",
         "cascade_from_cryosphere":       "meltwater, albedo, freshwater pulse",
         "cascade_internal_loop":         "CDW heat -> basal melt -> freshwater cap -> AABW suppression -> reduced cold buffer -> more CDW",
+        # Explicit AMOC state variables (2024–2026 update)
+        "amoc_density_gradient_30N_kgm3": amoc_30N["density_gradient_30N_kgm3"],
+        "amoc_above_critical_threshold":  amoc_30N["above_critical_threshold"],
+        "amoc_fw_sensitivity_kgm3_PSU":   amoc_fw_sens["sensitivity_kgm3_per_PSU"],
+        "amoc_PSU_to_threshold":          amoc_fw_sens["PSU_to_threshold"],
+        "amoc_salinity_front_lat_N":      amoc_front["salinity_front_lat_N"],
+        "amoc_front_shift_deg":           amoc_front["front_shift_deg"],
+        "amoc_regime_shift_imminent":     amoc_phase["regime_shift_imminent"],
+        "amoc_coupling_coeffs_valid":     amoc_phase["coupling_coefficients_valid"],
         "hard_threshold": "AMOC collapse — irreversible; bottom water formation shutdown; CDW-AABW feedback nonlinear",
         "note": "ocean thermal inertia means current forcing is not yet fully expressed"
     }
