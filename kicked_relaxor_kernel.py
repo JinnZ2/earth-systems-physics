@@ -51,14 +51,59 @@ def critical_period(A, tau, r, theta, orientation):
     return -tau * math.log(e_star)
 
 
+def simulate_ratcheted(A, tau0, r, T, n_kicks,
+                       legacy_decay=0.08, legacy_recover=0.03,
+                       replenish_thresh=0.55, L0=1.0):
+    """
+    Legacy-ratchet extension: tau_eff = tau0 / L.
+
+    L (landscape legacy stock: CWD, propagule sources, mycorrhizal network)
+    falls when the stand cannot recover past replenish_thresh before the next
+    kick. As L falls, tau_eff rises, recovery slows further — the ratchet.
+
+    Returns list of (x_pre/A, L, tau_eff) per kick.
+
+    The constant-tau fixed_point() is an approximation that holds when L≈1.
+    This function gives the actual trajectory; divergence from fixed_point()
+    measures the ratchet's contribution. For the avoid orientation (fire),
+    there is no L-analog in the current model — pass L0=1.0 and
+    legacy_decay=0.0 to reduce back to the constant-tau case.
+    """
+    L = L0
+    x = A                               # start at full recovery (pre-kick)
+    traj = []
+    for _ in range(n_kicks):
+        x = r * x                       # kick
+        tau_eff = tau0 / max(L, 1e-3)
+        x = A - (A - x) * math.exp(-T / tau_eff)   # relax
+        frac = x / A
+        if frac >= replenish_thresh:
+            L = min(1.0, L + legacy_recover)
+        else:
+            L = max(0.05, L - legacy_decay)
+        traj.append((frac, L, tau_eff))
+    return traj
+
+
 if __name__ == "__main__":
-    print(f"{'case':<34}{'x*/A':>7}{'orient':>9}  verdict")
+    print(f"{'case':<34}{'x*/A fix':>10}{'x*/A ratchet':>14}{'orient':>9}  verdict (ratcheted)")
     for name, A, tau, r, T, theta, orient in CASES:
-        xs = fixed_point(A, tau, r, T)
+        xs_fix = fixed_point(A, tau, r, T)
         Tc = critical_period(A, tau, r, theta, orient)
-        print(f"{name:<34}{xs/A:>7.2f}{orient:>9}  {verdict(xs, A, theta, orient)}"
-              f"   [T_crit={Tc:.0f}y]" if Tc else "")
-    print("\nSame formula x* = A(1-e)/(1-r*e) for every row.")
+        if orient == "reach":
+            traj = simulate_ratcheted(A, tau, r, T, n_kicks=8)
+            xs_rat = traj[-1][0]        # pre-kick recovered fraction after 8 rotations
+        else:
+            xs_rat = xs_fix / A         # avoid: no L-ratchet modeled; constant-tau holds
+        v = verdict(xs_rat * A, A, theta, orient)
+        Tc_str = f"T_crit={Tc:.0f}y" if Tc else ""
+        print(f"{name:<34}{xs_fix/A:>10.2f}{xs_rat:>14.2f}{orient:>9}  {v}  [{Tc_str}]")
+    print()
+    print("fixed_point() assumes tau constant (L=1). simulate_ratcheted() lets L fall.")
+    print("divergence = ratchet contribution. bryophyte drops 0.47->0.25 over 8 cuts.")
+    print("broadleaf L stays high (fast enough recovery); ratchet contribution ~zero.")
+    print()
+    print("Same formula x* = A(1-e)/(1-r*e) for every row.")
     print("orientation only flips which side of theta is failure.")
     print("reach: keep T >= T_crit (long recovery window: retention, longer rotation).")
     print("avoid: keep T <= T_crit (frequent low-severity kicks: cultural burning).")
