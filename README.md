@@ -6,8 +6,8 @@ as constraint layers. Electromagnetic base layer upward through magnetosphere,
 ionosphere, atmosphere, hydrosphere, lithosphere, biosphere. Each layer exports
 state variables and coupling interfaces to adjacent layers. A cascade engine
 propagates forcing functions through the full stack. An assumption validator
-reads layer outputs and tells you when the equations generating them are no
-longer valid.
+reads layer outputs and flags when the equations generating them are no longer
+valid.
 
 This is not a climate model.
 It is not a policy tool.
@@ -33,6 +33,7 @@ Physics is organized as a pyramid of constraint layers:
 
 | Layer | Domain | Scope |
 |-------|--------|-------|
+| -1 | Orbital | Milankovitch geometry, insolation, secular rates |
 | 0 | Electromagnetics | base constraint — atomic, molecular, field |
 | 0b | Magnomechanical | spin-phonon coupling in crustal minerals |
 | 1 | Magnetosphere | solar coupling, field geometry, particle trapping |
@@ -41,44 +42,35 @@ Physics is organized as a pyramid of constraint layers:
 | 4 | Hydrosphere | phase transitions, heat transport, thermohaline |
 | 5 | Lithosphere | crustal mechanics, isostasy, rotational coupling |
 | 6 | Biosphere | energy flows, carbon cycle, ecosystem thresholds |
+| 7 | Infrastructure | GIC × coating defect × soil ρ; downstream sink |
 
-**Cascade Engine** — forcing propagation across all coupled layers
-**Assumption Validator** — reads layer outputs, flags when equations break
+**Cascade Engine** (`cascade_engine.py`) — forcing propagation across all coupled layers  
+**Assumption Validator** (`assumption_validator/`) — reads layer outputs, flags when equations break
 
-## Magnomechanical Sub-Layer (Layer 0b)
+---
 
-The crust contains iron-bearing minerals (magnetite, hematite, Fe-doped quartz,
-pyrrhotite, ilmenite) embedded in a crystalline lattice. Geomagnetic field
-variations perturb the spin state of Fe ions in these minerals. Through
-spin-phonon coupling (crystal field modulation at the Fe site), this
-perturbation transfers to lattice vibrations.
+## Cross-Domain Synthesis
 
-This coupling is bidirectional:
-- **EM -> Acoustic**: geomagnetic storm -> spin perturbation -> acoustic emission in magnetic crust
-- **Acoustic -> EM**: seismic wave -> lattice perturbation -> piezomagnetic signal
+[`kicked_relaxor_synthesis.md`](kicked_relaxor_synthesis.md) — One kicked-relaxor
+kernel, two sign conventions: boreal extraction collapse and fire-exclusion megafire
+are the same stroboscopic map. Includes `T_crit` derivation, empirical anchors
+(Macdonald 2026, Mariani 2022), and a refutation protocol.
 
-The sub-layer connects Layer 0 (Electromagnetics) to Layer 5 (Lithosphere)
-through a coupling mechanism that existing models treat as nonexistent.
+---
 
-### Supporting Modules
+## Extended Modules
 
-| File | Description |
-|------|-------------|
-| layer_0b_magnomechanical.py | Magnomechanical coupling state |
-| magnonic_sublayer.py | Spin wave physics engine |
-| magnon_polaron_hybridization.py | Magnon-phonon crossover analysis |
-| confined_magnon_polaron.py | Confined mode + geological analysis |
-| multi_channel_coupling.py | Multi-channel enhancement |
-| earth_magnomechanical.py | Geological-scale transduction |
-| banded_crystal_computer.py | Phonon band structure in layered magnonic crystals |
-| cold_climate_crystal.py | Temperature-dependent sensitivity analysis |
-| crystal_device_gradient.py | Frequency-shift magnetometer design |
+The full module inventory (113+ files) is documented in [`CLAUDE.md`](CLAUDE.md).
+Major subsystem clusters:
 
-Each layer exports:
-- State variables
-- Governing equations
-- Coupling interfaces to adjacent layers
-- Known phase transition thresholds
+| Cluster | Key files |
+|---------|-----------|
+| Ratchet dynamics / ecosystem accounting | `kicked_relaxor_kernel.py`, `boreal_recovery_ratchet.py`, `boreal_carbon_ledger.py`, `fuel_load_ratchet.py`, `permafrost_abrupt_ledger.py`, `amoc_hysteresis_gate.py`, `stressor_nonadditivity.py` |
+| Metrology | `measurement_corruption_taf.py`, `cascade_transfer.py`, `scope_carrier_density.py`, `frozen_flow_audit.py` |
+| Inference / epistemic guards | `curiosity_engine.py`, `universe_constraint.py`, `continuity_audit.py`, `self_referential_guard.py`, `reflexive_bias_guard.py` |
+| Magnomechanical sub-layer | `magnonic_sublayer.py`, `skyrmion_rkky.py`, `skyrmion_phonon_coupling.py`, `cavity_optomagnonics.py` |
+| Systems-analysis audits | `chattel_slavery_triple_audit.py`, `ocean_timber_sequestration_audit.py`, `substrate_audit.py`, `financial_cascade_model.py` |
+| Sub-projects | `boundary_waters/` (BWCA mine cascade), `oil_phase_shift/` (shale regime feedback loops) |
 
 ---
 
@@ -93,12 +85,30 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-# Run all forcing scenarios
-python cascade_engine.py
-
-# Start assumption validator REST API (port 5000)
-python assumption_validator/api.py
+python cascade_engine.py           # Run all forcing scenarios
+python assumption_validator/api.py # Start validator REST API (port 5000)
+pytest -v                          # Run test suite (350+ tests)
 ```
+
+---
+
+## Machine-Readable Exports
+
+[`ai_reference/`](ai_reference/) contains 33 JSONL catalogs (242 records)
+auto-exported from source modules — mechanisms, assumption boundaries, cascade
+scenarios, feedback loops, and more. See [`ai_reference/README.md`](ai_reference/README.md)
+for ingestion instructions.
+
+---
+
+## Key Documents
+
+| Document | Content |
+|----------|---------|
+| [`CLAUDE.md`](CLAUDE.md) | Full architecture, module inventory, code conventions |
+| [`kicked_relaxor_synthesis.md`](kicked_relaxor_synthesis.md) | Cross-domain kernel unification |
+| [`ASSESS.md`](ASSESS.md) | Assessment protocol for AI systems |
+| [`ai_reference/README.md`](ai_reference/README.md) | Machine-readable catalog guide |
 
 ---
 
@@ -115,29 +125,6 @@ python assumption_validator/api.py
 - A constraint stack.
 - An equation engine that prevents bad reasoning by making costs visible.
 - A system that knows when its own assumptions are breaking.
-
----
-
-## File Structure
-
-```
-earth-systems-physics/
-├── README.md
-├── requirements.txt
-├── layer_0_electromagnetics.py
-├── layer_1_magnetosphere.py
-├── layer_2_ionosphere.py
-├── layer_3_atmosphere.py
-├── layer_4_hydrosphere.py
-├── layer_5_lithosphere.py
-├── layer_6_biosphere.py
-├── cascade_engine.py
-└── assumption_validator/
-    ├── __init__.py
-    ├── registry.py
-    ├── monitors.py
-    └── api.py
-```
 
 ---
 

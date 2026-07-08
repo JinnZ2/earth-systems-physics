@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "earth-systems-physics"
+license: CC0-1.0
+repository-code: "https://github.com/JinnZ2/earth-systems-physics"
+abstract: >
+  A coupled differential equation framework mapping Earth physics as
+  constraint layers from orbital forcing through biosphere. Includes a
+  cascade engine, assumption validator, kicked-relaxor ecosystem dynamics,
+  carbon accounting, AMOC hysteresis, permafrost ledgers, and systems-analysis
+  audits. Pure Python. Not a climate model. A physics inventory and constraint
+  stack.
+keywords:
+  - earth-systems
+  - physics
+  - differential-equations
+  - cascade-dynamics
+  - carbon-accounting
+  - biosphere
+  - magnomechanical
+  - ecosystem-physics
+  - kicked-relaxor
+  - constraint-layers
+  - assumption-validation
+  - cc0
