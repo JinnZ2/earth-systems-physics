@@ -9543,3 +9543,142 @@ class TestWarningTimeAudit:
         result = audit(T, ty, px, tiers={"LOW": 0.10, "HIGH": 0.90})
         assert set(result["tiers"].keys()) == {"LOW", "HIGH"}
         assert result["verdict"]["tier"] == "LOW"
+
+
+# ── CORRUPTION CHAIN (TAF composition) ────────────────────────────────────────
+
+class TestCorruptionChain:
+    def test_import(self):
+        import corruption_chain
+
+    def test_from_flag_maps_factors(self):
+        from corruption_chain import from_flag
+        assert from_flag("GREEN")["factor"] == 1.0
+        assert from_flag("YELLOW")["factor"] == 2.0
+        assert from_flag("RED")["factor"] == 5.0
+
+    def test_from_flag_unknown_is_faithful(self):
+        from corruption_chain import from_flag
+        assert from_flag("PURPLE")["factor"] == 1.0
+
+    def test_from_warning_time_concave_underestimates(self):
+        from corruption_chain import from_warning_time
+        adapter = from_warning_time({
+            "curve": {"signed_deviation": 0.18},
+            "verdict": {"warning_lost_frac": 0.5},
+        })
+        assert adapter["direction"] == 1          # concave -> underestimate
+        assert adapter["factor"] == 2.0           # 1/(1-0.5)
+
+    def test_from_warning_time_convex_overestimates(self):
+        from corruption_chain import from_warning_time
+        adapter = from_warning_time({
+            "curve": {"signed_deviation": -0.18},
+            "verdict": {"warning_lost_frac": 0.0},
+        })
+        assert adapter["direction"] == -1
+        assert adapter["factor"] == 1.0
+
+    def test_from_warning_time_full_loss_caps(self):
+        from corruption_chain import from_warning_time
+        adapter = from_warning_time({
+            "curve": {"signed_deviation": 0.5},
+            "verdict": {"warning_lost_frac": 1.0},
+        })
+        assert adapter["factor"] == 50.0
+
+    def test_from_thermal_sensor_uses_drift_and_flag(self):
+        from corruption_chain import from_thermal_sensor
+        adapter = from_thermal_sensor({
+            "electronics": {"projected_drift_pct": 1.5},
+            "verdict": "YELLOW",
+        })
+        # max(1+1.5, FLAG_FACTOR[YELLOW]=2.0) = 2.5
+        assert adapter["factor"] == 2.5
+        assert adapter["direction"] == 1
+
+    def test_compose_compounding_same_direction(self):
+        from corruption_chain import compose, from_flag
+        p, net, coupling = compose([from_flag("YELLOW", 1), from_flag("YELLOW", 1)])
+        assert p == 4.0
+        assert net == 1
+        assert "COMPOUNDING" in coupling
+
+    def test_compose_mixed_direction_not_trusted(self):
+        from corruption_chain import compose, from_flag
+        p, net, coupling = compose([from_flag("YELLOW", 1), from_flag("YELLOW", -1)])
+        assert net == 0
+        assert "MIXED" in coupling
+
+    def test_compose_clean_chain_neutral(self):
+        from corruption_chain import compose, from_flag
+        p, net, coupling = compose([from_flag("GREEN", 0), from_flag("GREEN", 0)])
+        assert p == 1.0
+        assert net == 0
+        assert coupling == "neutral"
+
+    def test_chain_clean_is_green(self):
+        from corruption_chain import chain, from_flag
+        r = chain([from_flag("GREEN", 0), from_flag("GREEN", 0)])
+        assert r["flag"] == "GREEN"
+        assert "clean chain" in r["read"]
+
+    def test_chain_compounding_is_red(self):
+        from corruption_chain import chain, from_flag
+        r = chain([from_flag("YELLOW", 1), from_flag("RED", 1)])
+        assert r["trend_corruption_factor"] == 10.0
+        assert r["flag"] == "RED"
+        assert "COMPOUNDING" in r["coupling"]
+
+    def test_chain_masking_risk_flagged(self):
+        """Offsetting directions with a large product must raise masking_risk."""
+        from corruption_chain import chain, from_flag
+        r = chain([from_flag("RED", 1), from_flag("RED", -1)])
+        assert r["masking_risk"] is True
+        assert "MASKED" in r["read"]
+
+    def test_chain_masking_not_flagged_when_small(self):
+        from corruption_chain import chain, from_flag
+        r = chain([from_flag("GREEN", 1), from_flag("GREEN", -1)])
+        assert r["masking_risk"] is False
+
+    def test_end_to_end_warning_time_audit(self):
+        """Real warning_time_audit output pipes through the adapter."""
+        from warning_time_audit import audit as wt_audit
+        from corruption_chain import from_warning_time, chain
+        T = list(range(0, 91))
+        px = [t / 90.0 for t in T]
+        ty = [round(p ** 0.6, 4) for p in px]      # concave underestimation
+        wt = wt_audit(T, ty, px)
+        layer = from_warning_time(wt)
+        assert layer["direction"] == 1              # concave detected
+        r = chain([layer])
+        assert r["flag"] in ("GREEN", "YELLOW", "RED")
+
+    def test_end_to_end_thermal_sensor_audit(self):
+        """Real thermal_sensor_degradation_audit output pipes through."""
+        from thermal_sensor_degradation_audit import audit as ts_audit
+        from corruption_chain import from_thermal_sensor, chain
+        ts = ts_audit(air_f=110, rh_pct=45, days=45,
+                      pairs=[("aluminum_6061", "abs_plastic", 150)],
+                      gaskets=["epdm_rubber"])
+        layer = from_thermal_sensor(ts)
+        assert layer["factor"] >= 1.0
+        r = chain([layer])
+        assert "trend_corruption_factor" in r
+
+    def test_end_to_end_two_module_chain(self):
+        """Compose a real thermal-sensor measurement with a real SDM framework."""
+        from warning_time_audit import audit as wt_audit
+        from thermal_sensor_degradation_audit import audit as ts_audit
+        from corruption_chain import from_warning_time, from_thermal_sensor, chain
+        T = list(range(0, 91))
+        px = [t / 90.0 for t in T]
+        ty = [round(p ** 0.6, 4) for p in px]
+        wt = wt_audit(T, ty, px)
+        ts = ts_audit(air_f=110, rh_pct=45, days=45,
+                      pairs=[("aluminum_6061", "abs_plastic", 150)],
+                      gaskets=["epdm_rubber"])
+        r = chain([from_thermal_sensor(ts), from_warning_time(wt)])
+        assert r["trend_corruption_factor"] >= 1.0
+        assert r["flag"] in ("GREEN", "YELLOW", "RED")
