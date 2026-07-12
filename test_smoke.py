@@ -9415,3 +9415,131 @@ class TestThermalSensorDegradationAudit:
         expected = ("RED" if "RED" in flags
                     else "YELLOW" if "YELLOW" in flags else "GREEN")
         assert result["verdict"] == expected
+
+
+# ── WARNING-TIME AUDIT ────────────────────────────────────────────────────────
+
+class TestWarningTimeAudit:
+    def test_import(self):
+        import warning_time_audit
+
+    def test_first_crossing_interpolates(self):
+        from warning_time_audit import first_crossing
+        # loss 0.0 -> 1.0 over t 0 -> 10; theta 0.5 crosses at t=5
+        t = first_crossing([0, 10], [0.0, 1.0], 0.5)
+        assert abs(t - 5.0) < 1e-9
+
+    def test_first_crossing_at_index_zero(self):
+        from warning_time_audit import first_crossing
+        assert first_crossing([3, 4, 5], [0.9, 0.95, 1.0], 0.5) == 3
+
+    def test_first_crossing_never(self):
+        from warning_time_audit import first_crossing
+        assert first_crossing([0, 1, 2], [0.0, 0.1, 0.2], 0.9) is None
+
+    def test_first_crossing_exact_first_point(self):
+        """First sample already at theta returns the first time."""
+        from warning_time_audit import first_crossing
+        assert first_crossing([0, 1], [0.5, 0.5], 0.5) == 0
+
+    def test_collapse_time_reaches_near_one(self):
+        from warning_time_audit import collapse_time
+        T = list(range(11))
+        loss = [t / 10.0 for t in T]
+        tc = collapse_time(T, loss)
+        assert tc <= 10.0 and tc > 9.0
+
+    def test_collapse_time_fallback_last(self):
+        from warning_time_audit import collapse_time
+        T = [0, 1, 2]
+        assert collapse_time(T, [0.1, 0.2, 0.3]) == 2
+
+    def test_curve_deviation_concave_positive(self):
+        """truth = proxy**0.6 : truth exceeds proxy -> D > 0 concave."""
+        from warning_time_audit import curve_deviation
+        px = [i / 20.0 for i in range(21)]
+        ty = [p ** 0.6 for p in px]
+        c = curve_deviation(px, ty)
+        assert c["signed_deviation"] > 0
+        assert "CONCAVE" in c["shape"]
+
+    def test_curve_deviation_convex_negative(self):
+        """truth = proxy**1.6 : truth below proxy -> D < 0 convex."""
+        from warning_time_audit import curve_deviation
+        px = [i / 20.0 for i in range(21)]
+        ty = [p ** 1.6 for p in px]
+        c = curve_deviation(px, ty)
+        assert c["signed_deviation"] < 0
+        assert "CONVEX" in c["shape"]
+
+    def test_curve_deviation_linear(self):
+        from warning_time_audit import curve_deviation
+        px = [i / 20.0 for i in range(21)]
+        c = curve_deviation(px, list(px))
+        assert abs(c["signed_deviation"]) < 0.02
+        assert "LINEAR" in c["shape"]
+
+    def test_warning_gap_proxy_lags(self):
+        from warning_time_audit import warning_gap, collapse_time, DEFAULT_TIERS
+        T = list(range(0, 91))
+        px = [t / 90.0 for t in T]
+        ty = [p ** 0.6 for p in px]
+        tc = collapse_time(T, ty)
+        g = warning_gap(T, ty, px, DEFAULT_TIERS, tc)
+        # concave case: proxy crossings come later than truth -> positive gap
+        for tier in ("VU", "EN", "CR"):
+            assert g[tier]["gap_yr"] > 0
+            assert g[tier]["warning_lost_frac"] >= 0
+
+    def test_warning_gap_truth_never_note(self):
+        from warning_time_audit import warning_gap
+        T = [0, 1, 2]
+        low = [0.0, 0.05, 0.1]
+        g = warning_gap(T, low, low, {"VU": 0.30}, 2)
+        assert "note" in g["VU"]
+
+    def test_verdict_uses_lowest_theta_tier(self):
+        from warning_time_audit import verdict
+        gap_table = {
+            "VU": {"warning_lost_frac": 0.6, "gap_yr": 5},
+            "EN": {"warning_lost_frac": 0.1, "gap_yr": 2},
+        }
+        v = verdict(gap_table, {"VU": 0.30, "EN": 0.50})
+        assert v["tier"] == "VU"
+        assert v["flag"] == "RED"
+
+    def test_verdict_flag_thresholds(self):
+        from warning_time_audit import verdict
+        tiers = {"VU": 0.30}
+        assert verdict({"VU": {"warning_lost_frac": 0.1}}, tiers)["flag"] == "GREEN"
+        assert verdict({"VU": {"warning_lost_frac": 0.3}}, tiers)["flag"] == "YELLOW"
+        assert verdict({"VU": {"warning_lost_frac": 0.7}}, tiers)["flag"] == "RED"
+
+    def test_audit_concave_shape_and_keys(self):
+        from warning_time_audit import audit
+        T = list(range(0, 91))
+        px = [t / 90.0 for t in T]
+        ty = [round(p ** 0.6, 4) for p in px]
+        result = audit(T, ty, px)
+        for key in ("collapse_time", "curve", "tiers", "verdict"):
+            assert key in result
+        assert "CONCAVE" in result["curve"]["shape"]
+        assert result["verdict"]["flag"] in ("RED", "YELLOW", "GREEN")
+
+    def test_audit_faithful_proxy_no_warning_lost(self):
+        """Linear proxy=truth loses no warning time."""
+        from warning_time_audit import audit
+        T = list(range(0, 101))
+        loss = [t / 100.0 for t in T]
+        result = audit(T, loss, list(loss))
+        assert result["verdict"]["flag"] == "GREEN"
+        assert result["tiers"]["VU"]["warning_lost_frac"] == 0.0
+
+    def test_audit_custom_tiers(self):
+        from warning_time_audit import audit
+        T = list(range(0, 101))
+        px = [t / 100.0 for t in T]
+        ty = [p ** 0.6 for p in px]
+        result = audit(T, ty, px, tiers={"LOW": 0.10, "HIGH": 0.90})
+        assert set(result["tiers"].keys()) == {"LOW", "HIGH"}
+        assert result["verdict"]["tier"] == "LOW"
