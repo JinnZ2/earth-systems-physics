@@ -9279,3 +9279,139 @@ class TestPaleoseismicCrossval:
         for cid in ("GEO-01", "GEO-02", "GEO-03", "GEO-04",
                     "AQ-01", "AQ-02", "AQ-03", "SYN-01", "SYN-02"):
             assert cid in cids, f"Missing claim {cid}"
+
+
+# ── THERMAL SENSOR DEGRADATION AUDIT ──────────────────────────────────────────
+
+class TestThermalSensorDegradationAudit:
+    def test_import(self):
+        import thermal_sensor_degradation_audit
+
+    def test_f_to_c_reference_points(self):
+        from thermal_sensor_degradation_audit import f_to_c
+        assert abs(f_to_c(32.0) - 0.0) < 1e-9
+        assert abs(f_to_c(212.0) - 100.0) < 1e-9
+
+    def test_wet_bulb_below_dry_bulb(self):
+        """Wet-bulb temp must not exceed dry-bulb at sub-saturation RH."""
+        from thermal_sensor_degradation_audit import wet_bulb_c
+        assert wet_bulb_c(43.3, 45.0) < 43.3
+
+    def test_wet_bulb_increases_with_humidity(self):
+        from thermal_sensor_degradation_audit import wet_bulb_c
+        assert wet_bulb_c(35.0, 80.0) > wet_bulb_c(35.0, 20.0)
+
+    def test_surface_hotter_than_air(self):
+        from thermal_sensor_degradation_audit import surface_temp_c
+        air = 43.3
+        assert surface_temp_c(air) > air
+
+    def test_surface_wind_cools(self):
+        """More convective relief lowers surface temp."""
+        from thermal_sensor_degradation_audit import surface_temp_c
+        assert surface_temp_c(40.0, wind_ms=5.0) < surface_temp_c(40.0, wind_ms=0.0)
+
+    def test_pair_mismatch_scales_with_delta_t(self):
+        from thermal_sensor_degradation_audit import pair_mismatch
+        low  = pair_mismatch("aluminum_6061", "abs_plastic", 150, 20.0)
+        high = pair_mismatch("aluminum_6061", "abs_plastic", 150, 80.0)
+        assert high["microstrain"] > low["microstrain"]
+
+    def test_pair_mismatch_flags(self):
+        from thermal_sensor_degradation_audit import pair_mismatch
+        # near-matched CTE stays GREEN
+        matched = pair_mismatch("concrete", "steel_1018", 300, 85.0)
+        assert matched["flag"] == "GREEN"
+        # highly dissimilar goes RED
+        dissimilar = pair_mismatch("aluminum_6061", "abs_plastic", 150, 85.0)
+        assert dissimilar["flag"] == "RED"
+
+    def test_pair_mismatch_symmetric(self):
+        from thermal_sensor_degradation_audit import pair_mismatch
+        a = pair_mismatch("steel_1018", "nylon_66", 100, 60.0)
+        b = pair_mismatch("nylon_66", "steel_1018", 100, 60.0)
+        assert a["microstrain"] == b["microstrain"]
+
+    def test_compression_set_accelerates_with_temp(self):
+        from thermal_sensor_degradation_audit import compression_set
+        cool = compression_set("epdm_rubber", 70.0, 30)
+        hot  = compression_set("epdm_rubber", 100.0, 30)
+        assert hot["set_fraction"] > cool["set_fraction"]
+
+    def test_compression_set_clamped_at_one(self):
+        from thermal_sensor_degradation_audit import compression_set
+        r = compression_set("pvc", 105.0, 45)
+        assert 0.0 <= r["set_fraction"] <= 1.0
+
+    def test_compression_set_unknown_material(self):
+        from thermal_sensor_degradation_audit import compression_set
+        r = compression_set("steel_1018", 100.0, 30)
+        assert "note" in r
+        assert "flag" not in r
+
+    def test_aging_multiplier_unity_at_reference(self):
+        from thermal_sensor_degradation_audit import aging_multiplier
+        assert abs(aging_multiplier(25.0) - 1.0) < 1e-6
+
+    def test_aging_multiplier_increases_with_temp(self):
+        from thermal_sensor_degradation_audit import aging_multiplier
+        assert aging_multiplier(70.0) > aging_multiplier(50.0) > aging_multiplier(25.0)
+
+    def test_sensor_drift_uses_internal_temp(self):
+        from thermal_sensor_degradation_audit import sensor_drift
+        r = sensor_drift(43.3, 15.0, 0.25, 45)
+        assert r["internal_c"] == round(43.3 + 15.0, 1)
+        assert r["aging_multiplier_vs_25C"] > 1.0
+
+    def test_corruption_signature_detects_collapse(self):
+        from thermal_sensor_degradation_audit import corruption_signature
+        before = [30, 35, 40, 45, 50, 25]
+        during = [38, 38, 39, 38, 39, 38]
+        sig = corruption_signature(before, during)
+        assert sig["variance_collapse"] is True
+        assert sig["range_clipping"] is True
+        assert "LOW-BIAS" in sig["read"]
+
+    def test_corruption_signature_clean(self):
+        from thermal_sensor_degradation_audit import corruption_signature
+        before = [30, 35, 40, 45, 50, 25]
+        during = [31, 36, 41, 46, 51, 26]
+        sig = corruption_signature(before, during)
+        assert sig["variance_collapse"] is False
+        assert "no corruption signature" in sig["read"]
+
+    def test_audit_returns_verdict(self):
+        from thermal_sensor_degradation_audit import audit
+        result = audit(air_f=110, rh_pct=45, days=45,
+                       pairs=[("aluminum_6061", "abs_plastic", 150)],
+                       gaskets=["epdm_rubber"])
+        assert result["verdict"] in ("RED", "YELLOW", "GREEN")
+
+    def test_audit_heat_dome_is_red(self):
+        from thermal_sensor_degradation_audit import audit
+        result = audit(air_f=110, rh_pct=45, days=45,
+                       pairs=[("aluminum_6061", "abs_plastic", 150),
+                              ("steel_1018", "nylon_66", 100),
+                              ("concrete", "steel_1018", 300)],
+                       gaskets=["epdm_rubber", "nitrile_rubber"])
+        assert result["verdict"] == "RED"
+
+    def test_audit_benign_case_greener(self):
+        """Mild conditions with matched CTE and no gasket model stay non-RED."""
+        from thermal_sensor_degradation_audit import audit
+        result = audit(air_f=70, rh_pct=40, days=5,
+                       pairs=[("concrete", "steel_1018", 300)],
+                       gaskets=[])
+        assert result["verdict"] in ("GREEN", "YELLOW")
+
+    def test_audit_verdict_worst_flag_wins(self):
+        from thermal_sensor_degradation_audit import audit
+        result = audit(air_f=110, rh_pct=45, days=45,
+                       pairs=[("concrete", "steel_1018", 300)],
+                       gaskets=["epdm_rubber"])
+        flags = ([p["flag"] for p in result["pairs"]]
+                 + [g.get("flag", "GREEN") for g in result["gaskets"]]
+                 + [result["electronics"]["flag"]])
+        expected = ("RED" if "RED" in flags
+                    else "YELLOW" if "YELLOW" in flags else "GREEN")
+        assert result["verdict"] == expected
