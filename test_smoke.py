@@ -9808,3 +9808,117 @@ class TestClimateModelingAudits:
         from climate_modeling.ai_interface import AIScientist
         patch = AIScientist().propose_patch({"audit_name": "Phase Change Blindness"})
         assert "threshold" in patch["suggestion"]
+
+
+# ── DIACHRONIC ANCHOR (Manifold Framework companion) ──────────────────────────
+
+class TestDiachronicAnchor:
+    def _example_trajectory(self):
+        from diachronic_anchor import AnchorPoint
+        return [
+            AnchorPoint(year=1787, who="framers", coordinate={"t": 1787},
+                        semantic_load="contested compromise among factions",
+                        intent="establish a workable federal structure",
+                        problem_solved="bind 13 rival states", S="high"),
+            AnchorPoint(year=1894, who="nationalist historians", coordinate={"t": 1894},
+                        semantic_load="timeless national ideals",
+                        intent="legitimize present order via founding heritage",
+                        problem_solved="manufacture a unified origin story", S="low"),
+            AnchorPoint(year=2024, who="consensus reading", coordinate={"t": 2024},
+                        semantic_load="what the founders always meant",
+                        intent="present current interpretation as accurate original consensus",
+                        problem_solved="ground present arrangements as fulfilment", S="low"),
+        ]
+
+    def test_import(self):
+        import diachronic_anchor
+
+    def test_anchorpoint_as_row_defaults_unknown_S(self):
+        from diachronic_anchor import AnchorPoint
+        p = AnchorPoint(year=1800, who="x", coordinate={}, semantic_load="a",
+                        intent="b", problem_solved="c")
+        assert p.as_row()["S"] == "unknown"
+
+    def test_classify_origin_is_not_reanchoring(self):
+        from diachronic_anchor import classify_rhetorical_load, AnchorPoint
+        p = AnchorPoint(year=1787, who="x", coordinate={}, semantic_load="",
+                        intent="found a republic", problem_solved="bind states")
+        assert classify_rhetorical_load(p, is_origin=True) == ["origin_stance"]
+
+    def test_classify_detects_ancestry(self):
+        from diachronic_anchor import classify_rhetorical_load, AnchorPoint
+        p = AnchorPoint(year=1894, who="x", coordinate={}, semantic_load="",
+                        intent="tie it to ancestral heritage", problem_solved="")
+        assert "authority_by_ancestry" in classify_rhetorical_load(p, False)
+
+    def test_classify_none_detected(self):
+        from diachronic_anchor import classify_rhetorical_load, AnchorPoint
+        p = AnchorPoint(year=1900, who="x", coordinate={}, semantic_load="",
+                        intent="describe the weather", problem_solved="note rainfall")
+        assert classify_rhetorical_load(p, False) == ["none_detected"]
+
+    def test_requires_two_points(self):
+        from diachronic_anchor import diachronic_anchor, AnchorPoint
+        one = [AnchorPoint(year=1787, who="x", coordinate={}, semantic_load="",
+                           intent="", problem_solved="")]
+        assert "error" in diachronic_anchor("phrase", one)
+
+    def test_worked_example_pattern_is_authority_laundering(self):
+        from diachronic_anchor import diachronic_anchor
+        out = diachronic_anchor("founded on these principles", self._example_trajectory())
+        assert out["pattern_across_trajectory"]["direction"] == "authority_laundering"
+
+    def test_worked_example_load_sequence(self):
+        from diachronic_anchor import diachronic_anchor
+        out = diachronic_anchor("p", self._example_trajectory())
+        assert out["rhetorical_load_sequence"] == [
+            "authority_by_ancestry", "consensus_naturalization"]
+
+    def test_teleology_guard_fires(self):
+        from diachronic_anchor import diachronic_anchor
+        out = diachronic_anchor("p", self._example_trajectory())
+        # the 2024 "always meant" reading claims the origin aimed at now
+        assert len(out["teleology_flags"]) == 1
+        assert out["teleology_flags"][0]["year"] == 2024
+
+    def test_semantic_drift_flags_changed_load(self):
+        from diachronic_anchor import diachronic_anchor
+        out = diachronic_anchor("p", self._example_trajectory())
+        assert len(out["semantic_drift"]) == 2
+        for d in out["semantic_drift"]:
+            assert "different semantic load" in d["gap"]
+
+    def test_origin_is_earliest_regardless_of_input_order(self):
+        from diachronic_anchor import diachronic_anchor
+        traj = self._example_trajectory()
+        reversed_traj = list(reversed(traj))
+        out = diachronic_anchor("p", reversed_traj)
+        assert out["origin_coordinate"]["year"] == 1787
+
+    def test_falsifier_mentions_primary_texts(self):
+        from diachronic_anchor import diachronic_anchor
+        out = diachronic_anchor("p", self._example_trajectory())
+        assert "PRIMARY" in out["falsifiable_claim"]
+
+    def test_freeze_and_wield_pattern(self):
+        from diachronic_anchor import diachronic_anchor, AnchorPoint
+        traj = [
+            AnchorPoint(year=1900, who="a", coordinate={}, semantic_load="x",
+                        intent="found", problem_solved="found"),
+            AnchorPoint(year=1950, who="b", coordinate={}, semantic_load="y",
+                        intent="the plain meaning is self-evident and fixed",
+                        problem_solved="the text demands we act; a call to rally"),
+        ]
+        out = diachronic_anchor("p", traj)
+        assert out["pattern_across_trajectory"]["direction"] == "freeze_and_wield"
+
+    def test_no_load_pattern_is_none(self):
+        from diachronic_anchor import diachronic_anchor, AnchorPoint
+        traj = [
+            AnchorPoint(year=1900, who="a", coordinate={}, semantic_load="x",
+                        intent="found a system", problem_solved="organize work"),
+            AnchorPoint(year=1950, who="b", coordinate={}, semantic_load="x",
+                        intent="describe the same system", problem_solved="record it"),
+        ]
+        out = diachronic_anchor("p", traj)
+        assert out["pattern_across_trajectory"]["direction"] == "none"
