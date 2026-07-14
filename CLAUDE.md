@@ -371,6 +371,53 @@ acute. See `oil_phase_shift/README.md` for the full architecture
 plus the parameter-resets that populate the recovery mode (prior
 calibration 0.40, trust 0.65, Hormuz non-crisis).
 
+## Climate Modeling — AI-Assisted Modelling Audit Laboratory
+
+`climate_modeling/` is a standalone sub-project (metascience, not a
+climate model) for studying **how models fail** and how an AI can act
+as a co-scientist in catching those failures. numpy + scipy only (no
+sklearn / streamlit), CC0. Two layers:
+
+- **Level 1 — experiments** (`experiments.py`, `simulation.py`): run
+  the ecological models and measure the Jensen-inequality bias that
+  averaging a nonlinear response introduces.
+- **Level 2 — meta-experiments** (`audits/`, `meta_experiments.py`):
+  16 controlled audits where the true generative process is **known**,
+  so a detected failure is a genuine modelling error, not a fitting
+  artifact. `meta_experiments.py` asks an AI proposer
+  (`ai_interface.py`, dummy rule-based backend; optional deferred-import
+  openai backend) what structural repair each failure calls for.
+
+The 16 audits pair a rich **true** system against a **simplified**
+model: PhaseChangeBlindness, ThresholdSmoothing, Stationarity,
+MissingFeedback, MissingPositiveFeedback, OmittedVariable,
+DataAggregation, TemporalAggregationExtremes, CascadeSpeedBlindness,
+SpatialHomogenization, MemoryAmnesia, CrossSystemCoupling,
+BufferExhaustion, ClusteredExtremes, GaussianBlindness, IncentiveBias.
+Many target one danger: systematic **underestimation of collapse
+speed**. See `climate_modeling/AUDIT_TAXONOMY.md` for each failure
+mode mapped to its fallacy, mathematical condition, and consequence.
+
+```bash
+python -m climate_modeling.run_audits        # full audit report card
+python -m climate_modeling.experiments       # Level-1 aggregation bias
+python -m climate_modeling.meta_experiments  # audits + AI-proposed repairs
+```
+
+Documented run: **16/16 audits detect a modelling failure in ~1.5 s.**
+Two models carry the suite: `GrassCarbonBalance` (smooth single-state
+baseline that survives stress) and `CascadeGrass` (threshold + soil
+feedback + heat-damage memory that collapses under fat-tailed
+extremes). Key engineering choices (see `climate_modeling/README.md`
+"Design notes"): rate constants are per-hour and small so biomass
+persists under benign forcing and only collapses under sustained heat;
+stochastic forcing is **pre-sampled on a grid and interpolated** so
+`forcing(t)` is deterministic in `t` (a fresh draw per call is not a
+function of `t` and stalls `solve_ivp`); thresholds are continuous
+`smoothstep`s (fast adaptive integration); and the AI loop **reports**
+the proposed structural repair rather than silently rewriting model
+source.
+
 ## Paste-from-Markdown Recovery
 
 Several files in this repo have been (and will likely continue to be)

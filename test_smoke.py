@@ -9682,3 +9682,129 @@ class TestCorruptionChain:
         r = chain([from_thermal_sensor(ts), from_warning_time(wt)])
         assert r["trend_corruption_factor"] >= 1.0
         assert r["flag"] in ("GREEN", "YELLOW", "RED")
+
+
+# ── CLIMATE MODELING AUDIT LAB ────────────────────────────────────────────────
+
+class TestClimateModelingFramework:
+    def test_import_package(self):
+        import climate_modeling
+        assert climate_modeling.__version__
+
+    def test_grass_persists_benign(self):
+        """At benign temperature the smooth grass holds a healthy biomass
+        (regression guard for the per-hour rate calibration)."""
+        from climate_modeling.models import GrassCarbonBalance
+        from climate_modeling.forcing import DiurnalTemperature
+        g = GrassCarbonBalance()
+        t, y = g.simulate(DiurnalTemperature(T_mean=23, amplitude=2), [100.0], (0, 150))
+        assert y[0, -1] > 40.0
+
+    def test_grass_declines_under_heat(self):
+        from climate_modeling.models import GrassCarbonBalance
+        from climate_modeling.forcing import DiurnalTemperature
+        g = GrassCarbonBalance()
+        t, y = g.simulate(DiurnalTemperature(T_mean=36, amplitude=2), [100.0], (0, 150))
+        assert y[0, -1] < 20.0
+
+    def test_cascade_collapses_smooth_survives(self):
+        from climate_modeling.models import CascadeGrass, GrassCarbonBalance
+        from climate_modeling.forcing import FatTailedForcing
+        f1 = FatTailedForcing(T_mean=24, amplitude=6, df=3, scale=4, seed=42)
+        f2 = FatTailedForcing(T_mean=24, amplitude=6, df=3, scale=4, seed=42)
+        c = CascadeGrass(); tc, yc = c.simulate(f1, c.initial_state, (0, 150))
+        g = GrassCarbonBalance(); tg, yg = g.simulate(f2, [100.0], (0, 150))
+        assert yc[0].min() < 5.0          # cascade collapses
+        assert yg[0].min() > 20.0         # smooth baseline survives
+
+    def test_forcing_is_deterministic_in_t(self):
+        """Pre-sampled stochastic forcing must return the same value for the
+        same t (else it is not a function of t and breaks the ODE solver)."""
+        from climate_modeling.forcing import FatTailedForcing
+        f = FatTailedForcing(seed=1)
+        assert f(10.0)["temperature"] == f(10.0)["temperature"]
+        assert f(37.5)["temperature"] == f(37.5)["temperature"]
+
+    def test_forcing_temperature_capped(self):
+        from climate_modeling.forcing import FatTailedForcing, TEMP_CAP_C
+        f = FatTailedForcing(T_mean=30, amplitude=10, scale=20, seed=3)
+        for tt in range(0, 200, 3):
+            assert f(float(tt))["temperature"] <= TEMP_CAP_C + 1e-9
+
+    def test_smoothstep_bounds_and_monotonic(self):
+        from climate_modeling.models.base import smoothstep
+        assert 0.0 <= smoothstep(-100.0) < 0.01
+        assert 0.99 < smoothstep(100.0) <= 1.0
+        assert smoothstep(1.0) > smoothstep(-1.0)
+
+    def test_aggregation_bias_zero_at_flat_cycle(self):
+        from climate_modeling.experiments import experiment_aggregation_bias
+        assert experiment_aggregation_bias(amplitude=0.0) < 1e-6
+
+    def test_aggregation_bias_nonzero_under_cycle(self):
+        from climate_modeling.experiments import experiment_amplitude_sweep
+        sweep = dict(experiment_amplitude_sweep())
+        assert sweep[0.0] < 1e-6
+        assert max(sweep[a] for a in (5.0, 10.0, 15.0)) > 1.0
+
+
+class TestClimateModelingAudits:
+    def test_registry_has_sixteen_audits(self):
+        from climate_modeling.audits.audit_registry import all_audits
+        audits = all_audits()
+        assert len(audits) == 16
+        names = {a.name for a in audits}
+        assert len(names) == 16          # all names unique
+
+    def test_every_audit_returns_wellformed_report(self):
+        from climate_modeling.audits.audit_registry import all_audits
+        for audit in all_audits():
+            r = audit.run()
+            assert set(r) >= {"audit_name", "failure_detected", "metrics",
+                              "true_final", "audited_final"}
+            assert isinstance(r["failure_detected"], bool)
+            assert isinstance(r["metrics"], dict)
+
+    def test_all_audits_detect_failure(self):
+        """Every audit is calibrated so its simplified model fails the known
+        true system. This is the headline result of the suite."""
+        from climate_modeling.audits.audit_registry import all_audits
+        results = [(a.name, a.run()["failure_detected"]) for a in all_audits()]
+        failed = [name for name, ok in results if not ok]
+        assert not failed, f"audits that did not detect failure: {failed}"
+
+    def test_cascade_speed_audit_underestimates_collapse(self):
+        from climate_modeling.audits.cascade_speed import CascadeSpeedAudit
+        r = CascadeSpeedAudit().run()
+        m = r["metrics"]
+        assert m["audited_min"] > m["true_min"] + 2.0
+
+    def test_gaussian_blindness_matched_variance(self):
+        """The audited Gaussian shares the true fat-tail's variance yet the
+        true system collapses and the audited one does not."""
+        from climate_modeling.audits.gaussian_blindness import GaussianBlindnessAudit
+        r = GaussianBlindnessAudit().run()
+        assert r["metrics"]["audited_min"] > r["metrics"]["true_min"] + 3.0
+
+    def test_first_below_interpolates(self):
+        from climate_modeling.audits.base_audit import first_below
+        assert abs(first_below([0, 10], [100.0, 0.0], 50.0) - 5.0) < 1e-9
+        assert first_below([0, 1], [100.0, 90.0], 50.0) == float("inf")
+
+    def test_incentive_bias_custom_run(self):
+        from climate_modeling.audits.incentive_bias import IncentiveBiasAudit
+        r = IncentiveBiasAudit().run()
+        assert "linear_slope" in r["metrics"]
+
+    def test_meta_experiment_attaches_repairs(self):
+        from climate_modeling.meta_experiments import MetaExperiment
+        recs = MetaExperiment().run()
+        card = MetaExperiment.report_card(recs)
+        assert card["n_audits"] == 16
+        assert card["n_failures"] == 16
+        assert len(card["repairs"]) == 16
+
+    def test_ai_interface_dummy_no_dependency(self):
+        from climate_modeling.ai_interface import AIScientist
+        patch = AIScientist().propose_patch({"audit_name": "Phase Change Blindness"})
+        assert "threshold" in patch["suggestion"]
