@@ -9279,3 +9279,338 @@ class TestPaleoseismicCrossval:
         for cid in ("GEO-01", "GEO-02", "GEO-03", "GEO-04",
                     "AQ-01", "AQ-02", "AQ-03", "SYN-01", "SYN-02"):
             assert cid in cids, f"Missing claim {cid}"
+
+
+# ═════════════════════════════════════════════════════════════
+# AQUATIC DEOXYGENATION — PROPOSED 10TH PLANETARY BOUNDARY
+# Rose et al. 2024 (Nat Ecol Evol); Ferrer et al. 2026 (Limnol Oceanogr)
+# ═════════════════════════════════════════════════════════════
+
+class TestAquaticDeoxygenation:
+    """Oxygen solubility physics, the boundary framework, and the
+    interaction catalog."""
+
+    # ── solubility (Garcia & Gordon 1992) ──────────────────────
+
+    def test_solubility_matches_published_values(self):
+        """Garcia & Gordon at S=35: ~248 umol/kg at 15 C, ~307 at 5 C."""
+        from aquatic_deoxygenation import oxygen_solubility_umol_kg
+        assert 245.0 < oxygen_solubility_umol_kg(15.0, 35.0) < 251.0
+        assert 304.0 < oxygen_solubility_umol_kg(5.0, 35.0) < 311.0
+        assert 204.0 < oxygen_solubility_umol_kg(25.0, 35.0) < 210.0
+
+    def test_solubility_decreases_with_temperature(self):
+        from aquatic_deoxygenation import oxygen_solubility_umol_kg
+        vals = [oxygen_solubility_umol_kg(T) for T in (0, 10, 20, 30)]
+        assert vals == sorted(vals, reverse=True)
+
+    def test_freshwater_holds_more_oxygen_than_seawater(self):
+        from aquatic_deoxygenation import oxygen_solubility_umol_kg
+        assert (oxygen_solubility_umol_kg(15.0, 0.0)
+                > oxygen_solubility_umol_kg(15.0, 35.0))
+
+    def test_unit_conversions_round_trip(self):
+        from aquatic_deoxygenation import mg_L_to_umol_kg, umol_kg_to_mg_L
+        assert abs(mg_L_to_umol_kg(umol_kg_to_mg_L(250.0)) - 250.0) < 1e-9
+
+    def test_hypoxia_threshold_in_umol_kg(self):
+        """2 mg/L is ~61-63 umol/kg — the conventional hypoxia line."""
+        from aquatic_deoxygenation import mg_L_to_umol_kg, HYPOXIA_MG_L
+        assert 60.0 < mg_L_to_umol_kg(HYPOXIA_MG_L) < 64.0
+
+    def test_warming_drives_solubility_loss_of_a_few_percent(self):
+        """+2 K at 15 C costs a few percent of saturation — the floor of
+        deoxygenation, far smaller than the observed total."""
+        from aquatic_deoxygenation import solubility_loss_from_warming
+        r = solubility_loss_from_warming(15.0, 2.0)
+        assert 2.0 < r["pct_loss"] < 6.0
+        assert r["delta_O2_umol_kg"] < 0
+
+    def test_attribution_splits_15_85(self):
+        from aquatic_deoxygenation import attribute_oxygen_loss
+        a = attribute_oxygen_loss(20.0)
+        assert abs(a["solubility_umol_kg"] - 3.0) < 1e-9
+        assert abs(a["ventilation_umol_kg"] - 17.0) < 1e-9
+        assert a["ventilation_umol_kg"] > a["solubility_umol_kg"]
+
+    # ── ventilation coupling ───────────────────────────────────
+
+    def test_older_water_is_poorer_water(self):
+        from aquatic_deoxygenation import (
+            interior_oxygen_from_ventilation, oxygen_solubility_umol_kg)
+        sat = oxygen_solubility_umol_kg(8.0)
+        young = interior_oxygen_from_ventilation(sat, 50.0)
+        old = interior_oxygen_from_ventilation(sat, 1000.0)
+        assert young > old
+        assert old > 0.0
+
+    def test_interior_oxygen_saturates_not_diverges(self):
+        """Old water asymptotes to sat - OUR*tau: a parcel's respirable
+        carbon is finite, so extreme ventilation ages must not drive
+        interior O2 to zero."""
+        from aquatic_deoxygenation import interior_oxygen_from_ventilation
+        sat = 290.0
+        o2_1k = interior_oxygen_from_ventilation(sat, 1000.0, 0.35, 500.0)
+        o2_10k = interior_oxygen_from_ventilation(sat, 10000.0, 0.35, 500.0)
+        assert o2_10k > sat - 0.35 * 500.0 - 1e-6
+        assert o2_1k - o2_10k < 30.0
+
+    def test_interior_oxygen_linear_for_young_water(self):
+        from aquatic_deoxygenation import interior_oxygen_from_ventilation
+        approx = 290.0 - 0.35 * 10.0
+        got = interior_oxygen_from_ventilation(290.0, 10.0, 0.35, 500.0)
+        assert abs(got - approx) < 0.5
+
+    def test_AOU_is_positive_for_aged_water(self):
+        from aquatic_deoxygenation import apparent_oxygen_utilization
+        assert apparent_oxygen_utilization(150.0, 8.0) > 0
+
+    # ── Redfield / nutrient coupling ───────────────────────────
+
+    def test_redfield_oxygen_demand_from_nitrogen(self):
+        """8.625 mol O2 per mol N — no free parameters."""
+        from aquatic_deoxygenation import oxygen_demand_from_nutrient_load
+        d = oxygen_demand_from_nutrient_load(N_load_Tg_yr=14.007)
+        assert abs(d["O2_demand_Tmol_yr"] - 8.625) < 1e-6
+
+    def test_phosphorus_demand_dominates_per_mole(self):
+        from aquatic_deoxygenation import oxygen_demand_from_nutrient_load
+        d = oxygen_demand_from_nutrient_load(N_load_Tg_yr=1.0, P_load_Tg_yr=1.0)
+        assert d["from_phosphorus_Tmol_yr"] > d["from_nitrogen_Tmol_yr"]
+
+    # ── metabolic index ────────────────────────────────────────
+
+    def test_metabolic_index_falls_with_oxygen(self):
+        from aquatic_deoxygenation import metabolic_index
+        assert metabolic_index(250.0, 15.0) > metabolic_index(100.0, 15.0)
+
+    def test_warming_compresses_habitat_at_fixed_oxygen(self):
+        """Warming hits Phi twice: lower pO2 AND higher demand."""
+        from aquatic_deoxygenation import metabolic_index
+        assert metabolic_index(150.0, 20.0) < metabolic_index(150.0, 10.0)
+
+    def test_habitat_verdicts(self):
+        from aquatic_deoxygenation import habitat_viable
+        assert habitat_viable(20.0, 15.0)["verdict"] == "UNINHABITABLE"
+        assert habitat_viable(250.0, 15.0)["viable"] is True
+
+    # ── internal feedbacks ─────────────────────────────────────
+
+    def test_sediment_phosphorus_release_scales_with_anoxia(self):
+        from aquatic_deoxygenation import sediment_phosphorus_release
+        low = sediment_phosphorus_release(0.02)
+        high = sediment_phosphorus_release(0.50)
+        assert high["P_released_Tg_yr"] > low["P_released_Tg_yr"]
+        assert high["feedback_active"] is True
+        assert sediment_phosphorus_release(0.0)["feedback_active"] is False
+
+    def test_n2o_yield_peaks_in_suboxic_not_anoxic_water(self):
+        """The worst N2O band is suboxic — exactly where expanding OMZs
+        are heading. Fully anoxic water consumes N2O back to N2."""
+        from aquatic_deoxygenation import n2o_yield_factor
+        suboxic = n2o_yield_factor(8.0)
+        anoxic = n2o_yield_factor(0.0)
+        oxic = n2o_yield_factor(200.0)
+        assert suboxic > oxic
+        assert suboxic > anoxic
+        assert oxic == 1.0
+
+    def test_feedback_gain_is_amplifying_and_monotonic(self):
+        from aquatic_deoxygenation import deoxygenation_feedback_gain
+        mild = deoxygenation_feedback_gain(0.01, 0.01, 200.0)
+        severe = deoxygenation_feedback_gain(0.20, 0.40, 20.0)
+        assert mild["gain"] > 1.0
+        assert severe["gain"] > mild["gain"]
+        assert severe["amplifying"] is True
+
+    # ── boundary status ────────────────────────────────────────
+
+    def test_boundary_status_defaults_to_observed_high_risk(self):
+        from aquatic_deoxygenation import deoxygenation_boundary_status
+        st = deoxygenation_boundary_status()
+        assert st["control_value"] == 4.0
+        assert st["zone"] == "HIGH_RISK"
+        assert st["crossed"] is True
+
+    def test_boundary_zones_are_flagged_provisional(self):
+        """The papers propose the control variable but publish no numeric
+        safe value — the module must never present the zone edges as
+        published thresholds."""
+        from aquatic_deoxygenation import deoxygenation_boundary_status
+        st = deoxygenation_boundary_status(2.0)
+        assert st["zone_edges_provisional"] is True
+        assert st["zone"] == "INCREASING_RISK"
+        assert "provisional" in st["note"].lower() or \
+               "placeholder" in st["note"].lower()
+
+    def test_boundary_status_reports_proposal_not_adoption(self):
+        from aquatic_deoxygenation import (
+            deoxygenation_boundary_status, PROPOSAL_STATUS)
+        assert PROPOSAL_STATUS == "proposed_not_yet_adopted"
+        assert deoxygenation_boundary_status(1.0)["status"] == PROPOSAL_STATUS
+        assert deoxygenation_boundary_status(1.0)["zone"] == "SAFE"
+
+    def test_recovery_is_not_within_a_human_lifetime_for_deep_water(self):
+        from aquatic_deoxygenation import (
+            recovery_timescale, reversible_within_human_lifetime)
+        assert recovery_timescale("ocean_deep")[0] >= 1000.0
+        assert reversible_within_human_lifetime("ocean_deep") is False
+        assert reversible_within_human_lifetime("lake_surface") is True
+
+    def test_unknown_compartment_defaults_conservatively(self):
+        from aquatic_deoxygenation import recovery_timescale
+        yr, note = recovery_timescale("groundwater_aquifer")
+        assert yr == 1000.0
+        assert "not tabulated" in note
+
+    # ── interaction catalog ────────────────────────────────────
+
+    def test_catalog_covers_all_nine_boundaries(self):
+        from aquatic_deoxygenation import BOUNDARY_INTERACTIONS
+        names = {i.boundary for i in BOUNDARY_INTERACTIONS}
+        for expected in ("climate_change", "ocean_acidification",
+                         "biosphere_integrity",
+                         "biogeochemical_flows_nitrogen",
+                         "biogeochemical_flows_phosphorus",
+                         "freshwater_change", "land_system_change",
+                         "atmospheric_aerosol_loading",
+                         "stratospheric_ozone_depletion",
+                         "novel_entities"):
+            assert expected in names
+
+    def test_catalog_is_dominantly_amplifying(self):
+        """Ferrer et al.'s core finding: the interactions are abundant and
+        they mostly push the same direction."""
+        from aquatic_deoxygenation import interaction_summary
+        s = interaction_summary()
+        assert s["n_interactions"] >= 10
+        assert s["amplifying_fraction"] > 0.5
+
+    def test_every_interaction_is_well_formed(self):
+        from aquatic_deoxygenation import BOUNDARY_INTERACTIONS
+        for i in BOUNDARY_INTERACTIONS:
+            assert i.direction in ("driven_by", "drives", "bidirectional")
+            assert i.sign in ("amplifying", "dampening", "mixed")
+            assert i.evidence in ("observed", "mechanistic", "proposed")
+            assert len(i.mechanism) > 60
+            assert all(isinstance(n, int) for n in i.layers)
+
+    def test_interactions_by_boundary_lookup(self):
+        from aquatic_deoxygenation import interactions_by_boundary
+        assert len(interactions_by_boundary("biogeochemical")) == 2
+        assert interactions_by_boundary("nonexistent") == []
+
+    # ── module coupling state ──────────────────────────────────
+
+    def test_coupling_state_is_physically_ordered(self):
+        from aquatic_deoxygenation import coupling_state
+        cs = coupling_state()
+        assert cs["O2_interior_umol_kg"] < cs["O2_saturation_umol_kg"]
+        assert cs["AOU_umol_kg"] > 0
+        assert 0.0 <= cs["hypoxic_volume_fraction"] <= 1.0
+        assert cs["reversible_in_lifetime"] is False
+
+
+class TestDeoxygenationLayerIntegration:
+    """Layer 4 / Layer 6 / cascade-engine wiring."""
+
+    def test_layer4_exports_oxygen_state(self):
+        from cascade_engine import run_all_layers, BASELINE
+        s = run_all_layers(BASELINE)
+        for k in ("O2_sat_umol_kg", "O2_interior_umol_kg", "AOU_umol_kg",
+                  "hypoxic_volume_fraction", "metabolic_index",
+                  "deox_boundary_zone", "deox_feedback_gain",
+                  "deox_loop_active"):
+            assert k in s[4], f"layer 4 missing {k}"
+
+    def test_slower_ventilation_lowers_interior_oxygen(self):
+        """The thermohaline coupling: bottom-water slowdown deoxygenates
+        the interior with no warming at all."""
+        from layer_4_hydrosphere import ocean_deoxygenation
+        fast = ocean_deoxygenation(8.0, 200.0)
+        slow = ocean_deoxygenation(8.0, 2000.0)
+        assert slow["O2_interior_umol_kg"] < fast["O2_interior_umol_kg"]
+        assert slow["AOU_umol_kg"] > fast["AOU_umol_kg"]
+        assert (slow["hypoxic_volume_fraction"]
+                > fast["hypoxic_volume_fraction"])
+
+    def test_warmer_outcrop_lowers_saturation(self):
+        from layer_4_hydrosphere import ocean_deoxygenation
+        cold = ocean_deoxygenation(4.0, 500.0)
+        warm = ocean_deoxygenation(14.0, 500.0)
+        assert warm["O2_sat_umol_kg"] < cold["O2_sat_umol_kg"]
+        assert warm["O2_interior_umol_kg"] < cold["O2_interior_umol_kg"]
+
+    def test_hypoxic_volume_fraction_bounds_and_monotonicity(self):
+        from layer_4_hydrosphere import hypoxic_volume_fraction
+        assert hypoxic_volume_fraction(10.0) > hypoxic_volume_fraction(250.0)
+        assert 0.0 <= hypoxic_volume_fraction(250.0) <= 1.0
+        assert 0.0 <= hypoxic_volume_fraction(0.0) <= 1.0
+
+    def test_deoxygenation_loop_in_known_loops(self):
+        from cascade_engine import KNOWN_LOOPS
+        names = {loop["name"] for loop in KNOWN_LOOPS}
+        assert "Deoxygenation-Nutrient" in names
+
+    def test_deoxygenation_loop_triggers_at_baseline(self):
+        from cascade_engine import (
+            run_all_layers, BASELINE, detect_amplifying_loops)
+        loops = detect_amplifying_loops(run_all_layers(BASELINE))
+        deox = [l for l in loops if l["name"] == "Deoxygenation-Nutrient"]
+        assert len(deox) == 1
+        assert deox[0]["gain"] > 1.0
+
+    def test_anoxia_expansion_scenario_raises_loop_gain(self):
+        from cascade_engine import run_cascade, run_all_layers, BASELINE, SCENARIOS
+        base = run_all_layers(BASELINE)[4]["deox_feedback_gain"]
+        forced = run_cascade(SCENARIOS["anoxia_expansion"],
+                             verbose=False).layer_states[4]
+        assert forced["deox_feedback_gain"] > base
+
+    def test_deoxygenation_baseline_params_present(self):
+        from cascade_engine import BASELINE
+        for k in ("O2_utilization_rate_umol_kg_yr", "O2_remin_timescale_yr",
+                  "anoxic_area_fraction", "anoxic_volume_ratio_1960"):
+            assert k in BASELINE
+
+    def test_layer6_reports_tenth_boundary_separately(self):
+        """The canonical nine-boundary count must not silently change —
+        the tenth boundary is proposed, not adopted."""
+        from layer_6_biosphere import planetary_boundary_status
+        nine = planetary_boundary_status(420, 100, 150, 14, 2600, 0.50,
+                                         8.05, 0.15, 295)
+        ten = planetary_boundary_status(420, 100, 150, 14, 2600, 0.50,
+                                        8.05, 0.15, 295,
+                                        anoxic_volume_ratio=4.0)
+        assert "aquatic_deoxygenation" not in nine
+        assert ten["boundaries_crossed"] == nine["boundaries_crossed"]
+        assert ten["aquatic_deoxygenation"]["crossed"] is True
+        assert (ten["boundaries_crossed_incl_proposed"]
+                == nine["boundaries_crossed"] + 1)
+
+    def test_layer6_state_carries_deoxygenation_verdict(self):
+        from cascade_engine import run_all_layers, BASELINE
+        s = run_all_layers(BASELINE)
+        assert s[6]["aquatic_deoxygenation_crossed"] is True
+        assert s[6]["aquatic_deoxygenation_zone"] == "HIGH_RISK"
+        assert (s[6]["planetary_boundaries_crossed_incl_proposed"]
+                == s[6]["planetary_boundaries_crossed"] + 1)
+
+    def test_2026_constraints_track_the_proposal_honestly(self):
+        from earth_systems_constraints_2026 import (
+            AQUATIC_DEOXYGENATION_PROPOSED_AS_10TH,
+            AQUATIC_DEOXYGENATION_ADOPTED,
+            PLANETARY_BOUNDARIES_BREACHED_OF_9,
+            PLANETARY_BOUNDARIES_BREACHED_INCL_PROPOSED,
+            constraint_validity_check, cascade_trigger_check,
+        )
+        assert AQUATIC_DEOXYGENATION_PROPOSED_AS_10TH is True
+        assert AQUATIC_DEOXYGENATION_ADOPTED is False
+        assert PLANETARY_BOUNDARIES_BREACHED_OF_9 == 7
+        assert PLANETARY_BOUNDARIES_BREACHED_INCL_PROPOSED == 8
+        valid, _ = constraint_validity_check(
+            "ocean_deoxygenation_is_mostly_a_solubility_effect")
+        assert valid is False
+        triggered, status = cascade_trigger_check("aquatic_deoxygenation", 2026)
+        assert triggered is True
+        assert "UNSAFE" in status

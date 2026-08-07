@@ -79,7 +79,7 @@
       "source_module": "cascade_engine",
       "source_symbol": "SCENARIOS",
       "description": "Pre-configured forcing functions for the cascade engine. Each Forcing has layer, variable, magnitude, units, description.",
-      "record_count": 21,
+      "record_count": 22,
       "schema": {
         "name": "str",
         "layer": "int",
@@ -94,7 +94,7 @@
       "source_module": "cascade_engine",
       "source_symbol": "KNOWN_LOOPS",
       "description": "Self-amplifying feedback loops with their layers, description, and timescale. Callable trigger and gain_function fields are excluded from the export; their names appear in each record's _excluded_keys.",
-      "record_count": 9,
+      "record_count": 10,
       "schema": {
         "name": "str",
         "layers": "list",
@@ -485,6 +485,36 @@
       "schema": {
         "name": "str",
         "value": "float"
+      }
+    },
+    "deoxygenation_boundary_interactions": {
+      "path": "catalogs/deoxygenation_boundary_interactions.jsonl",
+      "source_module": "aquatic_deoxygenation",
+      "source_symbol": "BOUNDARY_INTERACTIONS",
+      "description": "Couplings between aquatic deoxygenation and the nine established planetary boundaries, organised on the Ferrer et al. 2026 (Limnol Oceanogr) framing with mechanisms drawn from the primary deoxygenation literature. Nitrogen and phosphorus are split into separate records because they couple through different mechanisms. Each record has direction (driven_by / drives / bidirectional), sign (amplifying / dampening / mixed), mechanism, layers, evidence grade, timescale. Not a verbatim transcription of that paper's Table 1.",
+      "record_count": 10,
+      "schema": {
+        "name": "str",
+        "boundary": "str",
+        "direction": "str",
+        "sign": "str",
+        "mechanism": "str",
+        "layers": "list",
+        "evidence": "str",
+        "timescale": "str"
+      }
+    },
+    "deoxygenation_control_indicators": {
+      "path": "catalogs/deoxygenation_control_indicators.jsonl",
+      "source_module": "aquatic_deoxygenation",
+      "source_symbol": "CONTROL_VARIABLE_INDICATORS",
+      "description": "Candidate indicators for the aquatic-deoxygenation control variable (Rose et al. 2024, Nat Ecol Evol): anoxic_extent is primary; dissolved oxygen concentration, percent saturation, indicator taxa, and the Metabolic Index are supporting indicators. Each record has units, why, and role.",
+      "record_count": 5,
+      "schema": {
+        "name": "str",
+        "units": "str",
+        "why": "str",
+        "role": "str"
       }
     }
   }

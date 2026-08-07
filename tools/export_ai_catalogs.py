@@ -472,6 +472,38 @@ CATALOGS = [
             "behave under disuse and stress."
         ),
     },
+    # ── aquatic_deoxygenation (proposed 10th planetary boundary) ──
+    {
+        "name": "deoxygenation_boundary_interactions",
+        "module": "aquatic_deoxygenation",
+        "symbol": "BOUNDARY_INTERACTIONS",
+        "primary_key": "boundary",
+        "description": (
+            "Couplings between aquatic deoxygenation and the nine "
+            "established planetary boundaries, organised on the "
+            "Ferrer et al. 2026 (Limnol Oceanogr) framing with "
+            "mechanisms drawn from the primary deoxygenation "
+            "literature. Nitrogen and phosphorus are split into "
+            "separate records because they couple through different "
+            "mechanisms. Each record has direction (driven_by / "
+            "drives / bidirectional), sign (amplifying / dampening / "
+            "mixed), mechanism, layers, evidence grade, timescale. "
+            "Not a verbatim transcription of that paper's Table 1."
+        ),
+    },
+    {
+        "name": "deoxygenation_control_indicators",
+        "module": "aquatic_deoxygenation",
+        "symbol": "CONTROL_VARIABLE_INDICATORS",
+        "description": (
+            "Candidate indicators for the aquatic-deoxygenation "
+            "control variable (Rose et al. 2024, Nat Ecol Evol): "
+            "anoxic_extent is primary; dissolved oxygen "
+            "concentration, percent saturation, indicator taxa, and "
+            "the Metabolic Index are supporting indicators. Each "
+            "record has units, why, and role."
+        ),
+    },
 ]
 
 
