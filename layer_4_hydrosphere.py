@@ -16,6 +16,19 @@ from layer_3_atmosphere import (
     thermal_wind,
     hadley_cell_extent,
 )
+# Dissolved-oxygen physics lives in aquatic_deoxygenation.py (stdlib only)
+# so the boundary framework can be used without the layer stack.
+from aquatic_deoxygenation import (
+    oxygen_solubility_umol_kg,
+    umol_kg_to_mg_L,
+    mg_L_to_umol_kg,
+    interior_oxygen_from_ventilation,
+    deoxygenation_feedback_gain,
+    deoxygenation_boundary_status,
+    metabolic_index,
+    HYPOXIA_MG_L,
+    HYPOXIC_VOLUME_FRACTION_REFERENCE,
+)
 
 # ─────────────────────────────────────────────
 # FUNDAMENTAL CONSTANTS — WATER
@@ -777,6 +790,121 @@ def atlantic_multidecadal_oscillation(phase, AMOC_strength_Sv):
 
 
 # ─────────────────────────────────────────────
+# DISSOLVED OXYGEN — AQUATIC DEOXYGENATION
+# Rose et al. 2024 (Nat Ecol Evol), Ferrer et al. 2026 (Limnol Oceanogr):
+# dissolved oxygen decline is a planetary-boundary process in its own
+# right. In this layer it is not an add-on: it falls straight out of the
+# machinery already here. Bottom-water formation sets ventilation age,
+# ventilation age sets interior oxygen, and surface temperature sets the
+# saturation the parcel started from.
+# ─────────────────────────────────────────────
+
+def dissolved_oxygen_saturation(T_C, S=35.0):
+    """
+    Air-equilibrium dissolved oxygen (Garcia & Gordon 1992).
+    T_C : water temperature (°C)
+    S   : practical salinity (PSU)
+    returns: dict with saturation in µmol/kg and mg/L
+    """
+    c = oxygen_solubility_umol_kg(T_C, S)
+    return {
+        "O2_sat_umol_kg": c,
+        "O2_sat_mg_L":    umol_kg_to_mg_L(c),
+    }
+
+
+def hypoxic_volume_fraction(o2_interior_umol_kg, width_umol_kg=25.0):
+    """
+    Fraction of ocean volume below the 2 mg/L hypoxia threshold, from the
+    mean interior oxygen concentration.
+
+    The ocean interior is not uniform — a mean of 180 µmol/kg still has a
+    tail of water below 62.5 µmol/kg. This maps mean to tail with a
+    logistic whose width is the spread of the interior distribution:
+
+        f = 1 / (1 + exp((O2_mean - O2_hypoxic) / width))
+
+    Anchored so that a mean of ~160 µmol/kg returns ~2% of volume, which
+    matches the present-day observed hypoxic fraction. It is a calibrated
+    interpolation, not a first-principles result — the width parameter
+    carries all the distributional physics.
+
+    o2_interior_umol_kg : mean interior oxygen (µmol/kg)
+    width_umol_kg       : spread of the interior O2 distribution (µmol/kg)
+    returns: volume fraction below hypoxia (0-1)
+    """
+    o2_hypoxic = mg_L_to_umol_kg(HYPOXIA_MG_L)
+    return 1.0 / (1.0 + np.exp((o2_interior_umol_kg - o2_hypoxic)
+                               / max(width_umol_kg, 1e-6)))
+
+
+def ocean_deoxygenation(T_outcrop_C, ventilation_age_yr, S=35.0,
+                        OUR_umol_kg_yr=0.35,
+                        remin_timescale_yr=500.0,
+                        anoxic_area_fraction=0.02,
+                        anoxic_volume_ratio_1960=None):
+    """
+    Ocean oxygen state from the thermohaline state already computed in
+    this layer.
+
+    Two independent forcings, both currently pushing the same direction:
+      warming   -> lower saturation at the outcrop (solubility term, ~15%
+                   of the observed global loss)
+      slowdown  -> older interior water -> more accumulated respiration
+                   (ventilation term, ~85%)
+
+    T_outcrop_C              : temperature where the water last saw air
+                                (deep-water formation region, °C)
+    ventilation_age_yr       : mean interior ventilation age (yr), from
+                                deep_water_ventilation_age()
+    S                        : salinity (PSU)
+    OUR_umol_kg_yr           : oxygen utilisation rate (µmol/kg/yr)
+    remin_timescale_yr       : e-folding time of the parcel's respirable
+                                carbon load (yr)
+    anoxic_area_fraction     : sediment area under anoxic water (0-1)
+    anoxic_volume_ratio_1960 : boundary control variable; None uses the
+                                observed present-day value (4x)
+    returns: dict of oxygen state, boundary status, and loop gain
+    """
+    o2_sat      = oxygen_solubility_umol_kg(T_outcrop_C, S)
+    o2_interior = interior_oxygen_from_ventilation(
+                      o2_sat, ventilation_age_yr,
+                      OUR_umol_kg_yr, remin_timescale_yr)
+    AOU         = o2_sat - o2_interior
+    hv_frac     = hypoxic_volume_fraction(o2_interior)
+    boundary    = deoxygenation_boundary_status(anoxic_volume_ratio_1960,
+                                                hv_frac)
+    feedback    = deoxygenation_feedback_gain(hv_frac, anoxic_area_fraction,
+                                              o2_interior)
+    phi         = metabolic_index(o2_interior, T_outcrop_C, S)
+    return {
+        "O2_sat_umol_kg":            o2_sat,
+        "O2_sat_mg_L":               umol_kg_to_mg_L(o2_sat),
+        "O2_interior_umol_kg":       o2_interior,
+        "O2_interior_mg_L":          umol_kg_to_mg_L(o2_interior),
+        "AOU_umol_kg":               AOU,
+        "hypoxic_volume_fraction":   hv_frac,
+        "hypoxic_expansion_ratio":   hv_frac / HYPOXIC_VOLUME_FRACTION_REFERENCE,
+        "metabolic_index":           phi,
+        "aerobic_habitat_viable":    phi >= 3.0,
+        "anoxic_volume_ratio_1960":  boundary["control_value"],
+        "deox_boundary_zone":        boundary["zone"],
+        "deox_boundary_crossed":     boundary["crossed"],
+        "deox_feedback_gain":        feedback["gain"],
+        "n2o_yield_multiplier":      feedback["n2o_yield_multiplier"],
+        "deox_loop_active":          (feedback["amplifying"] and
+                                      hv_frac > HYPOXIC_VOLUME_FRACTION_REFERENCE),
+        "deox_note": (
+            "hypoxic fraction is derived from THIS layer's ventilation age. "
+            "At BASELINE that age reflects an already-weakened bottom-water "
+            "formation, so the fraction runs above the observed present-day "
+            "~1.5% (aquatic_deoxygenation.HYPOXIC_VOLUME_FRACTION_PRESENT). "
+            "Read it as the model's ventilation state, not as an observation."
+        ),
+    }
+
+
+# ─────────────────────────────────────────────
 # COUPLING INTERFACES
 # ─────────────────────────────────────────────
 
@@ -788,7 +916,11 @@ def coupling_state(T_ocean_C, S_ocean, T_north_C, S_north,
                    cdw_baseline_TW=1.5,
                    cdw_sensitivity_Gt_per_TW=80.0,
                    cdw_aabw_shutdown_PSU=-0.05,
-                   cdw_migration_km_yr=1.26):
+                   cdw_migration_km_yr=1.26,
+                   O2_utilization_rate_umol_kg_yr=0.35,
+                   O2_remin_timescale_yr=500.0,
+                   anoxic_area_fraction=0.02,
+                   anoxic_volume_ratio_1960=None):
     """
     Full hydrosphere state vector for adjacent layer consumption.
     T_ocean_C        : mean ocean surface temperature (°C)
@@ -812,6 +944,15 @@ def coupling_state(T_ocean_C, S_ocean, T_north_C, S_north,
     cdw_migration_km_yr       : circumpolar mean CDW poleward migration
                                  (default 1.26 km/yr from Lanham 2026;
                                  95% CI 0.53-1.98).
+    O2_utilization_rate_umol_kg_yr : interior oxygen utilisation rate
+                                 (µmol/kg/yr).
+    O2_remin_timescale_yr     : e-folding time of a ventilated parcel's
+                                 respirable carbon load (yr).
+    anoxic_area_fraction      : fraction of sediment area under anoxic
+                                 bottom water (drives internal P loading).
+    anoxic_volume_ratio_1960  : deoxygenation boundary control variable —
+                                 anoxic water volume as a multiple of
+                                 1960. None uses the observed value (4x).
     """
     density         = seawater_density(T_ocean_C, S_ocean)
     AMOC_gradient   = atlantic_overturning_index(T_north_C, S_north,
@@ -850,6 +991,18 @@ def coupling_state(T_ocean_C, S_ocean, T_north_C, S_north,
                                        cdw_sensitivity_Gt_per_TW,
                                        cdw_aabw_shutdown_PSU)
 
+    # Dissolved oxygen — outcrop temperature is the deep-water formation
+    # region, ventilation age comes from bottom-water formation above.
+    deox = ocean_deoxygenation(
+        T_outcrop_C              = T_north_C,
+        ventilation_age_yr       = ventilation_yrs,
+        S                        = S_north,
+        OUR_umol_kg_yr           = O2_utilization_rate_umol_kg_yr,
+        remin_timescale_yr       = O2_remin_timescale_yr,
+        anoxic_area_fraction     = anoxic_area_fraction,
+        anoxic_volume_ratio_1960 = anoxic_volume_ratio_1960,
+    )
+
     return {
         "ocean_density_kgm3":            density,
         "AMOC_density_gradient":         AMOC_gradient,
@@ -879,10 +1032,28 @@ def coupling_state(T_ocean_C, S_ocean, T_north_C, S_north,
         "aabw_suppression_factor":       cdw_loop["aabw_suppression_factor"],
         "cdw_aabw_feedback_index":       cdw_loop["cdw_aabw_feedback_index"],
         "cdw_aabw_loop_active":          cdw_loop["loop_active"],
+        # Aquatic deoxygenation — proposed 10th planetary boundary
+        # (Rose et al. 2024; Ferrer et al. 2026)
+        "O2_sat_umol_kg":                deox["O2_sat_umol_kg"],
+        "O2_sat_mg_L":                   deox["O2_sat_mg_L"],
+        "O2_interior_umol_kg":           deox["O2_interior_umol_kg"],
+        "O2_interior_mg_L":              deox["O2_interior_mg_L"],
+        "AOU_umol_kg":                   deox["AOU_umol_kg"],
+        "hypoxic_volume_fraction":       deox["hypoxic_volume_fraction"],
+        "hypoxic_expansion_ratio":       deox["hypoxic_expansion_ratio"],
+        "metabolic_index":               deox["metabolic_index"],
+        "aerobic_habitat_viable":        deox["aerobic_habitat_viable"],
+        "anoxic_volume_ratio_1960":      deox["anoxic_volume_ratio_1960"],
+        "deox_boundary_zone":            deox["deox_boundary_zone"],
+        "deox_boundary_crossed":         deox["deox_boundary_crossed"],
+        "deox_feedback_gain":            deox["deox_feedback_gain"],
+        "n2o_yield_multiplier":          deox["n2o_yield_multiplier"],
+        "deox_loop_active":              deox["deox_loop_active"],
+        "deox_note":                     deox["deox_note"],
         # Cascade metadata
-        "cascade_to_atmosphere":         "SST, evaporation, ENSO, AMO, ITCZ",
+        "cascade_to_atmosphere":         "SST, evaporation, ENSO, AMO, ITCZ, N2O from suboxic water",
         "cascade_to_lithosphere":        "sea level loading, isostasy, pore pressure",
-        "cascade_to_biosphere":          "temperature, acidification, stratification, deep ocean ventilation",
+        "cascade_to_biosphere":          "temperature, acidification, stratification, deep ocean ventilation, dissolved oxygen",
         "cascade_from_atmosphere":       "wind stress, heat flux, freshwater",
         "cascade_from_cryosphere":       "meltwater, albedo, freshwater pulse",
         "cascade_internal_loop":         "CDW heat -> basal melt -> freshwater cap -> AABW suppression -> reduced cold buffer -> more CDW",

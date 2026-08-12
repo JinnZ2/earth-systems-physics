@@ -1,0 +1,5 @@
+{"name": "anoxic_extent", "role": "primary", "units": "volume or area of water with O2 ~ 0", "why": "gates anaerobic metabolism, N2O/CH4 production, Fe/P/Hg redox chemistry"}
+{"name": "dissolved_oxygen_concentration", "role": "indicator", "units": "mg/L or umol/kg", "why": "direct state variable; hypoxia thresholds are defined on it"}
+{"name": "percent_oxygen_saturation", "role": "indicator", "units": "% of air-equilibrium saturation", "why": "separates solubility (thermal) loss from biological drawdown"}
+{"name": "indicator_taxa", "role": "indicator", "units": "presence / absence / assemblage shift", "why": "integrates exposure history; catches intermittent hypoxia"}
+{"name": "metabolic_index_phi", "role": "indicator", "units": "dimensionless (O2 supply / O2 demand)", "why": "habitat viability; couples temperature and O2 in one number"}

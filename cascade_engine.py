@@ -144,6 +144,12 @@ BASELINE = {
     "cdw_sensitivity_Gt_per_TW":      80.0,    # melt sensitivity per TW excess
     "cdw_aabw_shutdown_PSU":          -0.05,   # AABW suppression scale
     "cdw_migration_km_yr":            1.26,    # circumpolar mean migration rate
+    # Aquatic deoxygenation — proposed 10th planetary boundary
+    # (Rose et al. 2024; Ferrer et al. 2026)
+    "O2_utilization_rate_umol_kg_yr": 0.35,    # interior O2 utilisation rate
+    "O2_remin_timescale_yr":          500.0,   # respirable-carbon e-folding time
+    "anoxic_area_fraction":           0.02,    # sediment area under anoxic water
+    "anoxic_volume_ratio_1960":       4.0,     # observed: zero-O2 water x4
 
     # Layer 5 — Lithosphere
     "ice_mass_loss_Gt": 280.0,      # cumulative Gt
@@ -500,6 +506,11 @@ def run_all_layers(p):
         cdw_sensitivity_Gt_per_TW = p.get("cdw_sensitivity_Gt_per_TW", 80.0),
         cdw_aabw_shutdown_PSU     = p.get("cdw_aabw_shutdown_PSU",     -0.05),
         cdw_migration_km_yr       = p.get("cdw_migration_km_yr",       1.26),
+        O2_utilization_rate_umol_kg_yr = p.get(
+            "O2_utilization_rate_umol_kg_yr", 0.35),
+        O2_remin_timescale_yr     = p.get("O2_remin_timescale_yr",     500.0),
+        anoxic_area_fraction      = p.get("anoxic_area_fraction",      0.02),
+        anoxic_volume_ratio_1960  = p.get("anoxic_volume_ratio_1960",  4.0),
     )
     states[5] = litho_state(
         ice_mass_loss_Gt = p["ice_mass_loss_Gt"],
@@ -552,6 +563,8 @@ def run_all_layers(p):
         nutrient_stress  = states["soil"]["nutrient_stress_factor"],
         soil_Eh_mV       = states["soil"]["Eh_mV"],
         soil_decomp_GtC_yr = _soil_decomp_GtC_yr,
+        # L4 -> L6: proposed tenth planetary boundary control variable
+        anoxic_volume_ratio = states[4].get("anoxic_volume_ratio_1960"),
     )
     _O2_check = _check_O2_generation_coupling(states[6])
     states["O2_DEFICIT"] = _O2_check["O2_DEFICIT"]
@@ -858,6 +871,21 @@ KNOWN_LOOPS = [
         "timescale": "decades to centuries (already underway)",
     },
     {
+        "name":     "Deoxygenation-Nutrient",
+        "layers":   [4, 6, 3],
+        "trigger":  lambda s: s[4].get("deox_loop_active", False),
+        "gain_function": lambda s: s[4].get("deox_feedback_gain", 1.0),
+        "description": (
+            "warming + slower ventilation -> interior O2 falls -> anoxic "
+            "sediment releases Fe-bound phosphorus -> more production -> "
+            "more O2 demand; suboxic water peaks N2O yield -> warming -> "
+            "lower solubility. Rose et al. 2024 / Ferrer et al. 2026 "
+            "propose this as the tenth planetary boundary; the internal "
+            "P-release term keeps running after external loading stops."
+        ),
+        "timescale": "years to centuries (deep water re-ventilates ~1000 yr)",
+    },
+    {
         "name":     "Magnomechanical-EM",
         "layers":   [0, 5, 0],
         "trigger":  lambda s: s[0].get("magnomech_seismo_detectable", False),
@@ -944,6 +972,11 @@ FORCING_PARAM_MAP = {
     "cdw_sensitivity_Gt_per_TW": ["cdw_sensitivity_Gt_per_TW"],
     "cdw_aabw_shutdown_PSU":     ["cdw_aabw_shutdown_PSU"],
     "cdw_migration_km_yr":       ["cdw_migration_km_yr"],
+    # Layer 4 — aquatic deoxygenation (Rose 2024 / Ferrer 2026)
+    "O2_utilization_rate_umol_kg_yr": ["O2_utilization_rate_umol_kg_yr"],
+    "O2_remin_timescale_yr":     ["O2_remin_timescale_yr"],
+    "anoxic_area_fraction":      ["anoxic_area_fraction"],
+    "anoxic_volume_ratio_1960":  ["anoxic_volume_ratio_1960"],
 }
 
 
@@ -1463,6 +1496,16 @@ SCENARIOS = {
             "drives basal melt + AABW suppression positive feedback"
         ),
         units="TW",
+    ),
+    "anoxia_expansion": Forcing(
+        layer=4, variable="anoxic_area_fraction", magnitude=0.08,
+        description=(
+            "Anoxic sediment area expands from 2% to 10% — internal "
+            "phosphorus loading engages (Rose et al. 2024 / Ferrer et al. "
+            "2026 tenth-boundary process). Tests the deoxygenation "
+            "feedback complex rather than the surface temperature route."
+        ),
+        units="fraction",
     ),
     "ocean_timber_dumping": Forcing(
         layer=6, variable="deforestation", magnitude=0.001,

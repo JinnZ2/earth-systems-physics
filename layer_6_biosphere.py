@@ -26,6 +26,10 @@ from layer_5_lithosphere import (
     deglaciation_volcanic_coupling,
     tectonic_co2_outgassing,
 )
+from aquatic_deoxygenation import (
+    deoxygenation_boundary_status,
+    BOUNDARY_INTERACTIONS,
+)
 
 # ─────────────────────────────────────────────
 # FUNDAMENTAL CONSTANTS — BIOSPHERE
@@ -448,15 +452,30 @@ def planetary_boundary_status(CO2_ppm, extinction_rate_relative,
                                N_cycle_Tg, P_cycle_Tg,
                                freshwater_km3, land_use_fraction,
                                ocean_pH, aerosol_AOD,
-                               ozone_DU, novel_entities=True):
+                               ozone_DU, novel_entities=True,
+                               anoxic_volume_ratio=None):
     """
     Rockstrom planetary boundaries — nine Earth system processes
     with identified safe operating space.
     Crossing boundaries increases risk of abrupt, nonlinear change.
     Multiple boundaries crossed simultaneously: interactions unknown.
+
+    anoxic_volume_ratio : optional control variable for the PROPOSED
+        tenth boundary, aquatic deoxygenation (Rose et al. 2024,
+        Nat Ecol Evol; Ferrer et al. 2026, Limnol Oceanogr) — anoxic
+        water volume as a multiple of 1960. When supplied, the proposed
+        boundary is reported separately under 'aquatic_deoxygenation'
+        and 'boundaries_crossed_incl_proposed'. The canonical nine-
+        boundary count in 'boundaries_crossed' is left untouched: the
+        tenth boundary is proposed in the literature, not adopted.
+
     returns: status for each boundary
     """
-    return {
+    deox = None
+    if anoxic_volume_ratio is not None:
+        deox = deoxygenation_boundary_status(anoxic_volume_ratio)
+
+    out = {
         "climate":          {"value": CO2_ppm,      "boundary": 350,   "crossed": CO2_ppm > 350},
         "biodiversity":     {"value": extinction_rate_relative,
                              "boundary": 10,          "crossed": extinction_rate_relative > 10},
@@ -477,6 +496,22 @@ def planetary_boundary_status(CO2_ppm, extinction_rate_relative,
         ]),
         "note": "6+ boundaries currently crossed — interaction effects unquantified"
     }
+
+    if deox is not None:
+        out["aquatic_deoxygenation"] = {
+            "value":    deox["control_value"],
+            "boundary": "not numerically published (control variable only)",
+            "crossed":  deox["crossed"],
+            "zone":     deox["zone"],
+            "status":   deox["status"],
+            "zone_edges_provisional": deox["zone_edges_provisional"],
+        }
+        out["proposed_boundaries_crossed"] = int(bool(deox["crossed"]))
+        out["boundaries_crossed_incl_proposed"] = (
+            out["boundaries_crossed"] + out["proposed_boundaries_crossed"])
+        out["deoxygenation_interactions"] = len(BOUNDARY_INTERACTIONS)
+
+    return out
 
 
 # ─────────────────────────────────────────────
@@ -558,7 +593,8 @@ def coupling_state(T_surface_K, CO2_ppm, ocean_pH,
                    AMOC_Sv=17.0,
                    nutrient_stress=1.0,
                    soil_Eh_mV=400.0,
-                   soil_decomp_GtC_yr=None):
+                   soil_decomp_GtC_yr=None,
+                   anoxic_volume_ratio=None):
     """
     Full biosphere state vector for adjacent layer consumption.
     """
@@ -582,9 +618,13 @@ def coupling_state(T_surface_K, CO2_ppm, ocean_pH,
     CH4         = methane_budget(180 * anaerobic_factor,
                                   permafrost["CH4_flux_GtC_yr"] * 1000,
                                   100, 580)
+    # anoxic_volume_ratio arrives from L4 (hydrosphere) when the cascade
+    # engine runs the full stack; None leaves the proposed tenth boundary
+    # out of the report entirely.
     boundaries  = planetary_boundary_status(
                     CO2_ppm, 100, 150, 14, 2600, 0.50,
-                    acidify["current_pH"], 0.15, 295)
+                    acidify["current_pH"], 0.15, 295,
+                    anoxic_volume_ratio=anoxic_volume_ratio)
 
     _O2 = net_biosphere_O2_flux(GPP_GtC_yr, soil_decomp_GtC_yr)
 
@@ -602,6 +642,13 @@ def coupling_state(T_surface_K, CO2_ppm, ocean_pH,
         "atmospheric_CO2_accumulation":  budget["ppm_per_year"],
         "CH4_accumulation_GWP":          CH4["GWP_CO2_equivalent"],
         "planetary_boundaries_crossed":  boundaries["boundaries_crossed"],
+        "planetary_boundaries_crossed_incl_proposed":
+            boundaries.get("boundaries_crossed_incl_proposed",
+                           boundaries["boundaries_crossed"]),
+        "aquatic_deoxygenation_crossed":
+            boundaries.get("aquatic_deoxygenation", {}).get("crossed"),
+        "aquatic_deoxygenation_zone":
+            boundaries.get("aquatic_deoxygenation", {}).get("zone"),
         "O2_photosyn_GtO2_yr":           _O2["O2_photosyn_GtO2_yr"],
         "O2_plant_resp_GtO2_yr":         _O2["O2_plant_resp_GtO2_yr"],
         "O2_decomp_GtO2_yr":             _O2["O2_decomp_GtO2_yr"],
