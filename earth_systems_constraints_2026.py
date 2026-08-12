@@ -4,7 +4,7 @@ EARTH_SYSTEMS_CONSTRAINT_INTEGRATION_2026
 Constraint layer module for earth-systems-physics coupled differential
 equations.
 
-Integrates three observational findings invalidating prior model
+Integrates four observational findings invalidating prior model
 assumptions:
 
     1. Glacier mass loss acceleration (Birmingham 2025/2026,
@@ -12,6 +12,10 @@ assumptions:
     2. Ecosystem collapse timescale compression (Nature Sustainability)
     3. West Antarctic iron-fertilization carbon-sink invalidation
        (Sherrell et al, 2026)
+    4. Aquatic deoxygenation proposed as a TENTH planetary boundary
+       (Rose et al 2024; Ferrer et al 2026) — physics, interaction
+       catalog, and boundary status live in aquatic_deoxygenation.py;
+       this module carries the constraint flags only
 
 Function: provides validity checks, fallback flags, and cascade-trigger
 thresholds for use as constraint inputs to coupled solvers.
@@ -71,6 +75,21 @@ COLLAPSE_COMPRESSION_MAX_PCT = 81
 
 CORAL_TIPPING_POINT_CROSSED_2025 = True
 PLANETARY_BOUNDARIES_BREACHED_OF_9 = 7         # incl. ocean acidification (new 2025)
+
+# A TENTH boundary process is now proposed in the peer-reviewed
+# literature: aquatic deoxygenation (Rose et al. 2024, Nat Ecol Evol
+# doi:10.1038/s41559-024-02448-y; Ferrer et al. 2026, Limnol Oceanogr
+# doi:10.1002/lno.70434). Proposed, NOT yet adopted into the canonical
+# nine-boundary framework — hence tracked separately rather than folded
+# into the count above. See aquatic_deoxygenation.py for the physics,
+# the interaction catalog, and the boundary-status function.
+AQUATIC_DEOXYGENATION_PROPOSED_AS_10TH = True
+AQUATIC_DEOXYGENATION_ADOPTED = False
+AQUATIC_DEOXYGENATION_ASSESSED_UNSAFE_2026 = True   # Ferrer et al. verdict
+PLANETARY_BOUNDARIES_BREACHED_INCL_PROPOSED = (
+    PLANETARY_BOUNDARIES_BREACHED_OF_9
+    + int(AQUATIC_DEOXYGENATION_ASSESSED_UNSAFE_2026)
+)
 
 # Cascade thresholds (RCP 8.5 high-emissions trajectory)
 DISRUPTION_TROPICAL_OCEAN_BY_YEAR = 2030
@@ -142,6 +161,18 @@ INVALIDATED_ASSUMPTIONS = {
         "INVALIDATED 2025: tipping point crossed; mass bleaching > recovery",
     "linear_extrapolation_of_glacier_loss":
         "INVALIDATED: 2025 = 2nd highest annual loss in 50 years; nonlinear",
+    "dissolved_oxygen_is_not_a_boundary_process":
+        "INVALIDATED 2024-2026: Rose et al. (Nat Ecol Evol) propose aquatic "
+        "deoxygenation as a boundary process; Ferrer et al. (Limnol Oceanogr "
+        "2026) find abundant interactions with all nine established "
+        "boundaries and assess current loss as 'unsafe'",
+    "aquatic_oxygen_loss_is_reversible_on_policy_timescales":
+        "INVALIDATED 2026: deep water re-ventilates on ~1000 yr; recovery is "
+        "gated by water-mass exchange, not by emissions policy",
+    "ocean_deoxygenation_is_mostly_a_solubility_effect":
+        "INVALIDATED: warming-driven solubility explains only ~15% of the "
+        "observed open-ocean loss; the rest is reduced ventilation, "
+        "stratification, and interior respiration (Schmidtko et al. 2017)",
 }
 
 
@@ -173,6 +204,8 @@ def cascade_trigger_check(system_label, year):
         return True, "ABRUPT_DISRUPTION_WINDOW_APPROACHING"
     if "coral" in s:
         return True, "TIPPING_POINT_ALREADY_CROSSED_2025"
+    if "deoxygenation" in s or "hypoxi" in s or "anoxi" in s:
+        return True, "UNSAFE_LEVELS_ASSESSED_2026_PROPOSED_10TH_BOUNDARY"
     return False, "WITHIN_PROJECTED_STABLE_RANGE"
 
 
@@ -252,6 +285,9 @@ if __name__ == "__main__":
           f"{CORAL_TIPPING_POINT_CROSSED_2025}")
     print(f"  Planetary boundaries breached:  "
           f"{PLANETARY_BOUNDARIES_BREACHED_OF_9} of 9")
+    print(f"  Incl. proposed 10th (aquatic deoxygenation): "
+          f"{PLANETARY_BOUNDARIES_BREACHED_INCL_PROPOSED} of 10 "
+          f"(adopted={AQUATIC_DEOXYGENATION_ADOPTED})")
     print(f"  Coupled tipping elements:       "
           f"{len(COUPLED_TIPPING_ELEMENTS)}")
 
