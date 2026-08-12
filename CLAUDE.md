@@ -294,6 +294,10 @@ laws) to non-physical systems:
 | `aluminum_atmospheric_injection_cascade_2026.py` | Coupled four-layer Monte Carlo cascade modelling stratospheric aluminum injection (SAI) consequences. Layers: **L1 crustal substrate** (magnetite / banded-iron coherence, MAGNETITE_DECOHERENCE_RATE 0.001/yr), **L2 ionosphere** (plasma density, Schumann resonance 7.83 Hz baseline), **L3 atmosphere** (chemistry integrity, charge gradient 130 V/m), **L4 aluminum forcing** (5 Tg/yr Al₂O₃ injection, 1.5 yr stratospheric residence). Coupling encoded as `LAMBDA_PAIRWISE` (6 dyads) + `LAMBDA_TRIPLET` (4 triplets including the perturbation triplet ionosphere-atmosphere-aluminum at 0.75). Merle blow-up detection via `energy_concentration` + log-log `blow_up_rate` on the energy-history trace. `evolve_step` integrates the coupled system one timestep with stochastic noise. `detect_cascade` returns one of six modes (STABLE / ATMOSPHERIC_DESTABILIZATION / IONOSPHERIC_COLLAPSE / SUBSTRATE_DECOHERENCE / FULL_CASCADE / SINGULARITY_APPROACH). `monte_carlo(n_runs, years, al_rate, master_seed)` aggregates over trajectories; documented run (1000 trajectories, 50 yr, master_seed=2026, 5 Tg/yr): **100% cascade probability, ATMOSPHERIC_DESTABILIZATION dominant, median time-to-cascade 2.0 yr**. Stdlib only. CC0. |
 | `drone_pollination_eroi.py` | EROI analysis for drone-based pollination as proposed replacement for natural pollinators. `EROIResult` dataclass + `natural_pollinator_eroi` + `drone_pollinator_eroi` + `break_even_analysis`. Demonstrates that even at favourable parameter values, drone EROI is an order of magnitude lower than natural pollinator EROI (the natural system runs on solar; drone system requires manufacture, batteries, rare-earth supply chain, AI compute, and replacement at end-of-flight-count). Tests verify the natural-vs-drone gap survives parameter changes, EROI is approximately scale-invariant, and the verbal verdict matches the actual numerical EROI. Stdlib only. CC0. |
 | `financial_cascade_model.py` | Coupled financial cascade for industrial monoculture under pollinator + soil collapse. Models four positive-feedback loops simultaneously: pesticide → pollinator decline → yield decline → more pesticide; equipment debt → scale → monoculture → degradation; insurance bailout → moral hazard → larger claims; subsidy structure → rewarded substrate destruction. `FarmState` and `SystemState` dataclasses; `simulate_farm_cascade` runs a representative farm; `aggregate_system_cascade` lifts to N farms with insurance-pool accounting and federal-bailout overflow. At default coupling, the representative farm fails within the simulation window, pollinator and soil health collapse to zero, and the federal bailout accumulates into the billions per 1k farms / 15 yr. Stdlib only. CC0. |
+| `thermal_sensor_degradation_audit.py` | Sustained-heat degradation audit for sensor packages on automated infrastructure. Seven layers: (L1) `MATERIALS` catalog of 15 engineering materials (CTE, continuous service ceiling, creep-onset temp); (L2) `wet_bulb_c` Stull-2011 wet-bulb approximation (valid 5-99% RH); (L3) `surface_temp_c` lumped radiative-convective surface amplification (dark surfaces run +20-30 °C over air in full sun); (L4) `pair_mismatch` differential-expansion strain across a bolted dissimilar-material pair (microstrain + displacement, GREEN/YELLOW/RED at 500/1000 µε); (L5) `compression_set` Arrhenius-accelerated gasket/polymer permanent-deformation fraction (Q10≈2 off a 70 °C reference); (L6) `sensor_drift` Arrhenius electronic aging multiplier (Ea≈0.7 eV) driven by enclosure-internal temp; (L7) `corruption_signature` detects the variance-collapse + range-clipping fingerprint of sensors degrading *during* the heat events they measure (extreme readings bias LOW at the tail). `audit(...)` rolls a whole package to a worst-flag verdict. Refutation protocol: every model returns a falsifiable field prediction, not a stored verdict. Documented heat-dome case (110 °F, 45% RH, 45 days) returns RED. Stdlib only. CC0. |
+| `warning_time_audit.py` | Warning-time-loss audit for nonlinear measurement proxies (generalizes Keuth/Fritz/Zurell 2026: a clean proxy can lag true-state collapse when the proxy↔truth map is nonlinear). Feed a `truth_loss` trajectory and a `proxy_loss` trajectory over `times`. Five layers: (L1) `first_crossing` linear-interpolated threshold-crossing time; (L2) `collapse_time` first near-total (≥0.999) true loss; (L3) `curve_deviation` signed proxy↔truth curvature by trapezoid integration of (truth−proxy) over proxy — D>0 CONCAVE (proxy underestimates loss, short warning), D<0 CONVEX (proxy overestimates early, conservative), D≈0 faithful; (L4) `warning_gap` per-tier lag `t_proxy − t_truth` and fraction of warning time lost, tiers default to IUCN A3 loss levels (VU 0.30 / EN 0.50 / CR 0.80); (L5) `verdict` on the most-precautionary (lowest-θ) tier, GREEN/YELLOW/RED at 0.2/0.5 warning-lost fraction. `audit(...)` rolls the whole trajectory. Refutation protocol: every verdict returns a falsifiable co-observation field, and outputs are recomputed from the trajectory each call (no stored verdicts). Stdlib only. CC0. |
+| `corruption_chain.py` | TAF composition layer that chains independent audit verdicts into one read: `corruption(trend) = corruption(measurement) × corruption(framework) × …`, multiplicative so a faithful layer (factor 1.0) passes through untouched and any corrupt layer inflates the product. Tracks estimation **direction** (+1 underestimate / −1 overestimate / 0 neutral) and reconciles it: same-direction errors COMPOUND, while under×over is a COINCIDENTAL offset that is never trusted — a large product with mixed directions raises `masking_risk` (the composite trend looks calm because two corruptions hide each other). Three adapters extract (factor, direction) from module-native output: `from_warning_time` (uses `warning_lost_frac` → 1/(1−lost) and curve sign), `from_thermal_sensor` (sensor drift % + verdict flag), and `from_flag` (bare GREEN/YELLOW/RED). `compose` returns the product + coupling classification; `chain` rolls the verdict (GREEN/YELLOW/RED at 1.5/3.0). Feeds directly from `warning_time_audit.audit()` and `thermal_sensor_degradation_audit.audit()`. Refutation protocol: recomputed every call, no stored verdict. Stdlib only. CC0. |
+| `diachronic_anchor.py` | Manifold-Framework companion that forces an utterance onto a **trajectory** of `AnchorPoint`s (year / who / coordinate / semantic_load / intent / problem_solved / substrate-urgency S) instead of collapsing every textual instance of a phrase into one frequency-weighted bag. Kills two failures LLMs make on historical text: **temporal collapse** (same surface form, different semantic loads across eras, flattened toward the training-tail present) and **teleological collapse** (reading backward from now and assuming every prior version was aimed at now). `classify_rhetorical_load` names the *work* each rewrite does from 7 role-based (not moral) patterns — authority_by_ancestry, consensus_naturalization, enlightened_reader, originalist_freeze, purification, mobilization, sanctification. `diachronic_anchor(utterance, trajectory)` returns semantic drift per step, the `rhetorical_load_sequence`, a `pattern_across_trajectory` direction (e.g. authority_laundering = ancestry move then consensus naturalization; freeze_and_wield; naturalization; sanctification), teleology flags where a later reading claims the origin aimed at it, and a falsifier that points back to period-native primary texts. Output is a trajectory, never a which-reading-is-correct verdict. Stdlib only. CC0. |
 
 These modules are standalone — they don't import from the physics layers —
 but they share conventions (dataclasses, `dict` state exports, pure-Python
@@ -520,6 +524,53 @@ in whether the cascade is gradual-but-irreversible or compressed-
 acute. See `oil_phase_shift/README.md` for the full architecture
 plus the parameter-resets that populate the recovery mode (prior
 calibration 0.40, trust 0.65, Hormuz non-crisis).
+
+## Climate Modeling — AI-Assisted Modelling Audit Laboratory
+
+`climate_modeling/` is a standalone sub-project (metascience, not a
+climate model) for studying **how models fail** and how an AI can act
+as a co-scientist in catching those failures. numpy + scipy only (no
+sklearn / streamlit), CC0. Two layers:
+
+- **Level 1 — experiments** (`experiments.py`, `simulation.py`): run
+  the ecological models and measure the Jensen-inequality bias that
+  averaging a nonlinear response introduces.
+- **Level 2 — meta-experiments** (`audits/`, `meta_experiments.py`):
+  16 controlled audits where the true generative process is **known**,
+  so a detected failure is a genuine modelling error, not a fitting
+  artifact. `meta_experiments.py` asks an AI proposer
+  (`ai_interface.py`, dummy rule-based backend; optional deferred-import
+  openai backend) what structural repair each failure calls for.
+
+The 16 audits pair a rich **true** system against a **simplified**
+model: PhaseChangeBlindness, ThresholdSmoothing, Stationarity,
+MissingFeedback, MissingPositiveFeedback, OmittedVariable,
+DataAggregation, TemporalAggregationExtremes, CascadeSpeedBlindness,
+SpatialHomogenization, MemoryAmnesia, CrossSystemCoupling,
+BufferExhaustion, ClusteredExtremes, GaussianBlindness, IncentiveBias.
+Many target one danger: systematic **underestimation of collapse
+speed**. See `climate_modeling/AUDIT_TAXONOMY.md` for each failure
+mode mapped to its fallacy, mathematical condition, and consequence.
+
+```bash
+python -m climate_modeling.run_audits        # full audit report card
+python -m climate_modeling.experiments       # Level-1 aggregation bias
+python -m climate_modeling.meta_experiments  # audits + AI-proposed repairs
+```
+
+Documented run: **16/16 audits detect a modelling failure in ~1.5 s.**
+Two models carry the suite: `GrassCarbonBalance` (smooth single-state
+baseline that survives stress) and `CascadeGrass` (threshold + soil
+feedback + heat-damage memory that collapses under fat-tailed
+extremes). Key engineering choices (see `climate_modeling/README.md`
+"Design notes"): rate constants are per-hour and small so biomass
+persists under benign forcing and only collapses under sustained heat;
+stochastic forcing is **pre-sampled on a grid and interpolated** so
+`forcing(t)` is deterministic in `t` (a fresh draw per call is not a
+function of `t` and stalls `solve_ivp`); thresholds are continuous
+`smoothstep`s (fast adaptive integration); and the AI loop **reports**
+the proposed structural repair rather than silently rewriting model
+source.
 
 ## Paste-from-Markdown Recovery
 
