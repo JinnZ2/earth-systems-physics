@@ -12,7 +12,7 @@ Coupled differential equation framework mapping Earth physics as constraint laye
 pip install -r requirements.txt
 python cascade_engine.py              # Run all forcing scenarios
 python assumption_validator/api.py    # Start REST API on port 5000
-pytest -v                             # Run test suite (974 tests)
+pytest -v                             # Run test suite (1064 tests)
 ```
 
 ## Architecture
@@ -79,6 +79,7 @@ earth-systems-physics/
 ├── energy_audit.py                    # Cross-layer energy conservation audit
 ├── aquatic_deoxygenation.py           # Proposed 10th planetary boundary — dissolved O2 physics + boundary interactions
 ├── test_smoke.py                      # 974 tests — all layers, scenarios, validators, audits
+├── test_extraction_dynamics.py        # 90 tests — extraction_dynamics/ folder
 │
 ├── ocean_timber_sequestration_audit.py # Full-cycle carbon audit of wood-in-ocean schemes
 ├── dollar_energy_metabolism.py        # Recursive energy cost model for climate finance
@@ -123,6 +124,19 @@ earth-systems-physics/
 ├── experiments/
 │   ├── magnetometer_build.py          # $5 smoky-quartz + HDD-magnet magnetometer build guide
 │   └── Possibilities.md               # Rough notes / speculative build ideas
+│
+├── extraction_dynamics/               # consumer-resource dynamics: hyperpredation, refuge collapse, mining
+│   ├── README.md                      # the diagnostic, the modules, what was left out and why
+│   ├── AI_NOTES.md                    # vocabulary + phrasing rules for models using the folder
+│   ├── interaction_taxonomy.py        # sign conventions; classify() from structure alone
+│   ├── functional_response.py         # Holling I/II/III, low-density refuge, technology as parameter shift
+│   ├── consumer_resource.py           # the pair with subsidy S; coupling index; RK4; outcome classifier
+│   ├── depensation.py                 # Allee recruitment, predator pit, hysteresis
+│   ├── energy_return.py               # e*f(N) >= m, EROI, %PPR, HANPP, trophic transfer
+│   ├── surplus_production.py          # Schaefer/Pella-Tomlinson, F/F_MSY (rate) vs B/B_MSY (state)
+│   ├── soil_carbon.py                 # texture-normalised SOC_max (Hassink 1997), saturation deficit
+│   ├── domain_mapping.py              # 9 valid mappings + refusal list with the missing requirement named
+│   └── audit.py                       # runner: class, refuge, pit, energetics, projection, falsifiers
 │
 ├── boundary_waters/                   # BWCA sulfide-mine cascade simulation
 │   ├── constants.py                   # Physical constants: chemistry, hydrology, substrate, ecology, community, port, intl law
@@ -219,7 +233,7 @@ All physics functions require docstrings with: description, parameters (with typ
 
 ## Testing
 
-Framework: **pytest** — 974 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
+Framework: **pytest** — 1064 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
 
 ```bash
 pytest                    # Run all tests
@@ -299,6 +313,76 @@ cd boundary_waters && python export.py     # Write CSV outputs
 ```
 
 Key results (seed=42): proceed scenario peaks at 11.8 mg/L sulfate (above 10 mg/L manoomin threshold), 3,107 forced migrants, net −13,440 jobs. Tailings failure: 58.8 mg/L sulfate (past 50 mg/L lethal threshold, sustained 300+ years), $1.08T treaty liability NPV, net −17,616 jobs. Protected scenario: zero impact across all metrics.
+
+## Extraction Dynamics — Hyperpredation, Refuge Collapse, Mining
+
+`extraction_dynamics/` is a standalone folder (stdlib only, CC0, bare
+intra-folder imports like `boundary_waters/`) holding the consumer-resource
+machinery for systems where the consumer is **not coupled** to the resource it
+consumes.
+
+```
+dN/dt = r*N*(1 - N/K) - f(N)*P          resource
+dP/dt = e*f(N)*P - m*P                  predator,  COUPLED
+dP/dt = e*f(N)*P - m*P + S              extractor, S = exogenous subsidy
+```
+
+The diagnostic is not intent, harm, or scale — it is **whether dP/dt depends on
+N**. With `S >> e*f(N)*P` the consumer persists as `N -> 0`: self-limitation is
+not weak, it is absent, and every governance layer is then re-supplying by fiat
+the feedback that `S` deleted.
+
+| interaction | signs (consumer, resource) | coupled? | recruits? |
+|---|---|---|---|
+| predation / parasitism | (+,−) | yes | yes |
+| **hyperpredation** | (+,−) | **no — subsidy S** | yes |
+| **mining** | (+,0) | no | **no — r = 0** |
+
+**The low-density refuge and how it goes.** Type III is sigmoidal because
+searchers lose efficiency when prey are rare, so per-capita mortality `f(N)/N`
+falls toward zero at low `N`. Type II has no such term — per-capita mortality is
+*maximal* when the resource is rarest. Technology enters as parameters: detection
+raises `a`, automated handling lowers `h`, and removal of the search-efficiency
+floor drives the refuge exponent `q -> 1`, collapsing Type III to Type II. Only
+the third removes the refuge, and `fit_functional_response()` tests it against
+CPUE-vs-abundance data by closed-form regression on the reciprocal transform —
+a drift of fitted `q` from ~2 toward 1 is the refuge being measured away.
+
+**Headline result** (`consumer_resource.py`, four runs of one pair): the subsidy
+alone gives coexistence at reduced stock; refuge removal alone gives coexistence
+at reduced stock; **the combination gives RESOURCE_EXTINCT_CONSUMER_PERSISTS** —
+an outcome impossible for a coupled predator. Two named, independently
+measurable parameters (`S`, `q`), one structural claim.
+
+Pair it with depensation and the escape threshold is derived rather than chosen:
+removing the refuge does not only lower the stock, it **raises** the biomass you
+must stay above (0.15 → 0.50 at high pressure in the reference run), and below
+that threshold the collapsed state is absorbing — no reduction in pressure,
+including to zero, rebuilds it.
+
+`energy_return.py` states the same thing in energy units (`e*f(N) >= m` for a
+real predator; EROI < 1 for most fleets) and unifies the marine and terrestrial
+branches through one intensive variable — %PPR and HANPP are the same
+measurement taken in the sea and on land. `surplus_production.py` uses the
+standard `F/F_MSY` (rate) and `B/B_MSY` (state) rather than a homemade index,
+keeping rate and state separate. `soil_carbon.py` replaces any fixed SOC floor
+with the texture-derived saturation deficit (Hassink 1997).
+
+`domain_mapping.py` maps nine domains that supply all five requirements (a
+conserved stock with a unit, an estimable recruitment term or a defensible
+`r = 0`, a consumption flux in the same unit, a derivable capacity, an
+identifiable subsidy channel) and **refuses ten that do not**, naming the missing
+requirement in each case. The refusal list is part of the specification: a
+carrying capacity computed for a quantity with no unit inherits the authority of
+arithmetic without earning it.
+
+```bash
+cd extraction_dynamics && python audit.py       # the full diagnostic
+pytest test_extraction_dynamics.py              # 90 tests
+```
+
+See `extraction_dynamics/README.md` for what was deliberately excluded and why,
+and `AI_NOTES.md` for the vocabulary and phrasing rules.
 
 ## Oil Phase Shift — Shale Regime Feedback Loops
 
