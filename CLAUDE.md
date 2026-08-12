@@ -12,7 +12,7 @@ Coupled differential equation framework mapping Earth physics as constraint laye
 pip install -r requirements.txt
 python cascade_engine.py              # Run all forcing scenarios
 python assumption_validator/api.py    # Start REST API on port 5000
-pytest -v                             # Run test suite (1064 tests)
+pytest -v                             # Run test suite (1131 tests)
 ```
 
 ## Architecture
@@ -80,6 +80,7 @@ earth-systems-physics/
 ├── aquatic_deoxygenation.py           # Proposed 10th planetary boundary — dissolved O2 physics + boundary interactions
 ├── test_smoke.py                      # 974 tests — all layers, scenarios, validators, audits
 ├── test_extraction_dynamics.py        # 90 tests — extraction_dynamics/ folder
+├── test_cpr_experiment.py             # 67 tests — experiments/cpr_composition/
 │
 ├── ocean_timber_sequestration_audit.py # Full-cycle carbon audit of wood-in-ocean schemes
 ├── dollar_energy_metabolism.py        # Recursive energy cost model for climate finance
@@ -123,7 +124,15 @@ earth-systems-physics/
 │
 ├── experiments/
 │   ├── magnetometer_build.py          # $5 smoky-quartz + HDD-magnet magnetometer build guide
-│   └── Possibilities.md               # Rough notes / speculative build ideas
+│   ├── Possibilities.md               # Rough notes / speculative build ideas
+│   └── cpr_composition/               # Common-pool resource experiment (DRAFT design, no data)
+│       ├── PREREGISTRATION.md         # hypotheses, SESOI, equivalence test, what the study cannot show
+│       ├── README.md                  # what the simulation found before recruiting anyone
+│       ├── cpr_game.py                # engine: logistic regeneration, largest-remainder rationing, exact sustainable harvest
+│       ├── parameter_sweep.py         # pilot instrument: design window, mechanical baseline, dilemma check
+│       ├── design.py                  # pool arithmetic, power, composite coherence, seeded block randomisation
+│       ├── analysis_plan.py           # stdlib OLS, standardised equivalence test, threshold specification
+│       └── otree_app/__init__.py      # oTree 5 app with the page ordering corrected
 │
 ├── extraction_dynamics/               # consumer-resource dynamics: hyperpredation, refuge collapse, mining
 │   ├── README.md                      # the diagnostic, the modules, what was left out and why
@@ -233,7 +242,7 @@ All physics functions require docstrings with: description, parameters (with typ
 
 ## Testing
 
-Framework: **pytest** — 1064 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
+Framework: **pytest** — 1131 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
 
 ```bash
 pytest                    # Run all tests
@@ -313,6 +322,61 @@ cd boundary_waters && python export.py     # Write CSV outputs
 ```
 
 Key results (seed=42): proceed scenario peaks at 11.8 mg/L sulfate (above 10 mg/L manoomin threshold), 3,107 forced migrants, net −13,440 jobs. Tailings failure: 58.8 mg/L sulfate (past 50 mg/L lethal threshold, sustained 300+ years), $1.08T treaty liability NPV, net −17,616 jobs. Protected scenario: zero impact across all metrics.
+
+## CPR Composition Experiment — the empirical half of extraction_dynamics
+
+`experiments/cpr_composition/` is a **draft** common-pool-resource experiment:
+does group composition change whether a shared stock survives, once governance
+is held constant? Stdlib core, CC0. **Not registered, no ethics approval, no
+data collected** — it is a design plus a simulator.
+
+It exists because `extraction_dynamics/domain_mapping.py` refuses to model
+"dominance orientation" as a parameter (no source, no sample, no units). The
+experiment is the way to generate the missing datum, with the effect size
+declared in advance and a pre-registered way to come back negative.
+
+The game is itself a subsidised consumer-resource pair: participants earn a
+show-up fee whatever happens to the stock, so `cpr_game.subsidy_ratio` reports
+a coupling index of 0.57 — the instrument models **hyperpredation by
+construction**, and the preregistration says so as a scope condition.
+
+**Five things the simulation found before any human was recruited:**
+
+1. **The comparison arm was the treatment arm.** The draft's "sustainable"
+   policy was `S/N`. Below `S = N*cap` that requests the whole stock and
+   collapses it in one round; above it, the cap truncates every request and it
+   *is* all-max. Replaced by the exact fixed-point harvest
+   (`cpr_game.sustainable_total`), which solves the regeneration map for the
+   take that leaves the stock unchanged.
+2. **The mechanical composition slope is −0.19 to −0.24 — the pre-registered
+   SESOI.** Running `k` pure maximisers against `4−k` optimal restrainers, with
+   no personality anywhere in it, reproduces the effect H2 declared as its
+   effect of interest. Tested against a null of zero, arithmetic alone returns
+   "H2 strongly supported", so H2 is now tested against the mechanical baseline
+   converted to standardised units.
+3. **That baseline is a step, not a slope** (survival at 0-1 maximisers,
+   collapse at 2+), so a threshold specification is registered alongside the
+   linear one, flagged as selection-dependent.
+4. **The sample-size arithmetic did not close.** 240 groups of 4 is 960
+   participants, not 720; 80% power at β = 0.20 needs 203 groups. The screening
+   pool is 1.5× the participant count because balancing compositions 0-4 needs
+   half the sample drawn from a third of the population.
+5. **Group totals and individual incentives point opposite ways.** Restraint
+   yields the group ~3× the tokens, while a lone defector earns 160 against 40.
+   Only the second comparison is the dilemma; without it the study would measure
+   comprehension rather than dominance.
+
+Bugs fixed from the draft implementation: the oTree page sequence resolved
+extraction on a wait page *before* the decision page (every round computed on
+unset requests); the randomiser's unseeded shuffle and modulo fallback could put
+one participant in two groups undetected; the equivalence test compared an
+unstandardised coefficient to a standardised SESOI; `int()` rationing destroyed
+tokens the stock could have supplied. See the folder README for the full table.
+
+```bash
+cd experiments/cpr_composition && python parameter_sweep.py
+pytest test_cpr_experiment.py                   # 67 tests
+```
 
 ## Extraction Dynamics — Hyperpredation, Refuge Collapse, Mining
 
