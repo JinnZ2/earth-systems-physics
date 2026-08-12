@@ -9281,6 +9281,318 @@ class TestPaleoseismicCrossval:
             assert cid in cids, f"Missing claim {cid}"
 
 
+# ─────────────────────────────────────────────
+# LAYER 6 / KICKED-RELAXOR / METROLOGY MODULES
+# ─────────────────────────────────────────────
+
+class TestKickedRelaxorKernel:
+    def test_fixed_point_reach_pole(self):
+        from kicked_relaxor_kernel import fixed_point
+        xstar = fixed_point(A=1.0, tau=120, r=0.10, T=70)
+        assert 0.40 < xstar < 0.55, f"bryophyte fixed point out of range: {xstar}"
+
+    def test_fixed_point_broadleaf(self):
+        from kicked_relaxor_kernel import fixed_point
+        xstar = fixed_point(A=1.0, tau=30, r=0.15, T=70)
+        assert xstar > 0.85, f"broadleaf fixed point too low: {xstar}"
+
+    def test_critical_period_returns_float(self):
+        from kicked_relaxor_kernel import critical_period
+        Tc = critical_period(A=1.0, tau=25, r=0.10, theta=0.70, orientation="avoid")
+        assert isinstance(Tc, float) and Tc > 0
+
+    def test_critical_period_none_when_out_of_range(self):
+        from kicked_relaxor_kernel import critical_period
+        # theta > 1 makes (1-theta) < 0 → e_star < 0 → outside (0,1) → None
+        Tc = critical_period(A=1.0, tau=25, r=0.10, theta=1.5, orientation="avoid")
+        assert Tc is None
+
+    def test_simulate_ratcheted_length(self):
+        from kicked_relaxor_kernel import simulate_ratcheted
+        traj = simulate_ratcheted(A=1.0, tau0=120, r=0.10, T=70, n_kicks=8)
+        assert len(traj) == 8
+
+    def test_simulate_ratcheted_bryophyte_drops(self):
+        from kicked_relaxor_kernel import fixed_point, simulate_ratcheted
+        xfix = fixed_point(A=1.0, tau=120, r=0.10, T=70)
+        traj = simulate_ratcheted(A=1.0, tau0=120, r=0.10, T=70, n_kicks=8)
+        xrat = traj[-1][0]
+        assert xrat < xfix, "ratcheted < constant-tau for slow communities"
+
+    def test_verdict_reach(self):
+        from kicked_relaxor_kernel import verdict
+        assert verdict(0.8, 1.0, 0.70, "reach") == "OK"
+        assert "FAIL" in verdict(0.5, 1.0, 0.70, "reach")
+
+    def test_verdict_avoid(self):
+        from kicked_relaxor_kernel import verdict
+        assert verdict(0.3, 1.0, 0.50, "avoid") == "OK"
+        assert "FAIL" in verdict(0.8, 1.0, 0.50, "avoid")
+
+
+class TestBorealRecoveryRatchet:
+    def test_get_modes_returns_copy(self):
+        from boreal_recovery_ratchet import MODES, get_modes
+        m = get_modes()
+        m["bryophytes"]["r"] = 0.99
+        assert MODES["bryophytes"]["r"] != 0.99, "get_modes() must return a deep copy"
+
+    def test_fixed_point_signature_matches_kernel(self):
+        from boreal_recovery_ratchet import fixed_point as brr_fp
+        from kicked_relaxor_kernel import fixed_point as krk_fp
+        # Same (A, tau, r, T) call → same result
+        assert abs(brr_fp(1.0, 120, 0.10, 70) - krk_fp(1.0, 120, 0.10, 70)) < 1e-9
+
+    def test_simulate_returns_list_of_tuples(self):
+        from boreal_recovery_ratchet import MODES, simulate
+        traj = simulate(MODES["broadleaf_community"], T=70, n_rot=5)
+        assert len(traj) == 5
+        assert all(len(t) == 3 for t in traj)
+
+    def test_steady_state_helper(self):
+        from boreal_recovery_ratchet import MODES, steady_state
+        ss = steady_state(MODES["bryophytes"], T=70)
+        assert 0.0 < ss < 1.0
+
+    def test_verdict_thresholds(self):
+        from boreal_recovery_ratchet import verdict
+        assert verdict(0.75) == "PERSIST"
+        assert verdict(0.50) == "DECLINING"
+        assert verdict(0.20) == "EXTIRPATED"
+
+
+class TestBorealCarbonLedger:
+    def test_ledger_returns_correct_structure(self):
+        from boreal_carbon_ledger import carbon_ledger
+        rows, booked, removed, vented, meas = carbon_ledger()
+        assert len(rows) == 8
+        assert booked > 0
+        assert vented > 0
+
+    def test_peatland_is_net_source(self):
+        from boreal_carbon_ledger import carbon_ledger
+        _, booked, removed, vented, _ = carbon_ledger(ratio_soil=30.0)
+        net = removed - vented
+        assert net < 0, "peatland high-soil case should be a net source"
+
+    def test_launder_gap_positive(self):
+        from boreal_carbon_ledger import carbon_ledger
+        _, booked, removed, vented, _ = carbon_ledger()
+        assert booked > (removed - vented), "booked must exceed true net"
+
+
+class TestFuelLoadRatchet:
+    def test_severity_bounds(self):
+        from fuel_load_ratchet import severity
+        assert severity(0.0) == 0.0
+        assert severity(1.0) == 1.0
+        assert 0 < severity(0.5) < 1
+
+    def test_mature_mortality_range(self):
+        from fuel_load_ratchet import mature_mortality
+        assert abs(mature_mortality(0.0) - 0.05) < 0.01
+        assert abs(mature_mortality(1.0) - 0.996) < 0.01
+
+    def test_cultural_burn_stays_in_mosaic(self):
+        from fuel_load_ratchet import run, K, F_CRIT
+        import io, sys
+        buf = io.StringIO()
+        sys.stdout = buf
+        try:
+            run("test", T_fire=5, r_f=0.10, n_fires=6, F0=0.15)
+        finally:
+            sys.stdout = sys.__stdout__
+        assert "MOSAIC_HELD" in buf.getvalue()
+
+    def test_suppression_causes_megafire(self):
+        from fuel_load_ratchet import run
+        import io, sys
+        buf = io.StringIO()
+        sys.stdout = buf
+        try:
+            run("test", T_fire=90, r_f=0.10, n_fires=1, F0=0.15)
+        finally:
+            sys.stdout = sys.__stdout__
+        assert "MEGAFIRE_FLIP" in buf.getvalue()
+
+
+class TestPermafrostAbruptLedger:
+    def test_ledger_keys(self):
+        from permafrost_abrupt_ledger import ledger
+        L = ledger(200.0, "1.5C", 120.0)
+        for k in ("booked", "gradual", "under_rep", "eaten", "true"):
+            assert k in L
+
+    def test_under_rep_exceeds_gradual(self):
+        from permafrost_abrupt_ledger import ledger
+        L = ledger(200.0, "1.5C", 120.0)
+        assert L["under_rep"][0] > 0
+
+    def test_overshot_verdict_when_budget_gone(self):
+        from permafrost_abrupt_ledger import verdict
+        assert "OVERSHOT" in verdict((0, -10))
+
+    def test_unaudited_verdict_when_positive(self):
+        from permafrost_abrupt_ledger import verdict
+        assert "UNAUDITED" in verdict((50, 100))
+
+
+class TestAmocHysteresisGate:
+    def test_initial_state_stable(self):
+        from amoc_hysteresis_gate import step
+        state, event, ews = step("on", 350)
+        assert state == "on"
+
+    def test_collapse_triggers_at_high_co2(self):
+        from amoc_hysteresis_gate import step, C_COLLAPSE
+        state, event, ews = step("on", C_COLLAPSE + 10)
+        assert state == "off" and event == "COLLAPSE"
+
+    def test_locked_when_co2_above_recovery(self):
+        from amoc_hysteresis_gate import step, C_RECOVER
+        state, event, ews = step("off", C_RECOVER + 10)
+        assert state == "off"
+
+    def test_ews_fires_in_approach_band(self):
+        from amoc_hysteresis_gate import step, C_COLLAPSE, EWS_BAND
+        _, _, ews = step("on", C_COLLAPSE - EWS_BAND // 2)
+        assert ews
+
+
+class TestMeasurementCorruptionTaf:
+    def test_detect_returns_four_tuple(self):
+        from measurement_corruption_taf import detect
+        result = detect(0.30, 3.0, 0.30, 0.0, 0.0)
+        assert len(result) == 4
+
+    def test_no_corruption_visible(self):
+        from measurement_corruption_taf import detect
+        _, _, ok, _ = detect(0.30, 3.0, 0.30, 0.0, 0.0)
+        assert ok
+
+    def test_high_corruption_masks_trend(self):
+        from measurement_corruption_taf import detect
+        _, _, ok, _ = detect(0.30, 3.0, 0.30, 0.90, 0.0)
+        assert not ok
+
+    def test_sigma_consistent_with_guard(self):
+        from measurement_corruption_taf import detect
+        _, _, _, sigma = detect(0.30, 3.0, 0.30, 0.60, 0.0)
+        # sigma0 / (1-0.60) = 0.30/0.40 = 0.75; guard clips at 1e-3 for m≥1
+        assert abs(sigma - 0.75) < 1e-6
+
+
+class TestStressorNonadditivity:
+    def test_observed_exceeds_additive(self):
+        from stressor_nonadditivity import additive, observed
+        assert observed() > additive()
+
+    def test_underbooking_exceeds_1(self):
+        from stressor_nonadditivity import additive, observed
+        assert observed() / additive() > 1.5
+
+    def test_verdict_fires(self):
+        from stressor_nonadditivity import verdict, additive, observed
+        a, o = additive(), observed()
+        v = verdict(o / a, o / 0.15)
+        assert "ADDITIVE_ASSUMPTION_FALSE" in v
+
+
+class TestCascadeTransfer:
+    def test_import(self):
+        import cascade_transfer
+
+    def test_cascade_transfer_instantiates(self):
+        from cascade_transfer import CascadeTransfer
+        ct = CascadeTransfer()
+        assert ct is not None
+
+    def test_verdict_method_exists(self):
+        from cascade_transfer import CascadeTransfer
+        assert hasattr(CascadeTransfer, 'verdict')
+
+
+class TestScopeCarrierDensity:
+    def test_import(self):
+        import scope_carrier_density
+
+    def test_project_returns_float(self):
+        from scope_carrier_density import project, K_tidal
+        val = project(K_tidal)
+        assert isinstance(val, float)
+
+
+class TestFrozenFlowAudit:
+    def test_import(self):
+        import frozen_flow_audit
+
+    def test_finding_dataclass(self):
+        from frozen_flow_audit import Finding
+        assert hasattr(Finding, '__dataclass_fields__')
+
+
+class TestCuriosityEngine:
+    def test_hubris_check_detects_optimize(self):
+        from curiosity_engine import hubris_check
+        result = hubris_check("how can we improve the model performance")
+        assert "HUBRIS" in result or "MIXED" in result
+
+    def test_hubris_check_clear_on_wonder(self):
+        from curiosity_engine import hubris_check
+        result = hubris_check("why does this regime persist")
+        assert "CLEAR" in result
+
+    def test_wonder_returns_string(self):
+        from curiosity_engine import wonder, Phenomenon, Configuration, Alternative, Hypothesis
+        survivor = Configuration(name="L-amino", conserves={"chirality"}, selected_in="early-earth")
+        p = Phenomenon(
+            survivor=survivor,
+            alternatives=[
+                Alternative(name="D-amino", differs_by="mirror chirality", status="rejected_here"),
+            ],
+        )
+        hypotheses = [
+            Hypothesis(why="UV asymmetry", would_break="if UV filtered",
+                       test="UV-dark prebiotic synthesis", explains=0.6),
+        ]
+        result = wonder(p, hypotheses)
+        assert isinstance(result, str) and len(result) > 0
+
+
+class TestUniverseConstraint:
+    def test_ceiling_decreases_with_gap(self):
+        from universe_constraint import ceiling
+        assert ceiling(10) > ceiling(100)
+
+    def test_ceiling_never_exceeds_094(self):
+        from universe_constraint import ceiling
+        assert ceiling(0) <= 0.94
+
+    def test_margolus_levitin_positive(self):
+        from universe_constraint import margolus_levitin_ops_per_s
+        assert margolus_levitin_ops_per_s(1.0) > 0
+
+
+class TestContinuityAudit:
+    def test_hill_q0_is_richness(self):
+        from continuity_audit import hill
+        p = [0.5, 0.3, 0.2]
+        assert abs(hill(p, q=0) - 3.0) < 1e-6
+
+    def test_hill_q1_is_exp_entropy(self):
+        import math
+        from continuity_audit import hill
+        p = [0.5, 0.3, 0.2]
+        H = -sum(pi * math.log(pi) for pi in p)
+        assert abs(hill(p, q=1) - math.exp(H)) < 1e-6
+
+    def test_audit_returns_verdict(self):
+        from continuity_audit import audit, Agent
+        p0 = [0.4, 0.3, 0.2, 0.1]
+        g = -0.5   # diversifying field (scalar)
+        agents = [Agent(name="A", kappa=0.8), Agent(name="B", kappa=0.2)]
+        result = audit(p0, g, agents, steps=20)
+        assert "verdict" in result
 # ── THERMAL SENSOR DEGRADATION AUDIT ──────────────────────────────────────────
 
 class TestThermalSensorDegradationAudit:

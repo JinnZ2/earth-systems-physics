@@ -6,7 +6,7 @@
 # scheme (gross credited removal) against physical net flux.
 # CC0. stdlib only.
 
-from boreal_recovery_ratchet import MODES, simulate
+from boreal_recovery_ratchet import get_modes, simulate
 
 # ── CONSTRAINTS ──────────────────────────────────────────────
 # Pools (per unit harvested aboveground biomass B=1):
@@ -29,7 +29,7 @@ def carbon_ledger(T=70.0, n_rot=8, B=1.0, ratio_soil=5.0,
                   s_sink=0.60, p_ocean=0.50, ocean_measured=False,
                   max_vent=0.06):
     """Gross credited removal vs physical net flux across rotations."""
-    cap_traj = simulate(MODES["bryophytes"], T, n_rot)   # (frac, L, tau_eff)
+    cap_traj = simulate(get_modes()["bryophytes"], T, n_rot)   # (frac, L, tau_eff)
     C_soil = ratio_soil * B
     booked = removed = vented = 0.0
     rows = []

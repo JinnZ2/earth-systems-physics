@@ -96,7 +96,7 @@ if __name__ == "__main__":
         else:
             xs_rat = xs_fix / A         # avoid: no L-ratchet modeled; constant-tau holds
         v = verdict(xs_rat * A, A, theta, orient)
-        Tc_str = f"T_crit={Tc:.0f}y" if Tc else ""
+        Tc_str = f"T_crit={Tc:.0f}y" if Tc is not None else "T_crit=NONE(e*∉(0,1))"
         print(f"{name:<34}{xs_fix/A:>10.2f}{xs_rat:>14.2f}{orient:>9}  {v}  [{Tc_str}]")
     print()
     print("fixed_point() assumes tau constant (L=1). simulate_ratcheted() lets L fall.")
