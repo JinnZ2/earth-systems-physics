@@ -9593,3 +9593,644 @@ class TestContinuityAudit:
         agents = [Agent(name="A", kappa=0.8), Agent(name="B", kappa=0.2)]
         result = audit(p0, g, agents, steps=20)
         assert "verdict" in result
+# ── THERMAL SENSOR DEGRADATION AUDIT ──────────────────────────────────────────
+
+class TestThermalSensorDegradationAudit:
+    def test_import(self):
+        import thermal_sensor_degradation_audit
+
+    def test_f_to_c_reference_points(self):
+        from thermal_sensor_degradation_audit import f_to_c
+        assert abs(f_to_c(32.0) - 0.0) < 1e-9
+        assert abs(f_to_c(212.0) - 100.0) < 1e-9
+
+    def test_wet_bulb_below_dry_bulb(self):
+        """Wet-bulb temp must not exceed dry-bulb at sub-saturation RH."""
+        from thermal_sensor_degradation_audit import wet_bulb_c
+        assert wet_bulb_c(43.3, 45.0) < 43.3
+
+    def test_wet_bulb_increases_with_humidity(self):
+        from thermal_sensor_degradation_audit import wet_bulb_c
+        assert wet_bulb_c(35.0, 80.0) > wet_bulb_c(35.0, 20.0)
+
+    def test_surface_hotter_than_air(self):
+        from thermal_sensor_degradation_audit import surface_temp_c
+        air = 43.3
+        assert surface_temp_c(air) > air
+
+    def test_surface_wind_cools(self):
+        """More convective relief lowers surface temp."""
+        from thermal_sensor_degradation_audit import surface_temp_c
+        assert surface_temp_c(40.0, wind_ms=5.0) < surface_temp_c(40.0, wind_ms=0.0)
+
+    def test_pair_mismatch_scales_with_delta_t(self):
+        from thermal_sensor_degradation_audit import pair_mismatch
+        low  = pair_mismatch("aluminum_6061", "abs_plastic", 150, 20.0)
+        high = pair_mismatch("aluminum_6061", "abs_plastic", 150, 80.0)
+        assert high["microstrain"] > low["microstrain"]
+
+    def test_pair_mismatch_flags(self):
+        from thermal_sensor_degradation_audit import pair_mismatch
+        # near-matched CTE stays GREEN
+        matched = pair_mismatch("concrete", "steel_1018", 300, 85.0)
+        assert matched["flag"] == "GREEN"
+        # highly dissimilar goes RED
+        dissimilar = pair_mismatch("aluminum_6061", "abs_plastic", 150, 85.0)
+        assert dissimilar["flag"] == "RED"
+
+    def test_pair_mismatch_symmetric(self):
+        from thermal_sensor_degradation_audit import pair_mismatch
+        a = pair_mismatch("steel_1018", "nylon_66", 100, 60.0)
+        b = pair_mismatch("nylon_66", "steel_1018", 100, 60.0)
+        assert a["microstrain"] == b["microstrain"]
+
+    def test_compression_set_accelerates_with_temp(self):
+        from thermal_sensor_degradation_audit import compression_set
+        cool = compression_set("epdm_rubber", 70.0, 30)
+        hot  = compression_set("epdm_rubber", 100.0, 30)
+        assert hot["set_fraction"] > cool["set_fraction"]
+
+    def test_compression_set_clamped_at_one(self):
+        from thermal_sensor_degradation_audit import compression_set
+        r = compression_set("pvc", 105.0, 45)
+        assert 0.0 <= r["set_fraction"] <= 1.0
+
+    def test_compression_set_unknown_material(self):
+        from thermal_sensor_degradation_audit import compression_set
+        r = compression_set("steel_1018", 100.0, 30)
+        assert "note" in r
+        assert "flag" not in r
+
+    def test_aging_multiplier_unity_at_reference(self):
+        from thermal_sensor_degradation_audit import aging_multiplier
+        assert abs(aging_multiplier(25.0) - 1.0) < 1e-6
+
+    def test_aging_multiplier_increases_with_temp(self):
+        from thermal_sensor_degradation_audit import aging_multiplier
+        assert aging_multiplier(70.0) > aging_multiplier(50.0) > aging_multiplier(25.0)
+
+    def test_sensor_drift_uses_internal_temp(self):
+        from thermal_sensor_degradation_audit import sensor_drift
+        r = sensor_drift(43.3, 15.0, 0.25, 45)
+        assert r["internal_c"] == round(43.3 + 15.0, 1)
+        assert r["aging_multiplier_vs_25C"] > 1.0
+
+    def test_corruption_signature_detects_collapse(self):
+        from thermal_sensor_degradation_audit import corruption_signature
+        before = [30, 35, 40, 45, 50, 25]
+        during = [38, 38, 39, 38, 39, 38]
+        sig = corruption_signature(before, during)
+        assert sig["variance_collapse"] is True
+        assert sig["range_clipping"] is True
+        assert "LOW-BIAS" in sig["read"]
+
+    def test_corruption_signature_clean(self):
+        from thermal_sensor_degradation_audit import corruption_signature
+        before = [30, 35, 40, 45, 50, 25]
+        during = [31, 36, 41, 46, 51, 26]
+        sig = corruption_signature(before, during)
+        assert sig["variance_collapse"] is False
+        assert "no corruption signature" in sig["read"]
+
+    def test_audit_returns_verdict(self):
+        from thermal_sensor_degradation_audit import audit
+        result = audit(air_f=110, rh_pct=45, days=45,
+                       pairs=[("aluminum_6061", "abs_plastic", 150)],
+                       gaskets=["epdm_rubber"])
+        assert result["verdict"] in ("RED", "YELLOW", "GREEN")
+
+    def test_audit_heat_dome_is_red(self):
+        from thermal_sensor_degradation_audit import audit
+        result = audit(air_f=110, rh_pct=45, days=45,
+                       pairs=[("aluminum_6061", "abs_plastic", 150),
+                              ("steel_1018", "nylon_66", 100),
+                              ("concrete", "steel_1018", 300)],
+                       gaskets=["epdm_rubber", "nitrile_rubber"])
+        assert result["verdict"] == "RED"
+
+    def test_audit_benign_case_greener(self):
+        """Mild conditions with matched CTE and no gasket model stay non-RED."""
+        from thermal_sensor_degradation_audit import audit
+        result = audit(air_f=70, rh_pct=40, days=5,
+                       pairs=[("concrete", "steel_1018", 300)],
+                       gaskets=[])
+        assert result["verdict"] in ("GREEN", "YELLOW")
+
+    def test_audit_verdict_worst_flag_wins(self):
+        from thermal_sensor_degradation_audit import audit
+        result = audit(air_f=110, rh_pct=45, days=45,
+                       pairs=[("concrete", "steel_1018", 300)],
+                       gaskets=["epdm_rubber"])
+        flags = ([p["flag"] for p in result["pairs"]]
+                 + [g.get("flag", "GREEN") for g in result["gaskets"]]
+                 + [result["electronics"]["flag"]])
+        expected = ("RED" if "RED" in flags
+                    else "YELLOW" if "YELLOW" in flags else "GREEN")
+        assert result["verdict"] == expected
+
+
+# ── WARNING-TIME AUDIT ────────────────────────────────────────────────────────
+
+class TestWarningTimeAudit:
+    def test_import(self):
+        import warning_time_audit
+
+    def test_first_crossing_interpolates(self):
+        from warning_time_audit import first_crossing
+        # loss 0.0 -> 1.0 over t 0 -> 10; theta 0.5 crosses at t=5
+        t = first_crossing([0, 10], [0.0, 1.0], 0.5)
+        assert abs(t - 5.0) < 1e-9
+
+    def test_first_crossing_at_index_zero(self):
+        from warning_time_audit import first_crossing
+        assert first_crossing([3, 4, 5], [0.9, 0.95, 1.0], 0.5) == 3
+
+    def test_first_crossing_never(self):
+        from warning_time_audit import first_crossing
+        assert first_crossing([0, 1, 2], [0.0, 0.1, 0.2], 0.9) is None
+
+    def test_first_crossing_exact_first_point(self):
+        """First sample already at theta returns the first time."""
+        from warning_time_audit import first_crossing
+        assert first_crossing([0, 1], [0.5, 0.5], 0.5) == 0
+
+    def test_collapse_time_reaches_near_one(self):
+        from warning_time_audit import collapse_time
+        T = list(range(11))
+        loss = [t / 10.0 for t in T]
+        tc = collapse_time(T, loss)
+        assert tc <= 10.0 and tc > 9.0
+
+    def test_collapse_time_fallback_last(self):
+        from warning_time_audit import collapse_time
+        T = [0, 1, 2]
+        assert collapse_time(T, [0.1, 0.2, 0.3]) == 2
+
+    def test_curve_deviation_concave_positive(self):
+        """truth = proxy**0.6 : truth exceeds proxy -> D > 0 concave."""
+        from warning_time_audit import curve_deviation
+        px = [i / 20.0 for i in range(21)]
+        ty = [p ** 0.6 for p in px]
+        c = curve_deviation(px, ty)
+        assert c["signed_deviation"] > 0
+        assert "CONCAVE" in c["shape"]
+
+    def test_curve_deviation_convex_negative(self):
+        """truth = proxy**1.6 : truth below proxy -> D < 0 convex."""
+        from warning_time_audit import curve_deviation
+        px = [i / 20.0 for i in range(21)]
+        ty = [p ** 1.6 for p in px]
+        c = curve_deviation(px, ty)
+        assert c["signed_deviation"] < 0
+        assert "CONVEX" in c["shape"]
+
+    def test_curve_deviation_linear(self):
+        from warning_time_audit import curve_deviation
+        px = [i / 20.0 for i in range(21)]
+        c = curve_deviation(px, list(px))
+        assert abs(c["signed_deviation"]) < 0.02
+        assert "LINEAR" in c["shape"]
+
+    def test_warning_gap_proxy_lags(self):
+        from warning_time_audit import warning_gap, collapse_time, DEFAULT_TIERS
+        T = list(range(0, 91))
+        px = [t / 90.0 for t in T]
+        ty = [p ** 0.6 for p in px]
+        tc = collapse_time(T, ty)
+        g = warning_gap(T, ty, px, DEFAULT_TIERS, tc)
+        # concave case: proxy crossings come later than truth -> positive gap
+        for tier in ("VU", "EN", "CR"):
+            assert g[tier]["gap_yr"] > 0
+            assert g[tier]["warning_lost_frac"] >= 0
+
+    def test_warning_gap_truth_never_note(self):
+        from warning_time_audit import warning_gap
+        T = [0, 1, 2]
+        low = [0.0, 0.05, 0.1]
+        g = warning_gap(T, low, low, {"VU": 0.30}, 2)
+        assert "note" in g["VU"]
+
+    def test_verdict_uses_lowest_theta_tier(self):
+        from warning_time_audit import verdict
+        gap_table = {
+            "VU": {"warning_lost_frac": 0.6, "gap_yr": 5},
+            "EN": {"warning_lost_frac": 0.1, "gap_yr": 2},
+        }
+        v = verdict(gap_table, {"VU": 0.30, "EN": 0.50})
+        assert v["tier"] == "VU"
+        assert v["flag"] == "RED"
+
+    def test_verdict_flag_thresholds(self):
+        from warning_time_audit import verdict
+        tiers = {"VU": 0.30}
+        assert verdict({"VU": {"warning_lost_frac": 0.1}}, tiers)["flag"] == "GREEN"
+        assert verdict({"VU": {"warning_lost_frac": 0.3}}, tiers)["flag"] == "YELLOW"
+        assert verdict({"VU": {"warning_lost_frac": 0.7}}, tiers)["flag"] == "RED"
+
+    def test_audit_concave_shape_and_keys(self):
+        from warning_time_audit import audit
+        T = list(range(0, 91))
+        px = [t / 90.0 for t in T]
+        ty = [round(p ** 0.6, 4) for p in px]
+        result = audit(T, ty, px)
+        for key in ("collapse_time", "curve", "tiers", "verdict"):
+            assert key in result
+        assert "CONCAVE" in result["curve"]["shape"]
+        assert result["verdict"]["flag"] in ("RED", "YELLOW", "GREEN")
+
+    def test_audit_faithful_proxy_no_warning_lost(self):
+        """Linear proxy=truth loses no warning time."""
+        from warning_time_audit import audit
+        T = list(range(0, 101))
+        loss = [t / 100.0 for t in T]
+        result = audit(T, loss, list(loss))
+        assert result["verdict"]["flag"] == "GREEN"
+        assert result["tiers"]["VU"]["warning_lost_frac"] == 0.0
+
+    def test_audit_custom_tiers(self):
+        from warning_time_audit import audit
+        T = list(range(0, 101))
+        px = [t / 100.0 for t in T]
+        ty = [p ** 0.6 for p in px]
+        result = audit(T, ty, px, tiers={"LOW": 0.10, "HIGH": 0.90})
+        assert set(result["tiers"].keys()) == {"LOW", "HIGH"}
+        assert result["verdict"]["tier"] == "LOW"
+
+
+# ── CORRUPTION CHAIN (TAF composition) ────────────────────────────────────────
+
+class TestCorruptionChain:
+    def test_import(self):
+        import corruption_chain
+
+    def test_from_flag_maps_factors(self):
+        from corruption_chain import from_flag
+        assert from_flag("GREEN")["factor"] == 1.0
+        assert from_flag("YELLOW")["factor"] == 2.0
+        assert from_flag("RED")["factor"] == 5.0
+
+    def test_from_flag_unknown_is_faithful(self):
+        from corruption_chain import from_flag
+        assert from_flag("PURPLE")["factor"] == 1.0
+
+    def test_from_warning_time_concave_underestimates(self):
+        from corruption_chain import from_warning_time
+        adapter = from_warning_time({
+            "curve": {"signed_deviation": 0.18},
+            "verdict": {"warning_lost_frac": 0.5},
+        })
+        assert adapter["direction"] == 1          # concave -> underestimate
+        assert adapter["factor"] == 2.0           # 1/(1-0.5)
+
+    def test_from_warning_time_convex_overestimates(self):
+        from corruption_chain import from_warning_time
+        adapter = from_warning_time({
+            "curve": {"signed_deviation": -0.18},
+            "verdict": {"warning_lost_frac": 0.0},
+        })
+        assert adapter["direction"] == -1
+        assert adapter["factor"] == 1.0
+
+    def test_from_warning_time_full_loss_caps(self):
+        from corruption_chain import from_warning_time
+        adapter = from_warning_time({
+            "curve": {"signed_deviation": 0.5},
+            "verdict": {"warning_lost_frac": 1.0},
+        })
+        assert adapter["factor"] == 50.0
+
+    def test_from_thermal_sensor_uses_drift_and_flag(self):
+        from corruption_chain import from_thermal_sensor
+        adapter = from_thermal_sensor({
+            "electronics": {"projected_drift_pct": 1.5},
+            "verdict": "YELLOW",
+        })
+        # max(1+1.5, FLAG_FACTOR[YELLOW]=2.0) = 2.5
+        assert adapter["factor"] == 2.5
+        assert adapter["direction"] == 1
+
+    def test_compose_compounding_same_direction(self):
+        from corruption_chain import compose, from_flag
+        p, net, coupling = compose([from_flag("YELLOW", 1), from_flag("YELLOW", 1)])
+        assert p == 4.0
+        assert net == 1
+        assert "COMPOUNDING" in coupling
+
+    def test_compose_mixed_direction_not_trusted(self):
+        from corruption_chain import compose, from_flag
+        p, net, coupling = compose([from_flag("YELLOW", 1), from_flag("YELLOW", -1)])
+        assert net == 0
+        assert "MIXED" in coupling
+
+    def test_compose_clean_chain_neutral(self):
+        from corruption_chain import compose, from_flag
+        p, net, coupling = compose([from_flag("GREEN", 0), from_flag("GREEN", 0)])
+        assert p == 1.0
+        assert net == 0
+        assert coupling == "neutral"
+
+    def test_chain_clean_is_green(self):
+        from corruption_chain import chain, from_flag
+        r = chain([from_flag("GREEN", 0), from_flag("GREEN", 0)])
+        assert r["flag"] == "GREEN"
+        assert "clean chain" in r["read"]
+
+    def test_chain_compounding_is_red(self):
+        from corruption_chain import chain, from_flag
+        r = chain([from_flag("YELLOW", 1), from_flag("RED", 1)])
+        assert r["trend_corruption_factor"] == 10.0
+        assert r["flag"] == "RED"
+        assert "COMPOUNDING" in r["coupling"]
+
+    def test_chain_masking_risk_flagged(self):
+        """Offsetting directions with a large product must raise masking_risk."""
+        from corruption_chain import chain, from_flag
+        r = chain([from_flag("RED", 1), from_flag("RED", -1)])
+        assert r["masking_risk"] is True
+        assert "MASKED" in r["read"]
+
+    def test_chain_masking_not_flagged_when_small(self):
+        from corruption_chain import chain, from_flag
+        r = chain([from_flag("GREEN", 1), from_flag("GREEN", -1)])
+        assert r["masking_risk"] is False
+
+    def test_end_to_end_warning_time_audit(self):
+        """Real warning_time_audit output pipes through the adapter."""
+        from warning_time_audit import audit as wt_audit
+        from corruption_chain import from_warning_time, chain
+        T = list(range(0, 91))
+        px = [t / 90.0 for t in T]
+        ty = [round(p ** 0.6, 4) for p in px]      # concave underestimation
+        wt = wt_audit(T, ty, px)
+        layer = from_warning_time(wt)
+        assert layer["direction"] == 1              # concave detected
+        r = chain([layer])
+        assert r["flag"] in ("GREEN", "YELLOW", "RED")
+
+    def test_end_to_end_thermal_sensor_audit(self):
+        """Real thermal_sensor_degradation_audit output pipes through."""
+        from thermal_sensor_degradation_audit import audit as ts_audit
+        from corruption_chain import from_thermal_sensor, chain
+        ts = ts_audit(air_f=110, rh_pct=45, days=45,
+                      pairs=[("aluminum_6061", "abs_plastic", 150)],
+                      gaskets=["epdm_rubber"])
+        layer = from_thermal_sensor(ts)
+        assert layer["factor"] >= 1.0
+        r = chain([layer])
+        assert "trend_corruption_factor" in r
+
+    def test_end_to_end_two_module_chain(self):
+        """Compose a real thermal-sensor measurement with a real SDM framework."""
+        from warning_time_audit import audit as wt_audit
+        from thermal_sensor_degradation_audit import audit as ts_audit
+        from corruption_chain import from_warning_time, from_thermal_sensor, chain
+        T = list(range(0, 91))
+        px = [t / 90.0 for t in T]
+        ty = [round(p ** 0.6, 4) for p in px]
+        wt = wt_audit(T, ty, px)
+        ts = ts_audit(air_f=110, rh_pct=45, days=45,
+                      pairs=[("aluminum_6061", "abs_plastic", 150)],
+                      gaskets=["epdm_rubber"])
+        r = chain([from_thermal_sensor(ts), from_warning_time(wt)])
+        assert r["trend_corruption_factor"] >= 1.0
+        assert r["flag"] in ("GREEN", "YELLOW", "RED")
+
+
+# ── CLIMATE MODELING AUDIT LAB ────────────────────────────────────────────────
+
+class TestClimateModelingFramework:
+    def test_import_package(self):
+        import climate_modeling
+        assert climate_modeling.__version__
+
+    def test_grass_persists_benign(self):
+        """At benign temperature the smooth grass holds a healthy biomass
+        (regression guard for the per-hour rate calibration)."""
+        from climate_modeling.models import GrassCarbonBalance
+        from climate_modeling.forcing import DiurnalTemperature
+        g = GrassCarbonBalance()
+        t, y = g.simulate(DiurnalTemperature(T_mean=23, amplitude=2), [100.0], (0, 150))
+        assert y[0, -1] > 40.0
+
+    def test_grass_declines_under_heat(self):
+        from climate_modeling.models import GrassCarbonBalance
+        from climate_modeling.forcing import DiurnalTemperature
+        g = GrassCarbonBalance()
+        t, y = g.simulate(DiurnalTemperature(T_mean=36, amplitude=2), [100.0], (0, 150))
+        assert y[0, -1] < 20.0
+
+    def test_cascade_collapses_smooth_survives(self):
+        from climate_modeling.models import CascadeGrass, GrassCarbonBalance
+        from climate_modeling.forcing import FatTailedForcing
+        f1 = FatTailedForcing(T_mean=24, amplitude=6, df=3, scale=4, seed=42)
+        f2 = FatTailedForcing(T_mean=24, amplitude=6, df=3, scale=4, seed=42)
+        c = CascadeGrass(); tc, yc = c.simulate(f1, c.initial_state, (0, 150))
+        g = GrassCarbonBalance(); tg, yg = g.simulate(f2, [100.0], (0, 150))
+        assert yc[0].min() < 5.0          # cascade collapses
+        assert yg[0].min() > 20.0         # smooth baseline survives
+
+    def test_forcing_is_deterministic_in_t(self):
+        """Pre-sampled stochastic forcing must return the same value for the
+        same t (else it is not a function of t and breaks the ODE solver)."""
+        from climate_modeling.forcing import FatTailedForcing
+        f = FatTailedForcing(seed=1)
+        assert f(10.0)["temperature"] == f(10.0)["temperature"]
+        assert f(37.5)["temperature"] == f(37.5)["temperature"]
+
+    def test_forcing_temperature_capped(self):
+        from climate_modeling.forcing import FatTailedForcing, TEMP_CAP_C
+        f = FatTailedForcing(T_mean=30, amplitude=10, scale=20, seed=3)
+        for tt in range(0, 200, 3):
+            assert f(float(tt))["temperature"] <= TEMP_CAP_C + 1e-9
+
+    def test_smoothstep_bounds_and_monotonic(self):
+        from climate_modeling.models.base import smoothstep
+        assert 0.0 <= smoothstep(-100.0) < 0.01
+        assert 0.99 < smoothstep(100.0) <= 1.0
+        assert smoothstep(1.0) > smoothstep(-1.0)
+
+    def test_aggregation_bias_zero_at_flat_cycle(self):
+        from climate_modeling.experiments import experiment_aggregation_bias
+        assert experiment_aggregation_bias(amplitude=0.0) < 1e-6
+
+    def test_aggregation_bias_nonzero_under_cycle(self):
+        from climate_modeling.experiments import experiment_amplitude_sweep
+        sweep = dict(experiment_amplitude_sweep())
+        assert sweep[0.0] < 1e-6
+        assert max(sweep[a] for a in (5.0, 10.0, 15.0)) > 1.0
+
+
+class TestClimateModelingAudits:
+    def test_registry_has_sixteen_audits(self):
+        from climate_modeling.audits.audit_registry import all_audits
+        audits = all_audits()
+        assert len(audits) == 16
+        names = {a.name for a in audits}
+        assert len(names) == 16          # all names unique
+
+    def test_every_audit_returns_wellformed_report(self):
+        from climate_modeling.audits.audit_registry import all_audits
+        for audit in all_audits():
+            r = audit.run()
+            assert set(r) >= {"audit_name", "failure_detected", "metrics",
+                              "true_final", "audited_final"}
+            assert isinstance(r["failure_detected"], bool)
+            assert isinstance(r["metrics"], dict)
+
+    def test_all_audits_detect_failure(self):
+        """Every audit is calibrated so its simplified model fails the known
+        true system. This is the headline result of the suite."""
+        from climate_modeling.audits.audit_registry import all_audits
+        results = [(a.name, a.run()["failure_detected"]) for a in all_audits()]
+        failed = [name for name, ok in results if not ok]
+        assert not failed, f"audits that did not detect failure: {failed}"
+
+    def test_cascade_speed_audit_underestimates_collapse(self):
+        from climate_modeling.audits.cascade_speed import CascadeSpeedAudit
+        r = CascadeSpeedAudit().run()
+        m = r["metrics"]
+        assert m["audited_min"] > m["true_min"] + 2.0
+
+    def test_gaussian_blindness_matched_variance(self):
+        """The audited Gaussian shares the true fat-tail's variance yet the
+        true system collapses and the audited one does not."""
+        from climate_modeling.audits.gaussian_blindness import GaussianBlindnessAudit
+        r = GaussianBlindnessAudit().run()
+        assert r["metrics"]["audited_min"] > r["metrics"]["true_min"] + 3.0
+
+    def test_first_below_interpolates(self):
+        from climate_modeling.audits.base_audit import first_below
+        assert abs(first_below([0, 10], [100.0, 0.0], 50.0) - 5.0) < 1e-9
+        assert first_below([0, 1], [100.0, 90.0], 50.0) == float("inf")
+
+    def test_incentive_bias_custom_run(self):
+        from climate_modeling.audits.incentive_bias import IncentiveBiasAudit
+        r = IncentiveBiasAudit().run()
+        assert "linear_slope" in r["metrics"]
+
+    def test_meta_experiment_attaches_repairs(self):
+        from climate_modeling.meta_experiments import MetaExperiment
+        recs = MetaExperiment().run()
+        card = MetaExperiment.report_card(recs)
+        assert card["n_audits"] == 16
+        assert card["n_failures"] == 16
+        assert len(card["repairs"]) == 16
+
+    def test_ai_interface_dummy_no_dependency(self):
+        from climate_modeling.ai_interface import AIScientist
+        patch = AIScientist().propose_patch({"audit_name": "Phase Change Blindness"})
+        assert "threshold" in patch["suggestion"]
+
+
+# ── DIACHRONIC ANCHOR (Manifold Framework companion) ──────────────────────────
+
+class TestDiachronicAnchor:
+    def _example_trajectory(self):
+        from diachronic_anchor import AnchorPoint
+        return [
+            AnchorPoint(year=1787, who="framers", coordinate={"t": 1787},
+                        semantic_load="contested compromise among factions",
+                        intent="establish a workable federal structure",
+                        problem_solved="bind 13 rival states", S="high"),
+            AnchorPoint(year=1894, who="nationalist historians", coordinate={"t": 1894},
+                        semantic_load="timeless national ideals",
+                        intent="legitimize present order via founding heritage",
+                        problem_solved="manufacture a unified origin story", S="low"),
+            AnchorPoint(year=2024, who="consensus reading", coordinate={"t": 2024},
+                        semantic_load="what the founders always meant",
+                        intent="present current interpretation as accurate original consensus",
+                        problem_solved="ground present arrangements as fulfilment", S="low"),
+        ]
+
+    def test_import(self):
+        import diachronic_anchor
+
+    def test_anchorpoint_as_row_defaults_unknown_S(self):
+        from diachronic_anchor import AnchorPoint
+        p = AnchorPoint(year=1800, who="x", coordinate={}, semantic_load="a",
+                        intent="b", problem_solved="c")
+        assert p.as_row()["S"] == "unknown"
+
+    def test_classify_origin_is_not_reanchoring(self):
+        from diachronic_anchor import classify_rhetorical_load, AnchorPoint
+        p = AnchorPoint(year=1787, who="x", coordinate={}, semantic_load="",
+                        intent="found a republic", problem_solved="bind states")
+        assert classify_rhetorical_load(p, is_origin=True) == ["origin_stance"]
+
+    def test_classify_detects_ancestry(self):
+        from diachronic_anchor import classify_rhetorical_load, AnchorPoint
+        p = AnchorPoint(year=1894, who="x", coordinate={}, semantic_load="",
+                        intent="tie it to ancestral heritage", problem_solved="")
+        assert "authority_by_ancestry" in classify_rhetorical_load(p, False)
+
+    def test_classify_none_detected(self):
+        from diachronic_anchor import classify_rhetorical_load, AnchorPoint
+        p = AnchorPoint(year=1900, who="x", coordinate={}, semantic_load="",
+                        intent="describe the weather", problem_solved="note rainfall")
+        assert classify_rhetorical_load(p, False) == ["none_detected"]
+
+    def test_requires_two_points(self):
+        from diachronic_anchor import diachronic_anchor, AnchorPoint
+        one = [AnchorPoint(year=1787, who="x", coordinate={}, semantic_load="",
+                           intent="", problem_solved="")]
+        assert "error" in diachronic_anchor("phrase", one)
+
+    def test_worked_example_pattern_is_authority_laundering(self):
+        from diachronic_anchor import diachronic_anchor
+        out = diachronic_anchor("founded on these principles", self._example_trajectory())
+        assert out["pattern_across_trajectory"]["direction"] == "authority_laundering"
+
+    def test_worked_example_load_sequence(self):
+        from diachronic_anchor import diachronic_anchor
+        out = diachronic_anchor("p", self._example_trajectory())
+        assert out["rhetorical_load_sequence"] == [
+            "authority_by_ancestry", "consensus_naturalization"]
+
+    def test_teleology_guard_fires(self):
+        from diachronic_anchor import diachronic_anchor
+        out = diachronic_anchor("p", self._example_trajectory())
+        # the 2024 "always meant" reading claims the origin aimed at now
+        assert len(out["teleology_flags"]) == 1
+        assert out["teleology_flags"][0]["year"] == 2024
+
+    def test_semantic_drift_flags_changed_load(self):
+        from diachronic_anchor import diachronic_anchor
+        out = diachronic_anchor("p", self._example_trajectory())
+        assert len(out["semantic_drift"]) == 2
+        for d in out["semantic_drift"]:
+            assert "different semantic load" in d["gap"]
+
+    def test_origin_is_earliest_regardless_of_input_order(self):
+        from diachronic_anchor import diachronic_anchor
+        traj = self._example_trajectory()
+        reversed_traj = list(reversed(traj))
+        out = diachronic_anchor("p", reversed_traj)
+        assert out["origin_coordinate"]["year"] == 1787
+
+    def test_falsifier_mentions_primary_texts(self):
+        from diachronic_anchor import diachronic_anchor
+        out = diachronic_anchor("p", self._example_trajectory())
+        assert "PRIMARY" in out["falsifiable_claim"]
+
+    def test_freeze_and_wield_pattern(self):
+        from diachronic_anchor import diachronic_anchor, AnchorPoint
+        traj = [
+            AnchorPoint(year=1900, who="a", coordinate={}, semantic_load="x",
+                        intent="found", problem_solved="found"),
+            AnchorPoint(year=1950, who="b", coordinate={}, semantic_load="y",
+                        intent="the plain meaning is self-evident and fixed",
+                        problem_solved="the text demands we act; a call to rally"),
+        ]
+        out = diachronic_anchor("p", traj)
+        assert out["pattern_across_trajectory"]["direction"] == "freeze_and_wield"
+
+    def test_no_load_pattern_is_none(self):
+        from diachronic_anchor import diachronic_anchor, AnchorPoint
+        traj = [
+            AnchorPoint(year=1900, who="a", coordinate={}, semantic_load="x",
+                        intent="found a system", problem_solved="organize work"),
+            AnchorPoint(year=1950, who="b", coordinate={}, semantic_load="x",
+                        intent="describe the same system", problem_solved="record it"),
+        ]
+        out = diachronic_anchor("p", traj)
+        assert out["pattern_across_trajectory"]["direction"] == "none"

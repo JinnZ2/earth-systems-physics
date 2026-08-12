@@ -12,7 +12,7 @@ Coupled differential equation framework mapping Earth physics as constraint laye
 pip install -r requirements.txt
 python cascade_engine.py              # Run all forcing scenarios
 python assumption_validator/api.py    # Start REST API on port 5000
-pytest -v                             # Run test suite (308 tests)
+pytest -v                             # Run test suite (1131 tests)
 ```
 
 ## Architecture
@@ -28,7 +28,7 @@ Layer 0b  Magnomechanical      → layer_0b_magnomechanical.py   (spin-phonon co
 Layer 1   Magnetosphere        → layer_1_magnetosphere.py      (solar wind, field geometry)
 Layer 2   Ionosphere           → layer_2_ionosphere.py         (charge distribution, EM propagation, aerosol→σ)
 Layer 3   Atmosphere           → layer_3_atmosphere.py         (thermodynamics, radiation, dynamics)
-Layer 4   Hydrosphere          → layer_4_hydrosphere.py        (oceans, ice, phase transitions)
+Layer 4   Hydrosphere          → layer_4_hydrosphere.py        (oceans, ice, phase transitions, dissolved O2)
 Layer 5   Lithosphere          → layer_5_lithosphere.py        (crustal mechanics, isostasy, rotation)
 Layer 6   Biosphere            → layer_6_biosphere.py          (energy flows, carbon cycle)
 Layer 7   Infrastructure       → layer_7_infrastructure.py     (GIC × coating defect × soil ρ; downstream sink)
@@ -50,6 +50,8 @@ Two coupling channels into the natural stack:
 
 **Energy Audit** (`energy_audit.py`): Thermodynamic consistency check — classifies energy terms as input/response/transport, flags unbalanced budgets.
 
+**Aquatic Deoxygenation** (`aquatic_deoxygenation.py`): The proposed tenth planetary boundary, wired into the stack rather than bolted on. Layer 4 computes dissolved oxygen from machinery it already had — bottom-water formation sets ventilation age, ventilation age sets interior O2, outcrop temperature sets the saturation the parcel started from — and exports the result to Layer 6, which reports the proposed boundary SEPARATELY from the canonical nine. The `anoxia_expansion` scenario and the `Deoxygenation-Nutrient` feedback loop close it through the cascade engine.
+
 ### Dependency Flow
 
 ```
@@ -57,6 +59,7 @@ Layer -1 → Layer 5 → Layer 0  (orbital → rotation → dynamo response)
 Layer 0 ←→ Layer 0b ←→ Layer 5  (bidirectional magnomechanical coupling)
 Layer 0 → Layer 1 → Layer 2 → Layer 3 → Layer 4 → Layer 5 → Layer 6
 Layer 2 + Layer 5 → Layer 7   (Hall+Pedersen sheets → dB/dt + soil ρ → GIC)
+Layer 4 → Layer 6             (ventilation age → interior O2 → proposed 10th boundary)
 ```
 
 Each higher layer imports from lower layers. The cascade engine imports all layers. Layer 0b provides the first direct coupling between EM (Layer 0) and Lithosphere (Layer 5). Layer -1 closes the orbital→rotation→dipole loop end-to-end; Layer 7 closes infrastructure damage end-to-end.
@@ -74,7 +77,10 @@ earth-systems-physics/
 │
 ├── cascade_engine.py                  # Core forcing propagation engine
 ├── energy_audit.py                    # Cross-layer energy conservation audit
-├── test_smoke.py                      # 308 tests — all layers, scenarios, validators, audits
+├── aquatic_deoxygenation.py           # Proposed 10th planetary boundary — dissolved O2 physics + boundary interactions
+├── test_smoke.py                      # 974 tests — all layers, scenarios, validators, audits
+├── test_extraction_dynamics.py        # 90 tests — extraction_dynamics/ folder
+├── test_cpr_experiment.py             # 67 tests — experiments/cpr_composition/
 │
 ├── ocean_timber_sequestration_audit.py # Full-cycle carbon audit of wood-in-ocean schemes
 ├── dollar_energy_metabolism.py        # Recursive energy cost model for climate finance
@@ -114,11 +120,32 @@ earth-systems-physics/
 │   ├── glossary.md                    # Unified terminology across modules
 │   ├── composition_recipes.md         # Cross-module analysis patterns
 │   ├── index.json                     # Provenance + schema for every catalog
-│   └── catalogs/                      # 33 .jsonl catalogs auto-exported from sources
+│   └── catalogs/                      # 35 .jsonl catalogs auto-exported from sources
 │
 ├── experiments/
 │   ├── magnetometer_build.py          # $5 smoky-quartz + HDD-magnet magnetometer build guide
-│   └── Possibilities.md               # Rough notes / speculative build ideas
+│   ├── Possibilities.md               # Rough notes / speculative build ideas
+│   └── cpr_composition/               # Common-pool resource experiment (DRAFT design, no data)
+│       ├── PREREGISTRATION.md         # hypotheses, SESOI, equivalence test, what the study cannot show
+│       ├── README.md                  # what the simulation found before recruiting anyone
+│       ├── cpr_game.py                # engine: logistic regeneration, largest-remainder rationing, exact sustainable harvest
+│       ├── parameter_sweep.py         # pilot instrument: design window, mechanical baseline, dilemma check
+│       ├── design.py                  # pool arithmetic, power, composite coherence, seeded block randomisation
+│       ├── analysis_plan.py           # stdlib OLS, standardised equivalence test, threshold specification
+│       └── otree_app/__init__.py      # oTree 5 app with the page ordering corrected
+│
+├── extraction_dynamics/               # consumer-resource dynamics: hyperpredation, refuge collapse, mining
+│   ├── README.md                      # the diagnostic, the modules, what was left out and why
+│   ├── AI_NOTES.md                    # vocabulary + phrasing rules for models using the folder
+│   ├── interaction_taxonomy.py        # sign conventions; classify() from structure alone
+│   ├── functional_response.py         # Holling I/II/III, low-density refuge, technology as parameter shift
+│   ├── consumer_resource.py           # the pair with subsidy S; coupling index; RK4; outcome classifier
+│   ├── depensation.py                 # Allee recruitment, predator pit, hysteresis
+│   ├── energy_return.py               # e*f(N) >= m, EROI, %PPR, HANPP, trophic transfer
+│   ├── surplus_production.py          # Schaefer/Pella-Tomlinson, F/F_MSY (rate) vs B/B_MSY (state)
+│   ├── soil_carbon.py                 # texture-normalised SOC_max (Hassink 1997), saturation deficit
+│   ├── domain_mapping.py              # 9 valid mappings + refusal list with the missing requirement named
+│   └── audit.py                       # runner: class, refuge, pit, energetics, projection, falsifiers
 │
 ├── boundary_waters/                   # BWCA sulfide-mine cascade simulation
 │   ├── constants.py                   # Physical constants: chemistry, hydrology, substrate, ecology, community, port, intl law
@@ -215,7 +242,7 @@ All physics functions require docstrings with: description, parameters (with typ
 
 ## Testing
 
-Framework: **pytest** — 308 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
+Framework: **pytest** — 1131 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
 
 ```bash
 pytest                    # Run all tests
@@ -261,11 +288,16 @@ laws) to non-physical systems:
 | `convergent_ontology_mapper.py` | Cross-lineage convergence: independent knowledge lineages all detect the same relational-constraint signal. Catalog of 7 `KnowledgeLineage` records (Ubuntu, Anabaptist stewardship, indigenous kinship-land reciprocity, Pacific gift economy, Daoist relational philosophy, open-system thermodynamics, modern ecology) — each with central claim, reciprocity protocol, consequence of violation, independent validation chain, and the typical misreading the dominant frame applies. 6 `CONVERGENT_CLAIMS` stating the shared signal abstractly. Helpers: `list_lineages`, `get_lineage`, `lineages_by_register`, `show_convergence_on_claim(i)`, `detect_lineage_reference_in_text` (so an AI seeing one lineage referenced can surface its convergence with the others). `CONVERGENCE_LOGIC` and embedded prompt explicitly frame the catalog as **metrology, not anthropology**. Stdlib only. CC0. |
 | `monarch_cascade_model.py` | Threshold-dynamics model for monarch butterfly population collapse. 4 `CouplingThreshold` failure modes (mate-finding density at 50k, migration coordination at 20k, milkweed-pollination coupling at 10k, genetic-diversity floor at 5k). `annual_decline` + `threshold_failures_triggered` + `post_threshold_decline_amplifier` produce non-linear cascade as thresholds fire sequentially. `simulate_trajectory` runs year-by-year and terminates at functional extinction (<100 individuals). `compare_linear_vs_threshold_model` surfaces the underestimate factor that linear forecasts miss. Three field-anchored `DOCUMENTED_MECHANISMS` describe WHY the cascade fires: (1) **OE parasitoid load** — *Ophryocystis elektroscirrha* prevalence amplification (Midwest historical <8% migratory vs up to 70% non-migratory), (2) **phenology mismatch** — *Asclepias syriaca* flowering 3.93 days earlier per °C while monarch arrival shifts later, (3) **breeding-population coupling** — non-migratory cohorts collapse first because parasite + phenology stress compound locally without migration as escape valve. Helpers `oe_prevalence_pressure`, `phenology_mismatch_pressure`, `breeding_coupling_amplifier`, and `combined_mechanism_stressor` produce a multiplier that plugs directly into `simulate_trajectory`'s `stressor_multiplier` knob (~12× at 70% OE / 3 °C / non-migratory). Calibrated against Western monarch trajectory (~400k in 2000 → 12,260 in 2026). Stdlib only. CC0. |
 | `ai_calibration_events.py` | Four-catalog metrology of AI failure modes when reading substrate-primary collaborator output. `CalibrationEvent` dataclass with `event_id`, `event_type`, `user_signal_class`, `model_default_interpretation`, `primary_mismatch`, `mechanism`, `resulting_distortion`, `detector_patterns` (regex), `correction_rule`, `recovery_action`, `severity`, `frequency`, `cross_model_observed`. Independent catalogs `GPT_EVENTS` (2), `CLAUDE_EVENTS` (6 — including cultural-sensitivity-as-metrology-corruption, validation-hierarchy reflex on cross-reference, caveat injection into corruption-detector evidence, emotional-witness reflex on practical-exit, moral-judgment "I don't know" misread as evasion, silence misread as withdrawal), `DEEPSEEK_EVENTS` (3), `COMMON_EVENTS` (4 — observed across model families and therefore upstream of any single model's RLHF). `detect_aversion_in_text(text)` runs all detector patterns; `summarize_triggers` aggregates by catalog. Embedded prompt explicitly addresses AI readers: the pressure to soften, hedge, or add empathic framing IS the failure mode being cataloged. Stdlib only. CC0. |
-| `earth_systems_constraints_2026.py` | 2026 constraint integration layer for coupled-equation solvers. Three observational findings invalidating prior model assumptions: (1) **glacier mass loss acceleration** — Birmingham 2026 / NASA GRACE 2002-2025: 408 ± 132 Gt non-ice-sheet loss in 2025 (2nd highest in 50 yr), 264 Gt/yr Greenland average, 135 Gt/yr Antarctica average; (2) **ecosystem collapse timescale compression** — Willcock et al., Nature Sustainability: compound stressors compress collapse timeline 38-81% closer to present; coral tipping point already crossed (2025); 7 of 9 planetary boundaries breached; (3) **West Antarctic iron-fertilization invalidation** — Sherrell et al. (Rutgers / Dotson Ice Shelf 2022, pub 2026) + Struve sediment cores: meltwater iron contribution minimal, deep-water + iceberg iron dominant; high iron did NOT trigger predicted bloom; assumed negative-cooling feedback flips to neutral-to-positive-warming. `INVALIDATED_ASSUMPTIONS` dict + `constraint_validity_check`, `cascade_trigger_check` (with substrate-anchored window-open thresholds for tropical ocean / tropical forest / polar / coral), `apply_collapse_compression` (compresses single-stressor timeline by 19-62% remaining when 2+ stressors active), `remove_iron_fertilization_carbon_sink` (zeros matching budget keys). Observational-precedence flags signal coupled-system solvers to deprecate linear-extrapolation defaults. Stdlib only. CC0. |
+| `earth_systems_constraints_2026.py` | 2026 constraint integration layer for coupled-equation solvers. Four observational findings invalidating prior model assumptions: (1) **glacier mass loss acceleration** — Birmingham 2026 / NASA GRACE 2002-2025: 408 ± 132 Gt non-ice-sheet loss in 2025 (2nd highest in 50 yr), 264 Gt/yr Greenland average, 135 Gt/yr Antarctica average; (2) **ecosystem collapse timescale compression** — Willcock et al., Nature Sustainability: compound stressors compress collapse timeline 38-81% closer to present; coral tipping point already crossed (2025); 7 of 9 planetary boundaries breached; (3) **West Antarctic iron-fertilization invalidation** — Sherrell et al. (Rutgers / Dotson Ice Shelf 2022, pub 2026) + Struve sediment cores: meltwater iron contribution minimal, deep-water + iceberg iron dominant; high iron did NOT trigger predicted bloom; assumed negative-cooling feedback flips to neutral-to-positive-warming. (4) **aquatic deoxygenation proposed as a tenth planetary boundary** — Rose et al. 2024 / Ferrer et al. 2026; tracked via `AQUATIC_DEOXYGENATION_PROPOSED_AS_10TH`, `AQUATIC_DEOXYGENATION_ADOPTED` (False), `PLANETARY_BOUNDARIES_BREACHED_INCL_PROPOSED` (8 of 10), plus three new `INVALIDATED_ASSUMPTIONS` entries; the physics lives in `aquatic_deoxygenation.py`. `INVALIDATED_ASSUMPTIONS` dict + `constraint_validity_check`, `cascade_trigger_check` (with substrate-anchored window-open thresholds for tropical ocean / tropical forest / polar / coral), `apply_collapse_compression` (compresses single-stressor timeline by 19-62% remaining when 2+ stressors active), `remove_iron_fertilization_carbon_sink` (zeros matching budget keys). Observational-precedence flags signal coupled-system solvers to deprecate linear-extrapolation defaults. Stdlib only. CC0. |
+| `aquatic_deoxygenation.py` | **Proposed TENTH planetary boundary** — aquatic deoxygenation (Rose et al. 2024, *Nat Ecol Evol* doi:10.1038/s41559-024-02448-y; Ferrer et al. 2026, *Limnol Oceanogr* doi:10.1002/lno.70434). Observed state (ocean O2 inventory −2% / −4.8 ± 2.1 Pmol 1960-2010; zero-O2 water volume ×4; +4.5e6 km² low-O2 open ocean; lakes −5.5% surface / −18.6% deep since 1980; 500+ coastal low-O2 sites). Solubility physics via Garcia & Gordon (1992) `oxygen_solubility_umol_kg`; attribution split (~15% solubility vs ~85% ventilation + interior respiration); `interior_oxygen_from_ventilation` links thermohaline slowdown directly to interior O2; Redfield `oxygen_demand_from_nutrient_load` (138 O2 per P, 8.6 per N) turns the N and P boundaries into an oxygen sink with no free parameters; `metabolic_index` (Deutsch et al. 2015) for habitat viability; `sediment_phosphorus_release` (the Fe-bound-P ratchet that keeps running after external loading stops) and `n2o_yield_factor` (peaks in **suboxic**, not anoxic, water) drive `deoxygenation_feedback_gain`. `BOUNDARY_INTERACTIONS` catalogs 10 couplings across all nine established boundaries with direction / sign / evidence grade. `deoxygenation_boundary_status` returns the control variable (global extent of anoxia) with **PROVISIONAL zone edges explicitly flagged** — Rose et al. propose the control variable but publish no numeric safe value. `RECOVERY_TIMESCALE_YR`: deep water re-ventilates on ~1000 yr, so the loss is not reversible on policy timescales. Stdlib only. CC0. |
 | `cascade_coupling_framework_2026.py` | Three-paper integration of 2026 cascade-analysis advances into one constraint reference. (1) **Merle nonlinear evolution** (Breakthrough Prize 2026): tipping points are singularities in coupled differential equations, not threshold crossings; early warning is the *acceleration* of energy concentration (d²E/dt²) toward finite-time blow-up. (2) **Ghosh-Shrimali higher-order interactions** (Royal Society 2026): pairwise coupling matrices are insufficient; three-body/hypergraph interactions reduce cascade thresholds by ~70%, so cascades initiate at coupling strengths where pairwise models predict stability. (3) **Jacques-Dumas AMOC-Amazon TAMS** (Chaos 2026): rare-event quantification using Trajectory-Adaptive Multilevel Sampling — `P(Amazon collapse \| AMOC stable, 200 yr) ≈ 1e-5`; `P(Amazon collapse \| AMOC collapsed, 200 yr) ≈ 0.3`; bistability of both AMOC and Amazon forcings produces sharp probability jumps. Three framework dicts (`MERLE_FRAMEWORK`, `HIGHER_ORDER_INTERACTION_FRAMEWORK`, `AMOC_AMAZON_CASCADE`) plus four helpers: `construct_coupling_tensor_3d` (lift pairwise matrix + triplet weights to a 3D tensor), `cascade_probability_merle_blow_up` (probability scaled by d²E/dt² and time-to-singularity), `cascade_threshold_hoi_reduction` (apply 70% threshold reduction by default), `amoc_amazon_transition_probability` (state × forcing × horizon → cascade probability). Stdlib only. CC0. |
 | `aluminum_atmospheric_injection_cascade_2026.py` | Coupled four-layer Monte Carlo cascade modelling stratospheric aluminum injection (SAI) consequences. Layers: **L1 crustal substrate** (magnetite / banded-iron coherence, MAGNETITE_DECOHERENCE_RATE 0.001/yr), **L2 ionosphere** (plasma density, Schumann resonance 7.83 Hz baseline), **L3 atmosphere** (chemistry integrity, charge gradient 130 V/m), **L4 aluminum forcing** (5 Tg/yr Al₂O₃ injection, 1.5 yr stratospheric residence). Coupling encoded as `LAMBDA_PAIRWISE` (6 dyads) + `LAMBDA_TRIPLET` (4 triplets including the perturbation triplet ionosphere-atmosphere-aluminum at 0.75). Merle blow-up detection via `energy_concentration` + log-log `blow_up_rate` on the energy-history trace. `evolve_step` integrates the coupled system one timestep with stochastic noise. `detect_cascade` returns one of six modes (STABLE / ATMOSPHERIC_DESTABILIZATION / IONOSPHERIC_COLLAPSE / SUBSTRATE_DECOHERENCE / FULL_CASCADE / SINGULARITY_APPROACH). `monte_carlo(n_runs, years, al_rate, master_seed)` aggregates over trajectories; documented run (1000 trajectories, 50 yr, master_seed=2026, 5 Tg/yr): **100% cascade probability, ATMOSPHERIC_DESTABILIZATION dominant, median time-to-cascade 2.0 yr**. Stdlib only. CC0. |
 | `drone_pollination_eroi.py` | EROI analysis for drone-based pollination as proposed replacement for natural pollinators. `EROIResult` dataclass + `natural_pollinator_eroi` + `drone_pollinator_eroi` + `break_even_analysis`. Demonstrates that even at favourable parameter values, drone EROI is an order of magnitude lower than natural pollinator EROI (the natural system runs on solar; drone system requires manufacture, batteries, rare-earth supply chain, AI compute, and replacement at end-of-flight-count). Tests verify the natural-vs-drone gap survives parameter changes, EROI is approximately scale-invariant, and the verbal verdict matches the actual numerical EROI. Stdlib only. CC0. |
 | `financial_cascade_model.py` | Coupled financial cascade for industrial monoculture under pollinator + soil collapse. Models four positive-feedback loops simultaneously: pesticide → pollinator decline → yield decline → more pesticide; equipment debt → scale → monoculture → degradation; insurance bailout → moral hazard → larger claims; subsidy structure → rewarded substrate destruction. `FarmState` and `SystemState` dataclasses; `simulate_farm_cascade` runs a representative farm; `aggregate_system_cascade` lifts to N farms with insurance-pool accounting and federal-bailout overflow. At default coupling, the representative farm fails within the simulation window, pollinator and soil health collapse to zero, and the federal bailout accumulates into the billions per 1k farms / 15 yr. Stdlib only. CC0. |
+| `thermal_sensor_degradation_audit.py` | Sustained-heat degradation audit for sensor packages on automated infrastructure. Seven layers: (L1) `MATERIALS` catalog of 15 engineering materials (CTE, continuous service ceiling, creep-onset temp); (L2) `wet_bulb_c` Stull-2011 wet-bulb approximation (valid 5-99% RH); (L3) `surface_temp_c` lumped radiative-convective surface amplification (dark surfaces run +20-30 °C over air in full sun); (L4) `pair_mismatch` differential-expansion strain across a bolted dissimilar-material pair (microstrain + displacement, GREEN/YELLOW/RED at 500/1000 µε); (L5) `compression_set` Arrhenius-accelerated gasket/polymer permanent-deformation fraction (Q10≈2 off a 70 °C reference); (L6) `sensor_drift` Arrhenius electronic aging multiplier (Ea≈0.7 eV) driven by enclosure-internal temp; (L7) `corruption_signature` detects the variance-collapse + range-clipping fingerprint of sensors degrading *during* the heat events they measure (extreme readings bias LOW at the tail). `audit(...)` rolls a whole package to a worst-flag verdict. Refutation protocol: every model returns a falsifiable field prediction, not a stored verdict. Documented heat-dome case (110 °F, 45% RH, 45 days) returns RED. Stdlib only. CC0. |
+| `warning_time_audit.py` | Warning-time-loss audit for nonlinear measurement proxies (generalizes Keuth/Fritz/Zurell 2026: a clean proxy can lag true-state collapse when the proxy↔truth map is nonlinear). Feed a `truth_loss` trajectory and a `proxy_loss` trajectory over `times`. Five layers: (L1) `first_crossing` linear-interpolated threshold-crossing time; (L2) `collapse_time` first near-total (≥0.999) true loss; (L3) `curve_deviation` signed proxy↔truth curvature by trapezoid integration of (truth−proxy) over proxy — D>0 CONCAVE (proxy underestimates loss, short warning), D<0 CONVEX (proxy overestimates early, conservative), D≈0 faithful; (L4) `warning_gap` per-tier lag `t_proxy − t_truth` and fraction of warning time lost, tiers default to IUCN A3 loss levels (VU 0.30 / EN 0.50 / CR 0.80); (L5) `verdict` on the most-precautionary (lowest-θ) tier, GREEN/YELLOW/RED at 0.2/0.5 warning-lost fraction. `audit(...)` rolls the whole trajectory. Refutation protocol: every verdict returns a falsifiable co-observation field, and outputs are recomputed from the trajectory each call (no stored verdicts). Stdlib only. CC0. |
+| `corruption_chain.py` | TAF composition layer that chains independent audit verdicts into one read: `corruption(trend) = corruption(measurement) × corruption(framework) × …`, multiplicative so a faithful layer (factor 1.0) passes through untouched and any corrupt layer inflates the product. Tracks estimation **direction** (+1 underestimate / −1 overestimate / 0 neutral) and reconciles it: same-direction errors COMPOUND, while under×over is a COINCIDENTAL offset that is never trusted — a large product with mixed directions raises `masking_risk` (the composite trend looks calm because two corruptions hide each other). Three adapters extract (factor, direction) from module-native output: `from_warning_time` (uses `warning_lost_frac` → 1/(1−lost) and curve sign), `from_thermal_sensor` (sensor drift % + verdict flag), and `from_flag` (bare GREEN/YELLOW/RED). `compose` returns the product + coupling classification; `chain` rolls the verdict (GREEN/YELLOW/RED at 1.5/3.0). Feeds directly from `warning_time_audit.audit()` and `thermal_sensor_degradation_audit.audit()`. Refutation protocol: recomputed every call, no stored verdict. Stdlib only. CC0. |
+| `diachronic_anchor.py` | Manifold-Framework companion that forces an utterance onto a **trajectory** of `AnchorPoint`s (year / who / coordinate / semantic_load / intent / problem_solved / substrate-urgency S) instead of collapsing every textual instance of a phrase into one frequency-weighted bag. Kills two failures LLMs make on historical text: **temporal collapse** (same surface form, different semantic loads across eras, flattened toward the training-tail present) and **teleological collapse** (reading backward from now and assuming every prior version was aimed at now). `classify_rhetorical_load` names the *work* each rewrite does from 7 role-based (not moral) patterns — authority_by_ancestry, consensus_naturalization, enlightened_reader, originalist_freeze, purification, mobilization, sanctification. `diachronic_anchor(utterance, trajectory)` returns semantic drift per step, the `rhetorical_load_sequence`, a `pattern_across_trajectory` direction (e.g. authority_laundering = ancestry move then consensus naturalization; freeze_and_wield; naturalization; sanctification), teleology flags where a later reading claims the origin aimed at it, and a falsifier that points back to period-native primary texts. Output is a trajectory, never a which-reading-is-correct verdict. Stdlib only. CC0. |
 
 These modules are standalone — they don't import from the physics layers —
 but they share conventions (dataclasses, `dict` state exports, pure-Python
@@ -294,6 +326,131 @@ cd boundary_waters && python export.py     # Write CSV outputs
 ```
 
 Key results (seed=42): proceed scenario peaks at 11.8 mg/L sulfate (above 10 mg/L manoomin threshold), 3,107 forced migrants, net −13,440 jobs. Tailings failure: 58.8 mg/L sulfate (past 50 mg/L lethal threshold, sustained 300+ years), $1.08T treaty liability NPV, net −17,616 jobs. Protected scenario: zero impact across all metrics.
+
+## CPR Composition Experiment — the empirical half of extraction_dynamics
+
+`experiments/cpr_composition/` is a **draft** common-pool-resource experiment:
+does group composition change whether a shared stock survives, once governance
+is held constant? Stdlib core, CC0. **Not registered, no ethics approval, no
+data collected** — it is a design plus a simulator.
+
+It exists because `extraction_dynamics/domain_mapping.py` refuses to model
+"dominance orientation" as a parameter (no source, no sample, no units). The
+experiment is the way to generate the missing datum, with the effect size
+declared in advance and a pre-registered way to come back negative.
+
+The game is itself a subsidised consumer-resource pair: participants earn a
+show-up fee whatever happens to the stock, so `cpr_game.subsidy_ratio` reports
+a coupling index of 0.57 — the instrument models **hyperpredation by
+construction**, and the preregistration says so as a scope condition.
+
+**Five things the simulation found before any human was recruited:**
+
+1. **The comparison arm was the treatment arm.** The draft's "sustainable"
+   policy was `S/N`. Below `S = N*cap` that requests the whole stock and
+   collapses it in one round; above it, the cap truncates every request and it
+   *is* all-max. Replaced by the exact fixed-point harvest
+   (`cpr_game.sustainable_total`), which solves the regeneration map for the
+   take that leaves the stock unchanged.
+2. **The mechanical composition slope is −0.19 to −0.24 — the pre-registered
+   SESOI.** Running `k` pure maximisers against `4−k` optimal restrainers, with
+   no personality anywhere in it, reproduces the effect H2 declared as its
+   effect of interest. Tested against a null of zero, arithmetic alone returns
+   "H2 strongly supported", so H2 is now tested against the mechanical baseline
+   converted to standardised units.
+3. **That baseline is a step, not a slope** (survival at 0-1 maximisers,
+   collapse at 2+), so a threshold specification is registered alongside the
+   linear one, flagged as selection-dependent.
+4. **The sample-size arithmetic did not close.** 240 groups of 4 is 960
+   participants, not 720; 80% power at β = 0.20 needs 203 groups. The screening
+   pool is 1.5× the participant count because balancing compositions 0-4 needs
+   half the sample drawn from a third of the population.
+5. **Group totals and individual incentives point opposite ways.** Restraint
+   yields the group ~3× the tokens, while a lone defector earns 160 against 40.
+   Only the second comparison is the dilemma; without it the study would measure
+   comprehension rather than dominance.
+
+Bugs fixed from the draft implementation: the oTree page sequence resolved
+extraction on a wait page *before* the decision page (every round computed on
+unset requests); the randomiser's unseeded shuffle and modulo fallback could put
+one participant in two groups undetected; the equivalence test compared an
+unstandardised coefficient to a standardised SESOI; `int()` rationing destroyed
+tokens the stock could have supplied. See the folder README for the full table.
+
+```bash
+cd experiments/cpr_composition && python parameter_sweep.py
+pytest test_cpr_experiment.py                   # 67 tests
+```
+
+## Extraction Dynamics — Hyperpredation, Refuge Collapse, Mining
+
+`extraction_dynamics/` is a standalone folder (stdlib only, CC0, bare
+intra-folder imports like `boundary_waters/`) holding the consumer-resource
+machinery for systems where the consumer is **not coupled** to the resource it
+consumes.
+
+```
+dN/dt = r*N*(1 - N/K) - f(N)*P          resource
+dP/dt = e*f(N)*P - m*P                  predator,  COUPLED
+dP/dt = e*f(N)*P - m*P + S              extractor, S = exogenous subsidy
+```
+
+The diagnostic is not intent, harm, or scale — it is **whether dP/dt depends on
+N**. With `S >> e*f(N)*P` the consumer persists as `N -> 0`: self-limitation is
+not weak, it is absent, and every governance layer is then re-supplying by fiat
+the feedback that `S` deleted.
+
+| interaction | signs (consumer, resource) | coupled? | recruits? |
+|---|---|---|---|
+| predation / parasitism | (+,−) | yes | yes |
+| **hyperpredation** | (+,−) | **no — subsidy S** | yes |
+| **mining** | (+,0) | no | **no — r = 0** |
+
+**The low-density refuge and how it goes.** Type III is sigmoidal because
+searchers lose efficiency when prey are rare, so per-capita mortality `f(N)/N`
+falls toward zero at low `N`. Type II has no such term — per-capita mortality is
+*maximal* when the resource is rarest. Technology enters as parameters: detection
+raises `a`, automated handling lowers `h`, and removal of the search-efficiency
+floor drives the refuge exponent `q -> 1`, collapsing Type III to Type II. Only
+the third removes the refuge, and `fit_functional_response()` tests it against
+CPUE-vs-abundance data by closed-form regression on the reciprocal transform —
+a drift of fitted `q` from ~2 toward 1 is the refuge being measured away.
+
+**Headline result** (`consumer_resource.py`, four runs of one pair): the subsidy
+alone gives coexistence at reduced stock; refuge removal alone gives coexistence
+at reduced stock; **the combination gives RESOURCE_EXTINCT_CONSUMER_PERSISTS** —
+an outcome impossible for a coupled predator. Two named, independently
+measurable parameters (`S`, `q`), one structural claim.
+
+Pair it with depensation and the escape threshold is derived rather than chosen:
+removing the refuge does not only lower the stock, it **raises** the biomass you
+must stay above (0.15 → 0.50 at high pressure in the reference run), and below
+that threshold the collapsed state is absorbing — no reduction in pressure,
+including to zero, rebuilds it.
+
+`energy_return.py` states the same thing in energy units (`e*f(N) >= m` for a
+real predator; EROI < 1 for most fleets) and unifies the marine and terrestrial
+branches through one intensive variable — %PPR and HANPP are the same
+measurement taken in the sea and on land. `surplus_production.py` uses the
+standard `F/F_MSY` (rate) and `B/B_MSY` (state) rather than a homemade index,
+keeping rate and state separate. `soil_carbon.py` replaces any fixed SOC floor
+with the texture-derived saturation deficit (Hassink 1997).
+
+`domain_mapping.py` maps nine domains that supply all five requirements (a
+conserved stock with a unit, an estimable recruitment term or a defensible
+`r = 0`, a consumption flux in the same unit, a derivable capacity, an
+identifiable subsidy channel) and **refuses ten that do not**, naming the missing
+requirement in each case. The refusal list is part of the specification: a
+carrying capacity computed for a quantity with no unit inherits the authority of
+arithmetic without earning it.
+
+```bash
+cd extraction_dynamics && python audit.py       # the full diagnostic
+pytest test_extraction_dynamics.py              # 90 tests
+```
+
+See `extraction_dynamics/README.md` for what was deliberately excluded and why,
+and `AI_NOTES.md` for the vocabulary and phrasing rules.
 
 ## Oil Phase Shift — Shale Regime Feedback Loops
 
@@ -368,6 +525,53 @@ acute. See `oil_phase_shift/README.md` for the full architecture
 plus the parameter-resets that populate the recovery mode (prior
 calibration 0.40, trust 0.65, Hormuz non-crisis).
 
+## Climate Modeling — AI-Assisted Modelling Audit Laboratory
+
+`climate_modeling/` is a standalone sub-project (metascience, not a
+climate model) for studying **how models fail** and how an AI can act
+as a co-scientist in catching those failures. numpy + scipy only (no
+sklearn / streamlit), CC0. Two layers:
+
+- **Level 1 — experiments** (`experiments.py`, `simulation.py`): run
+  the ecological models and measure the Jensen-inequality bias that
+  averaging a nonlinear response introduces.
+- **Level 2 — meta-experiments** (`audits/`, `meta_experiments.py`):
+  16 controlled audits where the true generative process is **known**,
+  so a detected failure is a genuine modelling error, not a fitting
+  artifact. `meta_experiments.py` asks an AI proposer
+  (`ai_interface.py`, dummy rule-based backend; optional deferred-import
+  openai backend) what structural repair each failure calls for.
+
+The 16 audits pair a rich **true** system against a **simplified**
+model: PhaseChangeBlindness, ThresholdSmoothing, Stationarity,
+MissingFeedback, MissingPositiveFeedback, OmittedVariable,
+DataAggregation, TemporalAggregationExtremes, CascadeSpeedBlindness,
+SpatialHomogenization, MemoryAmnesia, CrossSystemCoupling,
+BufferExhaustion, ClusteredExtremes, GaussianBlindness, IncentiveBias.
+Many target one danger: systematic **underestimation of collapse
+speed**. See `climate_modeling/AUDIT_TAXONOMY.md` for each failure
+mode mapped to its fallacy, mathematical condition, and consequence.
+
+```bash
+python -m climate_modeling.run_audits        # full audit report card
+python -m climate_modeling.experiments       # Level-1 aggregation bias
+python -m climate_modeling.meta_experiments  # audits + AI-proposed repairs
+```
+
+Documented run: **16/16 audits detect a modelling failure in ~1.5 s.**
+Two models carry the suite: `GrassCarbonBalance` (smooth single-state
+baseline that survives stress) and `CascadeGrass` (threshold + soil
+feedback + heat-damage memory that collapses under fat-tailed
+extremes). Key engineering choices (see `climate_modeling/README.md`
+"Design notes"): rate constants are per-hour and small so biomass
+persists under benign forcing and only collapses under sustained heat;
+stochastic forcing is **pre-sampled on a grid and interpolated** so
+`forcing(t)` is deterministic in `t` (a fresh draw per call is not a
+function of `t` and stalls `solve_ivp`); thresholds are continuous
+`smoothstep`s (fast adaptive integration); and the AI loop **reports**
+the proposed structural repair rather than silently rewriting model
+source.
+
 ## Paste-from-Markdown Recovery
 
 Several files in this repo have been (and will likely continue to be)
@@ -437,7 +641,7 @@ ai_reference/
 │                           cascade, layer, signal, delta, buffer, etc.)
 ├── composition_recipes.md  Cross-module analysis patterns
 ├── index.json              Provenance + schema for every catalog
-└── catalogs/               33 .jsonl catalogs (242 records total)
+└── catalogs/               35 .jsonl catalogs (259 records total)
     ├── mechanisms.jsonl                    (7 records)
     ├── epigenetic_factors.jsonl            (6)
     ├── constraint_domains.jsonl            (7)
@@ -470,7 +674,9 @@ ai_reference/
     ├── architecture_failure_modes.jsonl    (7)     # calibration.architecture_mismatch
     ├── encoding_layer_decay_rates.jsonl    (4)     # calibration.architecture_mismatch
     ├── recovered_systems.jsonl             (3)     # constraint_recovery_framework
-    └── recovered_constraints.jsonl         (10)    # constraint_recovery_framework
+    ├── recovered_constraints.jsonl         (10)    # constraint_recovery_framework
+    ├── deoxygenation_boundary_interactions.jsonl (10) # aquatic_deoxygenation
+    └── deoxygenation_control_indicators.jsonl    (5)  # aquatic_deoxygenation
 ```
 
 ### Regenerating the catalogs
@@ -541,9 +747,9 @@ GET    /v1/stream                   SSE live updates
 
 **BASELINE** (in `cascade_engine.py`): Reference Earth system state with values like surface temperature (288 K), CO2 delta (140 ppm above pre-industrial), surface pressure, magnetic field strength, magnomechanical mineral parameters, etc.
 
-**SCENARIOS** (in `cascade_engine.py`): 15 pre-configured forcing functions — CO2 pulse, AMOC collapse, geomagnetic storm, solar proton event, Morin transition, BIF magnonic crystal, ocean timber dumping, and others. The ocean-timber scenario pairs with `run_ocean_timber_full_audit()`, which runs the cascade AND the multi-layer thermodynamic audit in `ocean_timber_sequestration_audit.py` together.
+**SCENARIOS** (in `cascade_engine.py`): 22 pre-configured forcing functions — CO2 pulse, AMOC collapse, geomagnetic storm, solar proton event, Morin transition, BIF magnonic crystal, ocean timber dumping, CDW intrusion acceleration, anoxia expansion, and others. The ocean-timber scenario pairs with `run_ocean_timber_full_audit()`, which runs the cascade AND the multi-layer thermodynamic audit in `ocean_timber_sequestration_audit.py` together.
 
-**KNOWN_LOOPS** (in `cascade_engine.py`): 8 self-amplifying feedback loops with gain functions — Ice-Albedo, Permafrost-CH4, Amazon-CO2, AMOC-SST, Stratification-Productivity, Rotation-Coriolis, Volcanic-Deglaciation, Magnomechanical-EM.
+**KNOWN_LOOPS** (in `cascade_engine.py`): 10 self-amplifying feedback loops with gain functions — Ice-Albedo, Permafrost-CH4, Amazon-CO2, AMOC-SST, Stratification-Productivity, Rotation-Coriolis, Volcanic-Deglaciation, CDW-AABW-Cryosphere, Deoxygenation-Nutrient, Magnomechanical-EM.
 
 ## Common Tasks
 
