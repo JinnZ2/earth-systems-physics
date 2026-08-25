@@ -114,6 +114,14 @@ LAKE_DEOX_RATE_VS_OCEAN              = 9.0     # lakes losing O2 ~3-9x faster
 HYPOXIC_VOLUME_FRACTION_PRESENT       = 0.015   # ~1.5% of ocean volume
 HYPOXIC_VOLUME_FRACTION_REFERENCE     = 0.005   # pre-industrial anchor
 
+# Marine heatwave extent (State of the Climate in 2025, BAMS 2026).
+# A marine heatwave lowers O2 twice over: solubility falls with
+# temperature AND the stratification that sustains the heatwave cuts the
+# ventilation that would resupply the interior. 2025 is the observed
+# upper bound on how much of the surface ocean is exposed at once.
+MARINE_HEATWAVE_OCEAN_FRACTION_2025 = 0.87    # >=1 MHW during the year
+OCEAN_HEAT_CONTENT_RECORD_2025 = True         # 0-2000 m, record high
+
 # Attribution of open-ocean loss (Schmidtko et al. 2017; Oschlies 2018)
 # Warming lowers solubility; the larger share is reduced ventilation and
 # increased stratification/respiration in the interior.
@@ -233,7 +241,10 @@ BOUNDARY_INTERACTIONS: List[BoundaryInteraction] = [
             "strengthens stratification, cutting ventilation of the interior "
             "(~85%). The resulting low-O2 water raises N2O yield from "
             "nitrification/denitrification and permits CH4 escape from "
-            "anoxic sediments — both feed back onto radiative forcing."
+            "anoxic sediments — both feed back onto radiative forcing. "
+            "Ocean heat content set a record in 2025 and 87% of the ocean "
+            "surface saw at least one marine heatwave that year, so the "
+            "forcing side of this coupling is not a projection."
         ),
         layers=[3, 4, 6],
         evidence="observed",

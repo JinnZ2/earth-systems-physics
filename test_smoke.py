@@ -9614,3 +9614,191 @@ class TestDeoxygenationLayerIntegration:
         triggered, status = cascade_trigger_check("aquatic_deoxygenation", 2026)
         assert triggered is True
         assert "UNSAFE" in status
+
+
+# ═════════════════════════════════════════════════════════════
+# STATE OF THE CLIMATE IN 2025 (BAMS, 36th annual, pub. Aug 2026)
+# ═════════════════════════════════════════════════════════════
+
+class TestStateOfTheClimate2025:
+    """Observed-state snapshot: constants, derived quantities, and the
+    hand-off into the cascade engine's BASELINE."""
+
+    def test_report_metadata_is_the_2025_data_year(self):
+        """The 36th report is published August 2026 and covers calendar
+        year 2025. A summary dating it to August 2025 is off by one
+        edition — that would be the 35th, covering 2024."""
+        import state_of_the_climate_2025 as soc
+        assert soc.REPORT_EDITION == 36
+        assert soc.REPORT_DATA_YEAR == 2025
+        assert soc.REPORT_PUBLISHED_YEAR == 2026
+        assert soc.REPORT_PUBLISHED_YEAR == soc.REPORT_DATA_YEAR + 1
+
+    def test_greenhouse_gas_values(self):
+        import state_of_the_climate_2025 as soc
+        assert soc.CO2_PPM_2025 == 425.6
+        assert soc.CH4_PPB_2025 == 1935.7
+        assert soc.N2O_PPB_2025 == 338.9
+
+    def test_preindustrial_references_reproduce_the_stated_percentages(self):
+        """The CH4 and N2O pre-industrial values are back-derived from
+        the report's own percentages, so they must round-trip."""
+        import state_of_the_climate_2025 as soc
+        for now, pre, pct in (
+                (soc.CO2_PPM_2025, soc.CO2_PPM_PREINDUSTRIAL,
+                 soc.CO2_PCT_ABOVE_PREINDUSTRIAL),
+                (soc.CH4_PPB_2025, soc.CH4_PPB_PREINDUSTRIAL,
+                 soc.CH4_PCT_ABOVE_PREINDUSTRIAL),
+                (soc.N2O_PPB_2025, soc.N2O_PPB_PREINDUSTRIAL,
+                 soc.N2O_PCT_ABOVE_PREINDUSTRIAL)):
+            assert abs(100.0 * (now - pre) / pre - pct) < 1.0
+
+    def test_preindustrial_ch4_n2o_sit_in_the_AR6_range(self):
+        import state_of_the_climate_2025 as soc
+        assert 715.0 < soc.CH4_PPB_PREINDUSTRIAL < 740.0
+        assert 265.0 < soc.N2O_PPB_PREINDUSTRIAL < 275.0
+
+    def test_co2_forcing_matches_the_myhre_expression(self):
+        import math
+        import state_of_the_climate_2025 as soc
+        expected = 5.35 * math.log(425.6 / 278.0)
+        assert soc.co2_forcing_Wm2() == pytest.approx(expected)
+        assert 2.2 < soc.co2_forcing_Wm2() < 2.4
+
+    def test_ch4_and_n2o_forcings_are_in_the_published_range(self):
+        """AR6 gives roughly 0.5 W/m2 for CH4 and 0.2 for N2O; the
+        simplified expressions should land there, not an order out."""
+        import state_of_the_climate_2025 as soc
+        assert 0.40 < soc.ch4_forcing_Wm2() < 0.65
+        assert 0.15 < soc.n2o_forcing_Wm2() < 0.30
+
+    def test_forcing_is_zero_at_the_reference_concentration(self):
+        import state_of_the_climate_2025 as soc
+        assert soc.co2_forcing_Wm2(278.0, 278.0) == pytest.approx(0.0)
+        assert soc.ch4_forcing_Wm2(soc.CH4_PPB_PREINDUSTRIAL) == \
+            pytest.approx(0.0, abs=1e-12)
+        assert soc.n2o_forcing_Wm2(soc.N2O_PPB_PREINDUSTRIAL) == \
+            pytest.approx(0.0, abs=1e-12)
+
+    def test_total_forcing_declares_what_it_excludes(self):
+        """Three-gas forcing is not total anthropogenic forcing; the
+        aerosol terms are large and negative."""
+        import state_of_the_climate_2025 as soc
+        f = soc.total_ghg_forcing_Wm2()
+        assert f["total_Wm2"] == pytest.approx(
+            f["CO2_Wm2"] + f["CH4_Wm2"] + f["N2O_Wm2"])
+        assert 0.6 < f["CO2_share"] < 0.85
+        assert "aerosol_direct" in f["excludes"]
+
+    def test_emissions_are_more_than_triple_the_1960s(self):
+        import state_of_the_climate_2025 as soc
+        g = soc.emissions_growth_factor()
+        assert g["factor"] > 3.0
+        assert 35.0 < g["GtCO2_yr_2025"] < 40.0
+
+    def test_sea_level_budget_shows_acceleration(self):
+        """Current component rates exceed the mean rate since 1993 —
+        the rise is accelerating, so a budget closed against the mean
+        closes against the wrong number."""
+        import state_of_the_climate_2025 as soc
+        s = soc.sea_level_budget()
+        assert s["mean_rate_mm_yr"] == pytest.approx(111.2 / 32, rel=0.01)
+        assert s["component_sum_mm_yr"] == pytest.approx(3.6)
+        assert s["current_exceeds_mean"] is True
+        assert s["mass_share"] > 0.5
+
+    def test_multiyear_ice_loss_against_both_baselines(self):
+        import state_of_the_climate_2025 as soc
+        m = soc.multiyear_ice_loss()
+        assert m["loss_vs_2005_2024"] == pytest.approx(0.71, abs=0.02)
+        assert m["loss_vs_1985_2004"] == pytest.approx(0.945, abs=0.01)
+        assert m["factor_below_historic"] > 15
+
+    def test_enso_decoupling_breaks_the_el_nino_assumption(self):
+        """The structural finding: a top-three year with no El Nino."""
+        import state_of_the_climate_2025 as soc
+        e = soc.enso_decoupling_check(assumed_el_nino_required=True)
+        assert e["record_without_el_nino"] is True
+        assert e["assumption_holds"] is False
+        assert e["global_rank"] <= 3
+
+    def test_arctic_minimum_rank_discrepancy_is_recorded_not_hidden(self):
+        import state_of_the_climate_2025 as soc
+        assert soc.ARCTIC_MIN_ICE_RANK_2025 == 10
+        assert soc.ARCTIC_MIN_ICE_RANK_DISPUTED == 11
+
+    def test_every_provenance_entry_names_a_source(self):
+        import state_of_the_climate_2025 as soc
+        for name, rec in soc.PROVENANCE.items():
+            assert hasattr(soc, name), f"{name} cited but not defined"
+            assert rec["source"] and rec["chapter"] and rec["value"]
+
+    def test_records_broken_are_all_labelled_high_or_low(self):
+        import state_of_the_climate_2025 as soc
+        kinds = {r["kind"] for r in soc.records_broken()}
+        assert kinds <= {"record_high", "record_low"}
+        assert len(soc.records_broken()) >= 8
+
+
+class TestStateOfTheClimateIntegration:
+    """The measured 2025 values as they reach the rest of the stack."""
+
+    def test_baseline_carries_the_measured_mixing_ratios(self):
+        from cascade_engine import BASELINE
+        import state_of_the_climate_2025 as soc
+        assert BASELINE["CO2_ppm"] == soc.CO2_PPM_2025
+        assert BASELINE["CH4_ppb"] == soc.CH4_PPB_2025
+        assert BASELINE["N2O_ppb"] == soc.N2O_PPB_2025
+
+    def test_delta_CO2_is_consistent_with_CO2_ppm(self):
+        """delta_CO2 and CO2_ppm are two views of one measurement; they
+        must not drift apart."""
+        from cascade_engine import BASELINE
+        import state_of_the_climate_2025 as soc
+        assert (BASELINE["CO2_ppm"] - BASELINE["delta_CO2"]
+                == pytest.approx(soc.CO2_PPM_PREINDUSTRIAL))
+
+    def test_baseline_overrides_apply_cleanly(self):
+        from cascade_engine import BASELINE, run_all_layers
+        from state_of_the_climate_2025 import baseline_overrides
+        p = dict(BASELINE)
+        p.update(baseline_overrides())
+        states = run_all_layers(p)
+        assert states[3]["GHG_forcing_Wm2"] > 0
+        assert states[6]["planetary_boundaries_crossed"] >= 6
+
+    def test_cascade_runs_at_the_updated_baseline(self):
+        from cascade_engine import BASELINE, run_all_layers
+        states = run_all_layers(BASELINE)
+        assert states[6]["ocean_pH"] < 8.2
+        assert states[4]["AMOC_Sv"] > 0
+
+    def test_el_nino_assumption_is_registered_as_invalidated(self):
+        from earth_systems_constraints_2026 import constraint_validity_check
+        valid, msg = constraint_validity_check(
+            "record_warm_years_require_el_nino")
+        assert valid is False
+        assert "El Nino" in msg or "El Ni" in msg
+
+    def test_arctic_ice_triggers_the_cascade_check(self):
+        from earth_systems_constraints_2026 import cascade_trigger_check
+        triggered, status = cascade_trigger_check("arctic_sea_ice", 2026)
+        assert triggered is True
+        assert "MULTIYEAR_ICE" in status
+
+    def test_glacier_constants_match_the_report(self):
+        from earth_systems_constraints_2026 import (
+            GLACIER_CONSECUTIVE_LOSS_YEARS, GLACIER_LOSS_SHARE_LAST_DECADE)
+        import state_of_the_climate_2025 as soc
+        assert GLACIER_CONSECUTIVE_LOSS_YEARS == \
+            soc.GLACIER_CONSECUTIVE_LOSS_YEARS
+        assert GLACIER_LOSS_SHARE_LAST_DECADE == \
+            soc.GLACIER_LOSS_SHARE_LAST_DECADE
+
+    def test_marine_heatwave_extent_reaches_the_deoxygenation_module(self):
+        import aquatic_deoxygenation as ad
+        import state_of_the_climate_2025 as soc
+        assert (ad.MARINE_HEATWAVE_OCEAN_FRACTION_2025
+                == soc.MARINE_HEATWAVE_OCEAN_FRACTION)
+        climate = ad.interactions_by_boundary("climate_change")[0]
+        assert "marine heatwave" in climate.mechanism

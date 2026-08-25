@@ -121,7 +121,8 @@ BASELINE = {
     "T_pole":           243.0,      # K polar temperature
     "P_surface":        101325.0,   # Pa
     "q_surface":        0.010,      # specific humidity kg/kg
-    "delta_CO2":        140.0,      # ppm above pre-industrial
+    "delta_CO2":        147.6,      # ppm above pre-industrial (425.6 - 278;
+                                    #   State of the Climate in 2025, BAMS 2026)
     "AOD":              0.15,       # aerosol optical depth
     "latitude":         45.0,       # reference latitude deg
     "delta_omega":      0.0,        # rotation perturbation rad/s
@@ -161,7 +162,9 @@ BASELINE = {
 
     # Layer 6 — Biosphere
     "T_surface_K":      288.0,
-    "CO2_ppm":          420.0,
+    "CO2_ppm":          425.6,      # measured 2025 global mean (BAMS 2026)
+    "CH4_ppb":          1935.7,     # measured 2025 global mean (BAMS 2026)
+    "N2O_ppb":          338.9,      # measured 2025 global mean (BAMS 2026)
     "ocean_pH":         8.10,
     "permafrost_area":  1.5e13,     # m^2
     "T_permafrost_anom":1.5,        # K above threshold

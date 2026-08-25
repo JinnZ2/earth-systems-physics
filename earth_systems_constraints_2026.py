@@ -42,6 +42,13 @@ ANTARCTICA_LOSS_2002_2025_AVG_GT_YR = 135     # NASA GRACE long-term mean
 
 CUMULATIVE_GLACIER_LOSS_SINCE_1975_GT = 9000  # WGMS, non-ice-sheet
 
+# State of the Climate in 2025 (BAMS, published Aug 2026), WGMS
+# reference glaciers. See state_of_the_climate_2025.py for the full
+# observed-state snapshot with provenance.
+GLACIER_CONSECUTIVE_LOSS_YEARS = 38           # unbroken since 1988
+GLACIER_YEARS_ABOVE_1M_WE = 4                 # >1 m water equivalent
+GLACIER_LOSS_SHARE_LAST_DECADE = 0.41         # of all loss since 1976
+
 SLR_FROM_GLACIER_2025_MM = 1.1                # 2025 hydro year contribution
 SLR_PROJECTION_2100_M_HIGH_EMISSION = 2.2     # high-emission scenario
 SLR_PROJECTION_2150_M_HIGH_EMISSION = 3.9
@@ -169,6 +176,14 @@ INVALIDATED_ASSUMPTIONS = {
     "aquatic_oxygen_loss_is_reversible_on_policy_timescales":
         "INVALIDATED 2026: deep water re-ventilates on ~1000 yr; recovery is "
         "gated by water-mass exchange, not by emissions policy",
+    "record_warm_years_require_el_nino":
+        "INVALIDATED 2025: the year ranked among the three warmest with "
+        "ENSO neutral to La Nina-like — the warmest on record with no El "
+        "Nino present. ENSO is modulation on a rising baseline, not the "
+        "source of record years (State of the Climate in 2025, BAMS 2026)",
+    "la_nina_years_step_back_to_a_prior_level":
+        "INVALIDATED 2025: a cool-ENSO year now lands in the top three "
+        "globally and the 3rd-highest SST in a 172-year record",
     "ocean_deoxygenation_is_mostly_a_solubility_effect":
         "INVALIDATED: warming-driven solubility explains only ~15% of the "
         "observed open-ocean loss; the rest is reduced ventilation, "
@@ -206,6 +221,8 @@ def cascade_trigger_check(system_label, year):
         return True, "TIPPING_POINT_ALREADY_CROSSED_2025"
     if "deoxygenation" in s or "hypoxi" in s or "anoxi" in s:
         return True, "UNSAFE_LEVELS_ASSESSED_2026_PROPOSED_10TH_BOUNDARY"
+    if "arctic" in s and ("ice" in s or "sea_ice" in s):
+        return True, "MULTIYEAR_ICE_EFFECTIVELY_GONE_2025"
     return False, "WITHIN_PROJECTED_STABLE_RANGE"
 
 
