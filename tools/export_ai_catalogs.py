@@ -491,6 +491,20 @@ CATALOGS = [
             "Not a verbatim transcription of that paper's Table 1."
         ),
     },
+    # ── state_of_the_climate_2025 (observed state, BAMS 2026) ────
+    {
+        "name": "state_of_climate_2025_provenance",
+        "module": "state_of_the_climate_2025",
+        "symbol": "PROVENANCE",
+        "description": (
+            "Per-constant provenance for the observed 2025 climate "
+            "state from the 36th annual State of the Climate report "
+            "(BAMS, published August 2026). Each record names the "
+            "value as published, the report chapter it comes from, "
+            "and the source. Keys are the module-level constant "
+            "names so any number can be traced back."
+        ),
+    },
     {
         "name": "deoxygenation_control_indicators",
         "module": "aquatic_deoxygenation",

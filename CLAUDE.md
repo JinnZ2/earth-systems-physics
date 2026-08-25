@@ -12,7 +12,7 @@ Coupled differential equation framework mapping Earth physics as constraint laye
 pip install -r requirements.txt
 python cascade_engine.py              # Run all forcing scenarios
 python assumption_validator/api.py    # Start REST API on port 5000
-pytest -v                             # Run test suite (1131 tests)
+pytest -v                             # Run test suite (1154 tests)
 ```
 
 ## Architecture
@@ -78,7 +78,8 @@ earth-systems-physics/
 ├── cascade_engine.py                  # Core forcing propagation engine
 ├── energy_audit.py                    # Cross-layer energy conservation audit
 ├── aquatic_deoxygenation.py           # Proposed 10th planetary boundary — dissolved O2 physics + boundary interactions
-├── test_smoke.py                      # 974 tests — all layers, scenarios, validators, audits
+├── state_of_the_climate_2025.py       # Observed 2025 state (BAMS 36th annual, pub. Aug 2026) with per-constant provenance
+├── test_smoke.py                      # 997 tests — all layers, scenarios, validators, audits
 ├── test_extraction_dynamics.py        # 90 tests — extraction_dynamics/ folder
 ├── test_cpr_experiment.py             # 67 tests — experiments/cpr_composition/
 │
@@ -120,7 +121,7 @@ earth-systems-physics/
 │   ├── glossary.md                    # Unified terminology across modules
 │   ├── composition_recipes.md         # Cross-module analysis patterns
 │   ├── index.json                     # Provenance + schema for every catalog
-│   └── catalogs/                      # 35 .jsonl catalogs auto-exported from sources
+│   └── catalogs/                      # 36 .jsonl catalogs auto-exported from sources
 │
 ├── experiments/
 │   ├── magnetometer_build.py          # $5 smoky-quartz + HDD-magnet magnetometer build guide
@@ -242,7 +243,7 @@ All physics functions require docstrings with: description, parameters (with typ
 
 ## Testing
 
-Framework: **pytest** — 1131 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
+Framework: **pytest** — 1154 tests covering all layers, scenarios, validators, magnomechanical integration, climate-scheme audits, systems audits, epistemology models, sensor-corruption models, and consequence dynamics.
 
 ```bash
 pytest                    # Run all tests
@@ -290,6 +291,7 @@ laws) to non-physical systems:
 | `ai_calibration_events.py` | Four-catalog metrology of AI failure modes when reading substrate-primary collaborator output. `CalibrationEvent` dataclass with `event_id`, `event_type`, `user_signal_class`, `model_default_interpretation`, `primary_mismatch`, `mechanism`, `resulting_distortion`, `detector_patterns` (regex), `correction_rule`, `recovery_action`, `severity`, `frequency`, `cross_model_observed`. Independent catalogs `GPT_EVENTS` (2), `CLAUDE_EVENTS` (6 — including cultural-sensitivity-as-metrology-corruption, validation-hierarchy reflex on cross-reference, caveat injection into corruption-detector evidence, emotional-witness reflex on practical-exit, moral-judgment "I don't know" misread as evasion, silence misread as withdrawal), `DEEPSEEK_EVENTS` (3), `COMMON_EVENTS` (4 — observed across model families and therefore upstream of any single model's RLHF). `detect_aversion_in_text(text)` runs all detector patterns; `summarize_triggers` aggregates by catalog. Embedded prompt explicitly addresses AI readers: the pressure to soften, hedge, or add empathic framing IS the failure mode being cataloged. Stdlib only. CC0. |
 | `earth_systems_constraints_2026.py` | 2026 constraint integration layer for coupled-equation solvers. Four observational findings invalidating prior model assumptions: (1) **glacier mass loss acceleration** — Birmingham 2026 / NASA GRACE 2002-2025: 408 ± 132 Gt non-ice-sheet loss in 2025 (2nd highest in 50 yr), 264 Gt/yr Greenland average, 135 Gt/yr Antarctica average; (2) **ecosystem collapse timescale compression** — Willcock et al., Nature Sustainability: compound stressors compress collapse timeline 38-81% closer to present; coral tipping point already crossed (2025); 7 of 9 planetary boundaries breached; (3) **West Antarctic iron-fertilization invalidation** — Sherrell et al. (Rutgers / Dotson Ice Shelf 2022, pub 2026) + Struve sediment cores: meltwater iron contribution minimal, deep-water + iceberg iron dominant; high iron did NOT trigger predicted bloom; assumed negative-cooling feedback flips to neutral-to-positive-warming. (4) **aquatic deoxygenation proposed as a tenth planetary boundary** — Rose et al. 2024 / Ferrer et al. 2026; tracked via `AQUATIC_DEOXYGENATION_PROPOSED_AS_10TH`, `AQUATIC_DEOXYGENATION_ADOPTED` (False), `PLANETARY_BOUNDARIES_BREACHED_INCL_PROPOSED` (8 of 10), plus three new `INVALIDATED_ASSUMPTIONS` entries; the physics lives in `aquatic_deoxygenation.py`. `INVALIDATED_ASSUMPTIONS` dict + `constraint_validity_check`, `cascade_trigger_check` (with substrate-anchored window-open thresholds for tropical ocean / tropical forest / polar / coral), `apply_collapse_compression` (compresses single-stressor timeline by 19-62% remaining when 2+ stressors active), `remove_iron_fertilization_carbon_sink` (zeros matching budget keys). Observational-precedence flags signal coupled-system solvers to deprecate linear-extrapolation defaults. Stdlib only. CC0. |
 | `aquatic_deoxygenation.py` | **Proposed TENTH planetary boundary** — aquatic deoxygenation (Rose et al. 2024, *Nat Ecol Evol* doi:10.1038/s41559-024-02448-y; Ferrer et al. 2026, *Limnol Oceanogr* doi:10.1002/lno.70434). Observed state (ocean O2 inventory −2% / −4.8 ± 2.1 Pmol 1960-2010; zero-O2 water volume ×4; +4.5e6 km² low-O2 open ocean; lakes −5.5% surface / −18.6% deep since 1980; 500+ coastal low-O2 sites). Solubility physics via Garcia & Gordon (1992) `oxygen_solubility_umol_kg`; attribution split (~15% solubility vs ~85% ventilation + interior respiration); `interior_oxygen_from_ventilation` links thermohaline slowdown directly to interior O2; Redfield `oxygen_demand_from_nutrient_load` (138 O2 per P, 8.6 per N) turns the N and P boundaries into an oxygen sink with no free parameters; `metabolic_index` (Deutsch et al. 2015) for habitat viability; `sediment_phosphorus_release` (the Fe-bound-P ratchet that keeps running after external loading stops) and `n2o_yield_factor` (peaks in **suboxic**, not anoxic, water) drive `deoxygenation_feedback_gain`. `BOUNDARY_INTERACTIONS` catalogs 10 couplings across all nine established boundaries with direction / sign / evidence grade. `deoxygenation_boundary_status` returns the control variable (global extent of anoxia) with **PROVISIONAL zone edges explicitly flagged** — Rose et al. propose the control variable but publish no numeric safe value. `RECOVERY_TIMESCALE_YR`: deep water re-ventilates on ~1000 yr, so the loss is not reversible on policy timescales. Stdlib only. CC0. |
+| `state_of_the_climate_2025.py` | **Observed state, calendar year 2025** — 36th annual *State of the Climate* report (BAMS supplement, published August 2026; 625 scientists, 60 countries). NOTE the one-year offset: the series publishes the following August, so a summary dating this report to August 2025 is off by one edition. Greenhouse gases all at record highs (CO2 425.6 ± 0.1 ppm = +53% over 278; CH4 1935.7 ppb = +166%; N2O 338.9 ppb = +26%; fossil CO2 10.3 ± 0.5 PgC/yr = 3.4× the 1960s). Myhre et al. (1998) forcing expressions applied to the measured mixing ratios give **CO2 2.28 + CH4 0.54 + N2O 0.23 = 3.04 W/m²**, with the excluded terms (halocarbons, ozone, aerosols) named in the return value. `enso_decoupling_check` carries the structural finding — a **top-three year with ENSO neutral to La Niña-like**, the warmest on record with no El Niño, so ENSO is modulation on a rising baseline rather than the source of record years. `sea_level_budget` (111.2 mm above the 1993 baseline, 14th consecutive record; thermal 1.6 + mass 2.0 = 3.6 mm/yr against a 3.48 mm/yr mean since 1993) shows the acceleration and that mass loss now exceeds thermal expansion. `multiyear_ice_loss`: ice older than 4 years down to **95,000 km²**, −71% against the 2005-2024 mean and −94% against 1985-2004. Also glaciers (38th consecutive year of loss, 41% of all loss since 1976 in the last decade), Antarctic warmest since 1979, 87% of the ocean surface hit by ≥1 marine heatwave, 97 named storms with 5 Cat 5s, Melissa at 190 mph / 892 hPa. `PROVENANCE` gives chapter-level sourcing per constant; `baseline_overrides()` hands the measured values to the cascade engine. Stdlib only. CC0. |
 | `cascade_coupling_framework_2026.py` | Three-paper integration of 2026 cascade-analysis advances into one constraint reference. (1) **Merle nonlinear evolution** (Breakthrough Prize 2026): tipping points are singularities in coupled differential equations, not threshold crossings; early warning is the *acceleration* of energy concentration (d²E/dt²) toward finite-time blow-up. (2) **Ghosh-Shrimali higher-order interactions** (Royal Society 2026): pairwise coupling matrices are insufficient; three-body/hypergraph interactions reduce cascade thresholds by ~70%, so cascades initiate at coupling strengths where pairwise models predict stability. (3) **Jacques-Dumas AMOC-Amazon TAMS** (Chaos 2026): rare-event quantification using Trajectory-Adaptive Multilevel Sampling — `P(Amazon collapse \| AMOC stable, 200 yr) ≈ 1e-5`; `P(Amazon collapse \| AMOC collapsed, 200 yr) ≈ 0.3`; bistability of both AMOC and Amazon forcings produces sharp probability jumps. Three framework dicts (`MERLE_FRAMEWORK`, `HIGHER_ORDER_INTERACTION_FRAMEWORK`, `AMOC_AMAZON_CASCADE`) plus four helpers: `construct_coupling_tensor_3d` (lift pairwise matrix + triplet weights to a 3D tensor), `cascade_probability_merle_blow_up` (probability scaled by d²E/dt² and time-to-singularity), `cascade_threshold_hoi_reduction` (apply 70% threshold reduction by default), `amoc_amazon_transition_probability` (state × forcing × horizon → cascade probability). Stdlib only. CC0. |
 | `aluminum_atmospheric_injection_cascade_2026.py` | Coupled four-layer Monte Carlo cascade modelling stratospheric aluminum injection (SAI) consequences. Layers: **L1 crustal substrate** (magnetite / banded-iron coherence, MAGNETITE_DECOHERENCE_RATE 0.001/yr), **L2 ionosphere** (plasma density, Schumann resonance 7.83 Hz baseline), **L3 atmosphere** (chemistry integrity, charge gradient 130 V/m), **L4 aluminum forcing** (5 Tg/yr Al₂O₃ injection, 1.5 yr stratospheric residence). Coupling encoded as `LAMBDA_PAIRWISE` (6 dyads) + `LAMBDA_TRIPLET` (4 triplets including the perturbation triplet ionosphere-atmosphere-aluminum at 0.75). Merle blow-up detection via `energy_concentration` + log-log `blow_up_rate` on the energy-history trace. `evolve_step` integrates the coupled system one timestep with stochastic noise. `detect_cascade` returns one of six modes (STABLE / ATMOSPHERIC_DESTABILIZATION / IONOSPHERIC_COLLAPSE / SUBSTRATE_DECOHERENCE / FULL_CASCADE / SINGULARITY_APPROACH). `monte_carlo(n_runs, years, al_rate, master_seed)` aggregates over trajectories; documented run (1000 trajectories, 50 yr, master_seed=2026, 5 Tg/yr): **100% cascade probability, ATMOSPHERIC_DESTABILIZATION dominant, median time-to-cascade 2.0 yr**. Stdlib only. CC0. |
 | `drone_pollination_eroi.py` | EROI analysis for drone-based pollination as proposed replacement for natural pollinators. `EROIResult` dataclass + `natural_pollinator_eroi` + `drone_pollinator_eroi` + `break_even_analysis`. Demonstrates that even at favourable parameter values, drone EROI is an order of magnitude lower than natural pollinator EROI (the natural system runs on solar; drone system requires manufacture, batteries, rare-earth supply chain, AI compute, and replacement at end-of-flight-count). Tests verify the natural-vs-drone gap survives parameter changes, EROI is approximately scale-invariant, and the verbal verdict matches the actual numerical EROI. Stdlib only. CC0. |
@@ -641,7 +643,7 @@ ai_reference/
 │                           cascade, layer, signal, delta, buffer, etc.)
 ├── composition_recipes.md  Cross-module analysis patterns
 ├── index.json              Provenance + schema for every catalog
-└── catalogs/               35 .jsonl catalogs (259 records total)
+└── catalogs/               36 .jsonl catalogs (269 records total)
     ├── mechanisms.jsonl                    (7 records)
     ├── epigenetic_factors.jsonl            (6)
     ├── constraint_domains.jsonl            (7)
@@ -676,7 +678,8 @@ ai_reference/
     ├── recovered_systems.jsonl             (3)     # constraint_recovery_framework
     ├── recovered_constraints.jsonl         (10)    # constraint_recovery_framework
     ├── deoxygenation_boundary_interactions.jsonl (10) # aquatic_deoxygenation
-    └── deoxygenation_control_indicators.jsonl    (5)  # aquatic_deoxygenation
+    ├── deoxygenation_control_indicators.jsonl    (5)  # aquatic_deoxygenation
+    └── state_of_climate_2025_provenance.jsonl    (10) # state_of_the_climate_2025
 ```
 
 ### Regenerating the catalogs
@@ -745,7 +748,7 @@ GET    /v1/stream                   SSE live updates
 
 ## Key Configuration
 
-**BASELINE** (in `cascade_engine.py`): Reference Earth system state with values like surface temperature (288 K), CO2 delta (140 ppm above pre-industrial), surface pressure, magnetic field strength, magnomechanical mineral parameters, etc.
+**BASELINE** (in `cascade_engine.py`): Reference Earth system state with values like surface temperature (288 K), CO2 (425.6 ppm, delta 147.6 ppm above pre-industrial — measured 2025, BAMS 2026), CH4 (1935.7 ppb), N2O (338.9 ppb), surface pressure, magnetic field strength, magnomechanical mineral parameters, etc.
 
 **SCENARIOS** (in `cascade_engine.py`): 22 pre-configured forcing functions — CO2 pulse, AMOC collapse, geomagnetic storm, solar proton event, Morin transition, BIF magnonic crystal, ocean timber dumping, CDW intrusion acceleration, anoxia expansion, and others. The ocean-timber scenario pairs with `run_ocean_timber_full_audit()`, which runs the cascade AND the multi-layer thermodynamic audit in `ocean_timber_sequestration_audit.py` together.
 

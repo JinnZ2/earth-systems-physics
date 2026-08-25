@@ -1,0 +1,10 @@
+{"chapter": "Global Climate — atmospheric composition", "name": "CO2_PPM_2025", "source": "State of the Climate in 2025 (BAMS, 2026)", "value": "425.6 +/- 0.1 ppm"}
+{"chapter": "Global Climate — atmospheric composition", "name": "CH4_PPB_2025", "source": "State of the Climate in 2025 (BAMS, 2026)", "value": "1935.7 ppb"}
+{"chapter": "Global Climate — atmospheric composition", "name": "N2O_PPB_2025", "source": "State of the Climate in 2025 (BAMS, 2026)", "value": "338.9 ppb"}
+{"chapter": "Global Climate — carbon cycle", "name": "FOSSIL_CO2_PgC_YR_2025", "source": "State of the Climate in 2025 (BAMS, 2026)", "value": "10.3 +/- 0.5 PgC/yr"}
+{"chapter": "Global Oceans — sea level", "name": "GMSL_MM_ABOVE_1993", "source": "State of the Climate in 2025 (BAMS, 2026)", "value": "111.2 mm above the 1993 altimetry baseline"}
+{"chapter": "Global Oceans — marine heatwaves", "name": "MARINE_HEATWAVE_OCEAN_FRACTION", "source": "State of the Climate in 2025 (BAMS, 2026)", "value": "87% of ocean surface with >=1 marine heatwave"}
+{"chapter": "Arctic — sea ice", "name": "MULTIYEAR_ICE_KM2_2025", "source": "NOAA Arctic Report Card 2025; BAMS Arctic chapter", "value": "95,000 km2 of ice older than 4 years at the September minimum"}
+{"chapter": "Arctic — sea ice", "name": "ARCTIC_MAX_ICE_RANK_2025", "source": "NOAA Arctic Report Card 2025", "value": "lowest annual maximum in the 47-year satellite record (March 2025)"}
+{"chapter": "Global Climate — glaciers (WGMS reference glaciers)", "name": "GLACIER_CONSECUTIVE_LOSS_YEARS", "source": "State of the Climate in 2025 (BAMS, 2026)", "value": "38th consecutive year of loss; >1 m w.e. for the 4th straight year; 41% of loss since 1976 in the last decade"}
+{"chapter": "Tropical Cyclones — North Atlantic", "name": "MELISSA_MIN_PRESSURE_HPA", "source": "State of the Climate in 2025 (BAMS, 2026)", "value": "892 hPa, 190 mph on 28 October 2025"}

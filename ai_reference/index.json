@@ -504,6 +504,19 @@
         "timescale": "str"
       }
     },
+    "state_of_climate_2025_provenance": {
+      "path": "catalogs/state_of_climate_2025_provenance.jsonl",
+      "source_module": "state_of_the_climate_2025",
+      "source_symbol": "PROVENANCE",
+      "description": "Per-constant provenance for the observed 2025 climate state from the 36th annual State of the Climate report (BAMS, published August 2026). Each record names the value as published, the report chapter it comes from, and the source. Keys are the module-level constant names so any number can be traced back.",
+      "record_count": 10,
+      "schema": {
+        "name": "str",
+        "value": "str",
+        "chapter": "str",
+        "source": "str"
+      }
+    },
     "deoxygenation_control_indicators": {
       "path": "catalogs/deoxygenation_control_indicators.jsonl",
       "source_module": "aquatic_deoxygenation",
