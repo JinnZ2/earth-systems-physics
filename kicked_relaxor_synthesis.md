@@ -136,7 +136,19 @@ This claim dies if any of the following hold:
   sustainable regimes from the failing ones in either domain.
 ```
 
-If data refutes, update the claim — never the simulation (REFUTATION_PROTOCOL).
+If data refutes, update the claim — never the simulation. The refutation
+protocol (REFUTATION_PROTOCOL) is:
+
+```
+1. Identify which falsification criterion (Section 6) the data addresses.
+2. Quantify the deviation: measured x* vs predicted x* = A(1-e)/(1-re).
+3. Check whether the deviation is within the legacy-ratchet correction range
+   (simulate_ratcheted() with measured tau, r, L trajectory).
+4. If outside, update this document — mark the falsified case REFUTED and
+   record the contradicting source with DOI.
+5. Never alter the simulation to fit new data; if the model is wrong, say so
+   here and leave the code as the record of the prior claim.
+```
 
 ---
 
@@ -150,6 +162,8 @@ boreal_carbon_ledger.py         carbon layer on the reach instance
 permafrost_abrupt_ledger.py     adjacent (threshold/omitted-pool)
 amoc_hysteresis_gate.py         adjacent (parameter-space hysteresis)
 measurement_corruption_taf.py   metrology (why a real trend can go unseen)
+stressor_nonadditivity.py       adjacent (interaction-term omitted pool —
+                                 same audit signature as permafrost/boreal)
 ```
 
 Seeded values are cited above. Illustrative values (r, theta, and any

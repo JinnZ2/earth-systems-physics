@@ -26,7 +26,7 @@ def detect(true_trend, horizon, sigma0, m, f):
     sigma = sigma0 / max(1e-3, (1.0 - m))
     z = (true_trend * horizon) / sigma
     z_crit = 1.96 * (1.0 + f)
-    return z, z_crit, z > z_crit
+    return z, z_crit, z > z_crit, sigma   # sigma returned so callers avoid recomputing
 
 
 def sweep(true_trend=0.30, horizon=3.0, sigma0=0.30, f=0.0):
@@ -35,11 +35,11 @@ def sweep(true_trend=0.30, horizon=3.0, sigma0=0.30, f=0.0):
     print(f"{'m':>5}{'sigma':>8}{'z':>7}{'z_crit':>8}  verdict")
     masked_at = None
     for m in [0.0, 0.05, 0.10, 0.20, 0.35, 0.50, 0.60]:
-        z, zc, ok = detect(true_trend, horizon, sigma0, m, f)
+        z, zc, ok, sigma = detect(true_trend, horizon, sigma0, m, f)
         v = "TREND_VISIBLE" if ok else "TREND_MASKED (real, unseen)"
         if not ok and masked_at is None:
             masked_at = m
-        print(f"{m:>5.2f}{sigma0/(1-m):>8.2f}{z:>7.2f}{zc:>8.2f}  {v}")
+        print(f"{m:>5.2f}{sigma:>8.2f}{z:>7.2f}{zc:>8.2f}  {v}")
     print("VERDICT:", f"real trend goes invisible at measurement corruption m>={masked_at:.2f}"
           if masked_at is not None else "trend robust across tested corruption", "\n")
 

@@ -1,6 +1,13 @@
 """
 layer_0_emag.py
 
+STATUS: ALTERNATE API — see layer_0_electromagnetics.py for the primary
+per-instant coupling interface used by cascade_engine.py.
+This module provides the FFT-based time-series transfer function
+(L5 Δω history → L0 dM/dt) needed once the cascade is refactored to
+operate on histories rather than single instants. It does NOT yet replace
+layer_0_electromagnetics.py.
+
 Layer 0 (alternate API): Electromagnetic dynamo response over a time
 series window. Standalone module — does NOT yet replace
 layer_0_electromagnetics.py for the cascade engine. The existing
