@@ -1,0 +1,7 @@
+{"archive": "ice cores", "name": "ice cores", "predicted_bias_sign": -1, "preservation_condition": "cold, dry, high accumulation", "status": "CALIBRATED (CH4, this file)", "under_sampled_host": "low latitude, low altitude"}
+{"archive": "corals", "name": "corals", "predicted_bias_sign": -1, "preservation_condition": "reef-forming water", "status": "untested", "under_sampled_host": "outside reef range"}
+{"archive": "tree rings", "name": "tree rings", "predicted_bias_sign": -1, "preservation_condition": "seasonally limiting growth", "status": "untested", "under_sampled_host": "wet tropics"}
+{"archive": "speleothems", "name": "speleothems", "predicted_bias_sign": -1, "preservation_condition": "carbonate terrain", "status": "untested", "under_sampled_host": "non-carbonate"}
+{"archive": "sediment cores", "name": "sediment cores", "predicted_bias_sign": -1, "preservation_condition": "anoxic basin", "status": "untested", "under_sampled_host": "productive oxic zone"}
+{"archive": "fossils", "name": "fossils", "predicted_bias_sign": -1, "preservation_condition": "rapid burial", "status": "untested", "under_sampled_host": "upland habitat"}
+{"archive": "documents", "name": "documents", "predicted_bias_sign": -1, "preservation_condition": "dry storage, stable institutions", "status": "untested; routing-rule operator (ASB-09)", "under_sampled_host": "humid, non-literate, mobile"}

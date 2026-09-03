@@ -10234,3 +10234,213 @@ class TestDiachronicAnchor:
         ]
         out = diachronic_anchor("p", traj)
         assert out["pattern_across_trajectory"]["direction"] == "none"
+
+
+# ── ARCHIVE SITING BIAS ───────────────────────────────────────────────────────
+
+class TestArchiveSitingBias:
+    def test_import(self):
+        import archive_siting_bias
+
+    def test_attenuation_factor(self):
+        from archive_siting_bias import attenuation_factor
+        assert attenuation_factor(81, 125) == 81 / 125
+
+    def test_attenuation_zero_denominator(self):
+        from archive_siting_bias import attenuation_factor
+        import pytest
+        with pytest.raises(ZeroDivisionError):
+            attenuation_factor(1.0, 0.0)
+
+    def test_bias_direction(self):
+        from archive_siting_bias import bias_direction
+        assert bias_direction(0.65) == -1
+        assert bias_direction(1.30) == +1
+        assert bias_direction(1.00) == 0
+
+    def test_ch4_attenuation_matches_marker(self):
+        """ASB-04: published source strengths give A_TS=0.65, A_trop=0.77."""
+        from archive_siting_bias import ch4_attenuation
+        A = ch4_attenuation()
+        assert abs(A["TS"] - 0.65) < 0.01
+        assert abs(A["tropics"] - 0.77) < 0.01
+
+    def test_error_localizes_to_unmeasured_box(self):
+        """Most of the correction lands in the box that had no data."""
+        from archive_siting_bias import ch4_error_localization
+        loc = ch4_error_localization()
+        assert loc["share_in_unmeasured_box"] > 0.8
+        assert loc["delta_tg_yr"]["TS"] == 44.0
+
+    def test_offset_exceeds_gradient(self):
+        """The invisible offset (94) is ~2x the resolved gradient (48)."""
+        from archive_siting_bias import offset_vs_gradient_ratio
+        assert offset_vs_gradient_ratio() > 1.5
+
+    def test_siting_bias_exceeds_envelope(self):
+        """ASB-05: missing-box term exceeds the quantified parameter envelope."""
+        from archive_siting_bias import siting_bias_vs_envelope
+        r = siting_bias_vs_envelope()
+        assert r["exceeds_envelope"] is True
+        assert r["ratio"] > 1.0
+
+    def test_synthetic_demo_A_below_one(self):
+        """ASB-03: physical operator on a self-consistent truth gives A<1."""
+        from archive_siting_bias import synthetic_ch4_demo
+        d = synthetic_ch4_demo()
+        assert d["A_TS"] < 1.0
+        assert d["A_tropics"] < 1.0
+        assert d["bias_direction"] == -1
+
+    def test_synthetic_tropical_offset_positive(self):
+        """The source box runs enriched relative to the polar boxes."""
+        from archive_siting_bias import synthetic_ch4_demo
+        d = synthetic_ch4_demo()
+        assert d["tropical_offset_ppb"]["TS_minus_SH"] > 0
+
+    def test_soft_prior_monotone_with_tn_observed(self):
+        """With both tropical boxes prescribed, A_TS rises to exactly 1."""
+        from archive_siting_bias import soft_prior_sweep
+        rows = soft_prior_sweep(tn_observed=True)
+        A = [r["A_TS"] for r in rows]
+        assert all(A[i] <= A[i + 1] + 1e-9 for i in range(len(A) - 1))
+        assert abs(A[-1] - 1.0) < 1e-6
+
+    def test_soft_prior_overshoots_when_neighbour_interpolated(self):
+        """Prescribing one tropical box while interpolating the other is
+        itself a bias: A_TS overshoots 1."""
+        from archive_siting_bias import soft_prior_sweep
+        rows = soft_prior_sweep(tn_observed=False)
+        assert rows[-1]["A_TS"] > 1.0
+
+    def test_lifetime_scaling_monotone(self):
+        """ASB-06: shorter lifetime -> larger global deviation of A from 1."""
+        from archive_siting_bias import lifetime_scaling
+        ls = lifetime_scaling()
+        assert ls["monotone_global"] is True
+        rows = {r["species"]: r["A_global"] for r in ls["ranking_short_to_long"]}
+        assert rows["CO"] < rows["CH4"] < rows["N2O"] + 1e-9
+        assert abs(rows["CO2"] - 1.0) < 0.02
+
+    def test_lifetime_per_box_has_geometric_floor(self):
+        """Per-box A saturates: attribution error has no lifetime floor."""
+        from archive_siting_bias import lifetime_scaling
+        ls = lifetime_scaling()
+        assert ls["geometric_floor_deviation"] > 0.0
+
+    def test_enso_band_sign_frequency_dependent(self):
+        """ASB-08: A<1 in band, A>=1 at low frequency -> sign flips."""
+        from archive_siting_bias import enso_band_attenuation
+        r = enso_band_attenuation(variance_retained_in_band=0.4,
+                                  variance_retained_low_freq=1.4)
+        assert r["A_enso_band"] < 1.0
+        assert r["A_low_frequency"] > 1.0
+        assert r["sign_frequency_dependent"] is True
+
+    def test_enso_band_none_inputs(self):
+        from archive_siting_bias import enso_band_attenuation
+        r = enso_band_attenuation()
+        assert r["A_enso_band"] is None
+        assert r["sign_frequency_dependent"] is None
+
+    def test_network_geometry_anticorrelation_underread(self):
+        """T-4: archive density anti-correlated with source -> under-read."""
+        from archive_siting_bias import network_geometry
+        density = [5, 4, 3, 2, 1]
+        source = [1, 2, 3, 4, 5]
+        g = network_geometry(density, source)
+        assert g["correlation"] < 0
+        assert g["predicted_bias_sign"] == -1
+        assert g["predicted"] == "UNDER_READ"
+
+    def test_network_geometry_colocated_at_source(self):
+        from archive_siting_bias import network_geometry
+        g = network_geometry([1, 2, 3, 4, 5], [1, 2, 3, 4, 5])
+        assert g["correlation"] > 0
+        assert g["predicted"] == "AT_SOURCE"
+
+    def test_pearson_degenerate(self):
+        from archive_siting_bias import pearson
+        assert pearson([1, 1, 1], [1, 2, 3]) == 0.0
+
+    def test_stationarity_index(self):
+        from archive_siting_bias import stationarity_index
+        assert stationarity_index([1.0, 1.0, 1.0]) == 0.0
+        assert stationarity_index([0.5, 0.2, 0.8]) > 0.3
+
+    def test_classify_physical_stationary_correctable(self):
+        from archive_siting_bias import classify_operator
+        c = classify_operator("physical")
+        assert c["correctability"] == "CORRECTABLE_A_PRIORI"
+        assert c["A_is"] == "CONSTANT"
+
+    def test_classify_statistical_nonstationary_boundable(self):
+        from archive_siting_bias import classify_operator
+        c = classify_operator("statistical", [0.5, 0.2, 0.8])
+        assert c["correctability"] == "BOUNDABLE_ONLY"
+        assert c["A_is"] == "RANDOM_VARIABLE"
+
+    def test_classify_statistical_stationary_calibration(self):
+        from archive_siting_bias import classify_operator
+        c = classify_operator("statistical", [0.50, 0.52, 0.48])
+        assert c["correctability"] == "CORRECTABLE_BY_CALIBRATION"
+
+    def test_classify_routing_rule_is_boundable(self):
+        """ASB-09: routing rules classify as statistical, boundable only."""
+        from archive_siting_bias import classify_operator
+        c = classify_operator("routing_rule")
+        assert c["family"] == "statistical"
+        assert c["correctability"] == "BOUNDABLE_ONLY"
+
+    def test_classify_bad_kind(self):
+        from archive_siting_bias import classify_operator
+        import pytest
+        with pytest.raises(ValueError):
+            classify_operator("magic")
+
+    def test_a_priori_bound_physical_covers_synthetic(self):
+        """T-3: physical bound contains the model's own measured A_TS."""
+        from archive_siting_bias import (a_priori_bound, bound_coverage,
+                                         synthetic_ch4_demo, CH4_LIFETIME_YR)
+        b = a_priori_bound("physical", CH4_LIFETIME_YR)
+        measured = synthetic_ch4_demo()["A_TS"]
+        cov = bound_coverage(b["bound"], measured)
+        assert cov["covered"] is True
+
+    def test_a_priori_bound_statistical_none(self):
+        from archive_siting_bias import a_priori_bound
+        assert a_priori_bound("statistical", 9.1)["bound"] is None
+
+    def test_claim_table_ids_unique_and_ordered(self):
+        from archive_siting_bias import CLAIM_TABLE
+        ids = [c["id"] for c in CLAIM_TABLE]
+        assert ids == sorted(ids)
+        assert len(ids) == len(set(ids)) == 9
+
+    def test_claim_table_every_claim_has_refuter(self):
+        from archive_siting_bias import CLAIM_TABLE
+        for c in CLAIM_TABLE:
+            assert c["refuted_by"].strip()
+
+    def test_sibling_archives_predict_underread(self):
+        from archive_siting_bias import SIBLING_ARCHIVES
+        assert len(SIBLING_ARCHIVES) == 7
+        assert all(s["predicted_bias_sign"] == -1 for s in SIBLING_ARCHIVES)
+
+    def test_audit_physical(self):
+        from archive_siting_bias import audit
+        r = audit(81, 125, "physical")
+        assert r["read"] == "UNDER_READ"
+        assert r["correctability"] == "CORRECTABLE_A_PRIORI"
+
+    def test_audit_with_geometry(self):
+        from archive_siting_bias import audit
+        r = audit(81, 125, "physical",
+                  proxy_density=[5, 4, 3, 2, 1], source_strength=[1, 2, 3, 4, 5])
+        assert r["geometry_sign_matched"] is True
+
+    def test_report_runs(self):
+        from archive_siting_bias import report
+        text = report()
+        assert "ARCHIVE SITING BIAS" in text
+        assert "A_TS" in text
