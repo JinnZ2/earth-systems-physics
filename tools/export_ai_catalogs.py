@@ -518,6 +518,39 @@ CATALOGS = [
             "record has units, why, and role."
         ),
     },
+    # ── archive_siting_bias (MARKER) ─────────────────────────────
+    {
+        "name": "archive_siting_bias_claims",
+        "module": "archive_siting_bias",
+        "symbol": "CLAIM_TABLE",
+        "primary_key": "id",
+        "description": (
+            "Claim table for the archive-siting-bias MARKER: where a "
+            "proxy archive is preserved (cold/dry/anoxic/reef/limiting "
+            "season) anti-correlates with where the signal originates, "
+            "remote reconstructions carry a bias whose sign is known a "
+            "priori. Nine claims ASB-01..ASB-09, each with its refuter, "
+            "status, and the test that closes it. Calibrated on the "
+            "Lamantia et al. 2026 (Nature) CH4 four-box inversion "
+            "(A_TS=0.65) as the physical-transport case and the ENSO "
+            "teleconnection literature as the statistical, non-stationary "
+            "contrast. Refutation protocol: update the claim, never retune."
+        ),
+    },
+    {
+        "name": "archive_siting_bias_siblings",
+        "module": "archive_siting_bias",
+        "symbol": "SIBLING_ARCHIVES",
+        "primary_key": "archive",
+        "description": (
+            "Seven paleoclimate/record archives predicted to carry the "
+            "same siting bias, each with its preservation condition and "
+            "the host environment it under-samples (ice cores, corals, "
+            "tree rings, speleothems, sediment cores, fossils, documents). "
+            "All predict an under-read (bias sign -1); only the CH4/ice "
+            "case is calibrated, the rest are untested."
+        ),
+    },
 ]
 
 
