@@ -1,0 +1,16 @@
+{"dataset": "ERA5", "name": "AUG_2026_SAT_C", "source": "C3S monthly bulletin, August 2026 (pub. Sep 2026)", "value": "16.96 C global mean surface air temperature"}
+{"dataset": "ERA5", "name": "AUG_2026_ANOM_1991_2020_C", "source": "C3S monthly bulletin, August 2026", "value": "+0.85 C vs 1991-2020; warmest August in ERA5"}
+{"dataset": "ERA5", "name": "AUG_2026_ANOM_PREINDUSTRIAL_C", "source": "C3S monthly bulletin, August 2026", "value": "+1.65 C vs 1850-1900; first month above 1.5 C since Nov 2025"}
+{"dataset": "ERA5", "name": "JUL_2023_SAT_C", "source": "C3S monthly bulletin, July 2023 (comparison point)", "value": "16.95 C, +0.72 C vs 1991-2020 — the month tied (difference < 0.01 C)"}
+{"dataset": "ERA5", "name": "AUG_2023_2024_SAT_C", "source": "C3S monthly bulletin, August 2024 (comparison point)", "value": "16.82 C, +0.71 C vs 1991-2020 — previous joint August record"}
+{"dataset": "ERA5", "name": "RUNNING_12MO_SEP2025_AUG2026_C", "source": "C3S monthly bulletin, August 2026", "value": "1.48 C above 1850-1900, 12-month mean"}
+{"dataset": "ERA5", "name": "RUNNING_12MO_SEP2023_AUG2024_C", "source": "C3S monthly bulletin, August 2024 (comparison point)", "value": "1.64 C above 1850-1900, 12-month mean"}
+{"dataset": "ERA5", "name": "JJA_2026_ANOM_C", "source": "C3S monthly bulletin, August 2026", "value": "+0.69 C vs 1991-2020; joint warmest boreal summer with 2024 (0.69); 2023 was 0.66"}
+{"dataset": "ERA5", "name": "SST_EXTRAPOLAR_AUG_2026_C", "source": "C3S monthly bulletin, August 2026", "value": "21.07 C monthly mean 60S-60N, record for August (previous 20.98, Aug 2023); daily record 21.10 C on 22 Aug 2026 exceeding 21.09 C (Mar 2024)"}
+{"dataset": "NOAAGlobalTemp", "name": "NOAA_AUG_2026_ANOM_20TH_CENTURY_C", "source": "NOAA NCEI Global Climate Report, August 2026", "value": "+1.32 C (2.38 F) vs 20th-century mean; warmest August 1850-2026; +0.08 C over the 2023/2024 tie"}
+{"dataset": "NOAAGlobalTemp", "name": "NOAA_RECORD_WARM_SURFACE_FRACTION", "source": "NOAA NCEI Global Climate Report, August 2026", "value": "13.2% of land+ocean area record warm — largest August extent, 3rd for any month since 1951"}
+{"dataset": "NSIDC Sea Ice Index", "name": "ARCTIC_ICE_AUG_2026_MKM2", "source": "NSIDC, August 2026 analysis", "value": "5.56 million km2, 7th lowest August; 0.84 million km2 above the 2012 record low"}
+{"dataset": "NSIDC Sea Ice Index", "name": "ANTARCTIC_ICE_AUG_2026_MKM2", "source": "NSIDC, August 2026 analysis", "value": "16.46 million km2, 3rd lowest August"}
+{"dataset": "OISST / CPC", "name": "NINO34_WEEKLY_AUG_2026_C", "source": "NOAA CPC ENSO Diagnostic Discussion, Sep 2026; Berkeley Earth July 2026 update", "value": "+2.7 C weekly Nino 3.4 centred 12 Aug 2026; relative Nino 3.4 +2.45 C week ending 30 Aug; El Nino Advisory; >90% chance of a very strong event, NH winter 2026-27"}
+{"dataset": "Berkeley Earth", "name": "BERKELEY_P_2026_WARMEST_YEAR", "source": "Berkeley Earth July 2026 Temperature Update", "value": "69% chance 2026 is the warmest year; July 2026 1.56 +/- 0.09 C, 2nd warmest July"}
+{"dataset": "round number, all major datasets", "name": "TREND_C_PER_YR_APPROX", "source": "not a measurement of this module", "value": "0.020 C/yr — APPROXIMATE multi-decadal rate used only to separate trend from ENSO in the running-mean swing"}

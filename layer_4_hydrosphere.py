@@ -1014,6 +1014,11 @@ def coupling_state(T_ocean_C, S_ocean, T_north_C, S_north,
         "ice_albedo_feedback_Wm2":       ice_feedback,
         "arctic_amplification_K":        arctic_T,
         "ENSO_state":                    enso,
+        # Scalar ENSO exports so the cascade delta summary (scalar-only)
+        # sees an SST_enso forcing; the nested dict above is kept intact.
+        "ENSO_SST_anomaly":              SST_enso_anomaly,      # K, a delta
+        "ENSO_wind_stress_change_Pa":    enso["wind_stress_change_Pa"],
+        "ENSO_precip_shift":             enso["global_precip_shift"],
         "AMO_state":                     AMO,
         "committed_warming_timescale_yr":inertia_yrs,
         # Bottom water formation

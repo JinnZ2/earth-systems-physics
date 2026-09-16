@@ -94,7 +94,7 @@ pytest -v                          # Run test suite (350+ tests)
 
 ## Machine-Readable Exports
 
-[`ai_reference/`](ai_reference/) contains 33 JSONL catalogs (242 records)
+[`ai_reference/`](ai_reference/) contains 39 JSONL catalogs (302 records)
 auto-exported from source modules — mechanisms, assumption boundaries, cascade
 scenarios, feedback loops, and more. See [`ai_reference/README.md`](ai_reference/README.md)
 for ingestion instructions.

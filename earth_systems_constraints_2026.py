@@ -184,6 +184,20 @@ INVALIDATED_ASSUMPTIONS = {
     "la_nina_years_step_back_to_a_prior_level":
         "INVALIDATED 2025: a cool-ENSO year now lands in the top three "
         "globally and the 3rd-highest SST in a 172-year record",
+    "twelve_month_mean_above_1p5_is_the_paris_crossing":
+        "INVALIDATED 2026: the Sep 2023-Aug 2024 12-month mean reached "
+        "1.64 C above 1850-1900, then FELL to 1.48 C by Aug 2026 through "
+        "the La Nina/neutral phase before the next El Nino lifted a single "
+        "month to 1.65 C. ENSO swings the 12-month mean by ~0.2 C on a "
+        "~0.02 C/yr trend; the Paris metric is a 20-year mean "
+        "(C3S bulletins Aug 2024, Aug 2026)",
+    "hottest_month_in_absolute_terms_is_the_largest_anomaly":
+        "INVALIDATED 2026: August 2026 tied July 2023 in absolute global "
+        "temperature (16.96 vs 16.95 C) while its anomaly against "
+        "1991-2020 was 0.13 C LARGER (0.85 vs 0.72) because August's "
+        "climatology is 0.12 C cooler than July's. Absolute-record language "
+        "understates the anomaly record by the seasonal-cycle offset "
+        "(C3S bulletin Aug 2026; global_temperature_august_2026.py)",
     "ocean_deoxygenation_is_mostly_a_solubility_effect":
         "INVALIDATED: warming-driven solubility explains only ~15% of the "
         "observed open-ocean loss; the rest is reduced ventilation, "

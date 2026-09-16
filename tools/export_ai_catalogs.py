@@ -505,6 +505,21 @@ CATALOGS = [
             "names so any number can be traced back."
         ),
     },
+    # ── global_temperature_august_2026 (observed state, Sep 2026 bulletins) ──
+    {
+        "name": "global_temperature_august_2026_provenance",
+        "module": "global_temperature_august_2026",
+        "symbol": "PROVENANCE",
+        "description": (
+            "Per-constant provenance for the observed August 2026 "
+            "global surface state: warmest August in ERA5, "
+            "NOAAGlobalTemp and GISTEMP and ERA5's joint warmest month "
+            "on record (C3S, NOAA NCEI, NSIDC, NOAA CPC, Berkeley "
+            "Earth; published Sep 2026). Each record names the value "
+            "as published, the dataset, and the source bulletin; "
+            "comparison points from earlier bulletins are marked."
+        ),
+    },
     {
         "name": "deoxygenation_control_indicators",
         "module": "aquatic_deoxygenation",
