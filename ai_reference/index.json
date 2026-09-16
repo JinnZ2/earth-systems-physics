@@ -79,7 +79,7 @@
       "source_module": "cascade_engine",
       "source_symbol": "SCENARIOS",
       "description": "Pre-configured forcing functions for the cascade engine. Each Forcing has layer, variable, magnitude, units, description.",
-      "record_count": 22,
+      "record_count": 23,
       "schema": {
         "name": "str",
         "layer": "int",
@@ -514,6 +514,19 @@
         "name": "str",
         "value": "str",
         "chapter": "str",
+        "source": "str"
+      }
+    },
+    "global_temperature_august_2026_provenance": {
+      "path": "catalogs/global_temperature_august_2026_provenance.jsonl",
+      "source_module": "global_temperature_august_2026",
+      "source_symbol": "PROVENANCE",
+      "description": "Per-constant provenance for the observed August 2026 global surface state: warmest August in ERA5, NOAAGlobalTemp and GISTEMP and ERA5's joint warmest month on record (C3S, NOAA NCEI, NSIDC, NOAA CPC, Berkeley Earth; published Sep 2026). Each record names the value as published, the dataset, and the source bulletin; comparison points from earlier bulletins are marked.",
+      "record_count": 16,
+      "schema": {
+        "name": "str",
+        "value": "str",
+        "dataset": "str",
         "source": "str"
       }
     },

@@ -10444,3 +10444,180 @@ class TestArchiveSitingBias:
         text = report()
         assert "ARCHIVE SITING BIAS" in text
         assert "A_TS" in text
+
+
+# ═══════════════════════════════════════════════════════════════
+# GLOBAL TEMPERATURE, AUGUST 2026 — observed state (Sep 2026 bulletins)
+# ═══════════════════════════════════════════════════════════════
+
+class TestGlobalTemperatureAugust2026:
+    """August 2026: warmest August in ERA5, NOAAGlobalTemp and GISTEMP;
+    ERA5's joint warmest month on record. Tests check the module's
+    internal arithmetic, its cross-wiring to the 2025 report and the
+    cascade engine, and that every cited constant exists."""
+
+    def test_imports_and_metadata(self):
+        import global_temperature_august_2026 as g
+        assert g.DATA_YEAR == 2026 and g.DATA_MONTH == 8
+        assert len(g.DATASETS_RANKING_WARMEST_AUGUST) == 3
+
+    def test_era5_headline_values(self):
+        import global_temperature_august_2026 as g
+        assert g.AUG_2026_SAT_C == 16.96
+        assert g.AUG_2026_ANOM_1991_2020_C == 0.85
+        assert g.AUG_2026_ANOM_PREINDUSTRIAL_C == 1.65
+        # anomaly > previous August record (2023/2024 at 0.71)
+        assert g.AUG_2026_ANOM_1991_2020_C > g.AUG_2023_2024_ANOM_1991_2020_C
+
+    def test_tie_is_absolute_not_anomaly(self):
+        import global_temperature_august_2026 as g
+        t = g.absolute_vs_anomaly_tie()
+        assert t["tie_in_absolute_terms"] is True
+        assert t["largest_anomaly_on_record"] is True
+        # August climatology is cooler than July's by the same amount
+        # the anomaly exceeds July 2023's, to rounding
+        assert abs(t["seasonal_offset_C"] - 0.12) < 1e-9
+        assert abs(t["anomaly_excess_over_jul_2023_C"] - 0.13) < 1e-9
+        assert abs(t["aug_climatology_C"] + t["seasonal_offset_C"]
+                   - t["jul_climatology_C"]) < 1e-9
+
+    def test_record_margins_are_dataset_dependent(self):
+        import global_temperature_august_2026 as g
+        m = g.record_margins()
+        assert abs(m["era5_margin_C"] - 0.14) < 1e-9
+        assert m["noaa_margin_C"] == 0.08
+        assert m["ratio_era5_to_noaa"] > 1.5
+        assert m["rank_agrees"] is True
+
+    def test_running_mean_swing_exceeds_trend(self):
+        import global_temperature_august_2026 as g
+        r = g.running_mean_modulation()
+        # the 12-month mean fell while the trend rose
+        assert r["observed_change_C"] < 0 < r["trend_contribution_C"]
+        assert abs(r["enso_swing_C"] - 0.20) < 1e-9
+        assert r["swing_over_trend_years"] >= 5
+
+    def test_running_mean_swing_scales_with_trend_argument(self):
+        import global_temperature_august_2026 as g
+        low = g.running_mean_modulation(trend_C_per_yr=0.010)
+        high = g.running_mean_modulation(trend_C_per_yr=0.030)
+        assert high["enso_swing_C"] > low["enso_swing_C"]
+
+    def test_enso_superposition_uses_the_2025_report(self):
+        import global_temperature_august_2026 as g
+        import state_of_the_climate_2025 as soc
+        e = g.enso_superposition_check()
+        assert e["neutral_year_2025"]["rank"] == soc.GLOBAL_TEMP_RANK_2025
+        assert e["neutral_year_2025"]["enso_state"] == soc.ENSO_STATE_2025
+        assert e["record_requires_el_nino"] is False
+        assert e["enso_still_modulates"] is True
+        assert abs(e["el_nino_month_2026"]["monthly_excess_C"] - 0.17) < 1e-9
+        assert 0.05 < e["realised_sensitivity_C_per_C_nino34"] < 0.10
+        assert e["sensitivity_is_lower_bound"] is True
+
+    def test_paris_status_no_crossing_on_any_window(self):
+        import global_temperature_august_2026 as g
+        p = g.paris_threshold_status()
+        assert p["monthly_above"] is True
+        assert p["running_12mo_above"] is False
+        assert p["prior_12mo_peak_above"] is True      # 1.64 came and went
+        assert p["crossing_established"] is False
+        assert p["defining_window_years"] == 20
+        assert abs(p["running_12mo_shortfall_C"] - 0.02) < 1e-9
+
+    def test_sst_daily_record_set_off_season(self):
+        import global_temperature_august_2026 as g
+        s = g.sst_record_against_season()
+        assert s["daily_record_C"] > s["prev_daily_record_C"]
+        assert s["set_at_seasonal_peak"] is False
+        assert s["prev_daily_record_month"][1] in g.SST_SEASONAL_MAX_MONTHS
+        assert abs(s["august_margin_C"] - 0.09) < 1e-9
+
+    def test_pattern_is_labelled_not_projection(self):
+        import global_temperature_august_2026 as g
+        f = g.el_nino_following_year_pattern()
+        assert f["kind"] == "pattern_not_projection"
+        assert [r["record_year"] for r in f["onset_to_record_year"]] == \
+            [1998, 2016, 2024]
+        assert f["current_event_second_year"] == 2027
+        assert 0 < f["p_2026_warmest_year_berkeley_july"] < 1
+        assert f["forecast_peak_vs_previous_record_C"] > 0.8
+
+    def test_sea_ice_both_poles(self):
+        import global_temperature_august_2026 as g
+        i = g.sea_ice_state()
+        assert i["arctic_rank_lowest"] == 7
+        assert i["antarctic_rank_lowest"] == 3
+        assert i["antarctic_mkm2"] > i["arctic_mkm2"]     # austral winter
+
+    def test_provenance_keys_are_real_constants(self):
+        import global_temperature_august_2026 as g
+        assert len(g.PROVENANCE) >= 12
+        for name, rec in g.PROVENANCE.items():
+            assert hasattr(g, name), name
+            for key in ("value", "dataset", "source"):
+                assert rec[key], f"{name} missing {key}"
+        assert g.provenance("AUG_2026_SAT_C")["dataset"] == "ERA5"
+        assert g.provenance("NOT_A_CONSTANT") is None
+        # comparison points from earlier bulletins are marked as such
+        assert "comparison point" in g.provenance("JUL_2023_SAT_C")["source"]
+        assert "APPROXIMATE" in g.provenance("TREND_C_PER_YR_APPROX")["value"]
+
+    def test_records_broken_have_datasets(self):
+        import global_temperature_august_2026 as g
+        recs = g.records_broken()
+        assert len(recs) >= 8
+        assert all(r["dataset"] for r in recs)
+        kinds = {r["kind"] for r in recs}
+        assert kinds <= {"record_high", "record_high_joint"}
+
+    def test_baseline_overrides_target_existing_keys(self):
+        import global_temperature_august_2026 as g
+        from cascade_engine import BASELINE
+        o = g.baseline_overrides()
+        assert set(o) <= set(BASELINE)
+        assert o["SST_enso"] == 2.7
+        assert "T_surface" not in o          # reference state left alone
+
+    def test_super_el_nino_scenario_runs_through_the_engine(self):
+        from cascade_engine import SCENARIOS, run_cascade, BASELINE
+        import global_temperature_august_2026 as g
+        f = SCENARIOS["super_el_nino_2026_27"]
+        assert f.layer == 4 and f.variable == "SST_enso"
+        assert f.magnitude == g.NINO34_WEEKLY_AUG_2026_C
+        result = run_cascade(f, verbose=False)
+        assert result.layer_states
+        # the forcing leaves a scalar trace in the Layer 4 delta summary
+        l4 = result.summary[4]
+        assert abs(l4["ENSO_SST_anomaly"]["delta"] - 2.7) < 1e-9
+        assert l4["ENSO_wind_stress_change_Pa"]["delta"] < 0
+        # the forcing reaches Layer 4's ENSO feedback
+        p = dict(BASELINE); p.update(g.baseline_overrides())
+        from layer_4_hydrosphere import enso_feedback_strength
+        fb = enso_feedback_strength(p["SST_enso"])
+        assert fb["wind_stress_change_Pa"] < 0                # trades weaken
+        assert fb["drought_risk_indonesia"] is True
+
+    def test_constraints_registry_carries_august_2026(self):
+        from earth_systems_constraints_2026 import (
+            INVALIDATED_ASSUMPTIONS, constraint_validity_check)
+        for key in ("twelve_month_mean_above_1p5_is_the_paris_crossing",
+                    "hottest_month_in_absolute_terms_is_the_largest_anomaly"):
+            assert key in INVALIDATED_ASSUMPTIONS
+            valid, msg = constraint_validity_check(key)
+            assert valid is False and "2026" in msg
+
+    def test_catalog_exported(self):
+        import json
+        with open("ai_reference/index.json", encoding="utf-8") as fh:
+            idx = json.load(fh)
+        meta = idx["catalogs"]["global_temperature_august_2026_provenance"]
+        assert meta["source_module"] == "global_temperature_august_2026"
+        assert meta["record_count"] >= 12
+
+    def test_main_runs(self):
+        import subprocess, sys
+        out = subprocess.run([sys.executable, "global_temperature_august_2026.py"],
+                             capture_output=True, text=True, timeout=60)
+        assert out.returncode == 0, out.stderr
+        assert "ENSO SUPERPOSITION" in out.stdout

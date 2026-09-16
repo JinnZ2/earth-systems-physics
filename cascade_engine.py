@@ -1510,6 +1510,20 @@ SCENARIOS = {
         ),
         units="fraction",
     ),
+    "super_el_nino_2026_27": Forcing(
+        layer=4, variable="SST_enso", magnitude=2.7,
+        description=(
+            "Eastern-Pacific SST anomaly at the observed August 2026 "
+            "weekly Nino 3.4 value (+2.7 K; NOAA CPC El Nino Advisory, "
+            ">90% chance of a very strong event through NH winter "
+            "2026-27, forecast peak ~3.6 K). August 2026 was the warmest "
+            "August in ERA5, NOAAGlobalTemp and GISTEMP and ERA5's joint "
+            "warmest month ever. Drives the Bjerknes wind-stress feedback "
+            "in Layer 4 (enso_feedback_strength). Measured value from "
+            "global_temperature_august_2026.baseline_overrides()."
+        ),
+        units="K",
+    ),
     "ocean_timber_dumping": Forcing(
         layer=6, variable="deforestation", magnitude=0.001,
         description=(
