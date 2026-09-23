@@ -79,6 +79,7 @@ earth-systems-physics/
 ├── energy_audit.py                    # Cross-layer energy conservation audit
 ├── aquatic_deoxygenation.py           # Proposed 10th planetary boundary — dissolved O2 physics + boundary interactions
 ├── state_of_the_climate_2025.py       # Observed 2025 state (BAMS 36th annual, pub. Aug 2026) with per-constant provenance
+├── intersecting_projects/             # FURTHER RESEARCH NEEDED: 7 intersecting working docs (warning cards, worker brief, redundancy, automation audits), verbatim + flags in README
 ├── research.md                        # Thwaites Sept-2026 papers × JinnZ2/Simulators risk audit (secs 1-14) + sec 15 citation verification
 ├── thwaites_teis_2026.py              # TEIS Sept 2026 imagery read (Kavik): O1-O4 qualitative, coupling loop + falsifier, upgrade path to a quantified CV
 ├── risk_posture.py                   # Same PHC 2026 data read two ways: PUBLISHED vs MITIGATION under 6 declared rules
