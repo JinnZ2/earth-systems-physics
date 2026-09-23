@@ -80,7 +80,7 @@ earth-systems-physics/
 ├── aquatic_deoxygenation.py           # Proposed 10th planetary boundary — dissolved O2 physics + boundary interactions
 ├── state_of_the_climate_2025.py       # Observed 2025 state (BAMS 36th annual, pub. Aug 2026) with per-constant provenance
 ├── intersecting_projects/             # FURTHER RESEARCH NEEDED: 7 intersecting working docs (warning cards, worker brief, redundancy, automation audits), verbatim + flags in README
-├── research.md                        # Thwaites 2026 papers × JinnZ2/Simulators audit: secs 1-14 by Kimi (with its R1-R6 repair log), sec 15 Claude citation check, sec 16 reconciliation
+├── research.md                        # Thwaites 2026 papers × JinnZ2/Simulators audit: secs 1-14 by Kimi, R1-R6 repair log by a Claude session, sec 15 independent Claude Code citation check, sec 16 reconciliation
 ├── thwaites_teis_2026.py              # TEIS Sept 2026 imagery read (Kavik): O1-O4 qualitative, coupling loop + falsifier, upgrade path to a quantified CV
 ├── risk_posture.py                   # Same PHC 2026 data read two ways: PUBLISHED vs MITIGATION under 6 declared rules
 ├── planetary_health_check_2026.py     # PHC 2026 (PBScience/PIK) planetary-boundary CV table; 7 of 9; CV_MISMATCH map for legacy CVs

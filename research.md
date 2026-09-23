@@ -826,11 +826,17 @@ what each instrument constrains.
 
 ## 16. Reconciliation of the two repair passes (2026-09-23, Claude Code)
 
-**Provenance.** Sections 1–14 and the REPAIR LOG (R1–R6) were written by Kimi (Moonshot AI,
-"OKComputer"), which ran the JinnZ2/Simulators tools. Kimi's second pass repaired its own
-text; section 15 is an independent check made without seeing that pass. The two agree on R1,
-R2 and R4. This section records what each caught that the other did not, and what is still
-inconsistent.
+**Provenance.** Sections 1–14 were written by Kimi (Moonshot AI, "OKComputer"), which ran the
+JinnZ2/Simulators tools. The REPAIR LOG (R1–R6) and the inline REPAIRED / UNVERIFIED notes in
+sections 1–14 were added by a separate Claude session. Section 15 is a check by a second Claude
+session (Claude Code), made without seeing that repair pass. The two Claude passes agree on R1,
+R2 and R4.
+
+**How much that agreement is worth.** Both passes are the same model family working from
+overlapping search results, so their agreement is not independent confirmation; a shared blind
+spot would show up in both. The agreements are only as strong as the sources each one cites.
+Where a claim rests on a search-index abstract in both passes, it is still CITED_SECONDARY. This
+section records what each pass caught that the other did not, and what is still inconsistent.
 
 ### 16a. R5 resolved
 
@@ -842,7 +848,7 @@ Southeast Asia and the Indo-Pacific, not "100–150 cm". Section 11's descriptio
 published **Addendum** exists (doi:10.1038/s41586-026-11017-1); read it before citing.
 Status: CITED_SECONDARY (search index and RePEc record; full text not opened).
 
-### 16b. Corrections from section 15 not carried in Kimi's pass
+### 16b. Corrections from section 15 not carried in the repair log
 
 - **Phạm is 2025, not 2026** (GRL, doi:10.1029/2025GL118885). THW-03 still reads "Phạm 2026".
   The catalog has 245 of **362** events near Thwaites' marine edge; the rate tracks speed-ups of
