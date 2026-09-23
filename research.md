@@ -449,3 +449,354 @@ THW-F6  The AMOC->Southern Ocean->Amundsen transfer (Kasuya mechanism) operates
         track local forcing only, with no detectable seesaw component,
         during a measured AMOC weakening interval
 ```
+
+---
+
+## 11. Cross-disciplinary sweep: modeling, mathematics, statistics, imaging, others
+(searched 2026-09-24; mapped to the audit's earlier findings)
+
+### MATHEMATICS — tipping theory
+
+- **Ashwin, P., et al. (2025).** Early warning skill, extrapolation and tipping for accelerating
+  cascades. (Utrecht research portal PDF; journal status unverified — LEAD pending pin.)
+  Early-warning-signal skill scoring for systems accelerating through folds — the formal
+  machinery for "can we see Thwaites tipping before it tips," with an honest ROC/AUC treatment.
+- **Early-warning indicators for rate-induced tipping.** arXiv:1509.01696, v5 updated
+  2026-08-24. PREPRINT (long revision history; cite as arXiv). The mathematical counterpart to
+  van Westen et al. 2026 (section 10): early-warning indicators for systems whose control
+  parameter moves too fast — exactly the ENSO-staircase-on-committed-pool configuration.
+
+### STATISTICS — attribution and extreme values
+
+- **Dangendorf, S., et al. (2026).** Human-driven sea-level rise has quadrupled the frequency of
+  coastal sea-level extremes since 1900. *Nature Climate Change*. DOI: 10.1038/s41558-026-02659-0.
+  CITATION-READY. Global median frequency of a historical 1-in-100-year extreme sea-level event is
+  up ~12×; human forcing alone quadrupled it. This is the missing `who_counts` fix for the
+  Goldberg frame (section 1): it converts global-mean SLE into event-frequency at the coast.
+- **Gilford, D. M., et al. (2026).** Human-caused sea level rise drives 21st-century worldwide
+  water level extremes. *Science Advances*. DOI: 10.1126/sciadv.adz3595. CITATION-READY.
+  Anthropogenic SLR detectable at 97% of 519 tide-gauge sites; 58% (44–65%) of 21st-century
+  extremes attributable. Companion to Dangendorf.
+- **Seeger, K., & Minderhoud, P., et al. (2026).** Sea level much higher than assumed in most
+  coastal hazard assessments. *Nature*. DOI: 10.1038/s41586-026-10196-1. CITATION-READY.
+  Coastal sea levels underestimated ~30 cm on average, >1 m in parts of SE Asia/Indo-Pacific —
+  i.e., the *baseline datum itself* is biased low. In repo terms: an instrument-frame error
+  upstream of every adaptation calculation (declared-frame `boundary` failure at the datum level).
+
+### MODELING — emulators, calibration, intercomparison
+
+- **Reese, R., Jourdain, N. C., et al. (2026).** A protocol for calibrating basal melt rates in
+  the ISMIP7 Antarctic projections + meltMIP design. egusphere-2026-5337, discussion opened
+  **2026-09-22** (in-window PREPRINT). Admits in writing what the audit found structurally:
+  basal-melt modules are one of the largest uncertainty sources, CMIP models carry large Southern
+  Ocean biases and mostly lack ice-shelf cavities, and melt parameters used as tuning knobs "can
+  yield melt rates in the projections that are not physically well-constrained." Notes a 2026
+  finding of a sub-ice ocean connection between Dotson and Crosson shelves that breaks the
+  observational melt budget assumed for calibration. Governance-level confirmation of the
+  measurement-fork result (no shared quantity across instruments → calibration ambiguity).
+- **egusphere-2026-1585 (2026, PREPRINT).** Future learning and uncertainty reductions in
+  Antarctic projections (MALI + sequential Bayesian calibration, Amery sector). Key result for
+  risk posture: **limited scope for narrowing SLE projections through the end of the 21st
+  century; rapid learning only after shelf loss begins** — i.e., the observations that would
+  settle the uncertainty arrive largely *after* the event they would have warned about. This is
+  closure-cost at the field level, quantified. Authors themselves hypothesize Thwaites would
+  learn faster because it is already in rapid change.
+- **SC-DS: likelihood-free calibration with diffusion emulators.** arXiv:2608.29642 (2026-08-30,
+  PREPRINT). 2.2 h vs 198.9 h for GP-MCMC on WAIS calibration; Bedmap3 posterior favors fast
+  basal sliding (CRH most constrained, high values) — independent statistical support for the
+  risk-weighted reading of Pierce's bed: sliding-friendly bed is what the data prefer.
+- **Coulon, V., et al. (2025).** From short-term uncertainties to long-term certainties in ice
+  sheet projections. *Nature Communications*. DOI: 10.1038/s41467-025-66178-w. CITATION-READY.
+- **CMIP 2026 workshop / ISMIP7 (June 2026, program record):** "Initialization is fundamentally
+  a palaeoclimate-constrained problem" — program-level confirmation of the Goldberg et al.
+  comment's central finding (section 1).
+
+### IMAGING / OBSERVING
+
+- **Davison, B. J., Hogg, A. E., Slater, T., Rigby, R., & Hansen, N. (2025).** Antarctic Ice
+  Sheet grounding line discharge 1996–2024. *Earth System Science Data*. CITATION-READY.
+  Continental discharge rose 1999 ± 175 → 2224 ± 200 Gt/yr; monthly cadence in later years;
+  updated monthly subject to "continued Sentinel-1 acquisitions and funding availability" — the
+  dataset itself names the THW-04 shared node (funding) as its continuity condition.
+- **MEaSUREs Antarctic Grounding Line v2.1** (NSIDC-0498, DOI: 10.5067/IKBWW4RYHF1Q, updated
+  2026-02-27, coverage now 1992→2025-11) + Grounding Zone v1.1 with ML-generated migration
+  boundaries. DATASET, citable.
+- **UC Irvine / ICEYE 30-year grounding-line study** (PNAS, announced 2026-03-03): Antarctica
+  lost 12,820 km² of grounded ice since 1996; Thwaites retreated 26 km, Pine Island 33 km,
+  Smith 42 km; daily-revisit commercial SAR now load-bearing for fast sectors.
+  LEAD — journal and date known, author list not yet pulled.
+- **Hudson, T. S., et al. (2026).** Quantifying subsurface fracture damage in glaciers using
+  fiber-optic seismology. *Science Advances* (PubMed 42490434). CITATION-READY (DOI to pull).
+  DAS measures crevasse damage (~8% of ice volume, fracture-dominated) — a *new, cheap,
+  rapidly deployable* channel that reads subsurface damage satellites cannot see. Directly
+  relevant to THW-04: DAS is the one technology in this sweep that could raise N_eff, because
+  it breaks the funding/logistics shared node (compact, low-power, no repeated field campaigns).
+- **Rán II** (Univ. of Gothenburg): replacement AUV for the Rán lost under an Antarctic glacier
+  in Jan 2024, delivery winter 2026/27. CONTEXT — a literal instance of observing-system
+  fragility: the only instrument that had entered Thwaites' cavity was lost in it, leaving a
+  ~3-year gap in cavity-class measurement exactly as the committed-loss era begins.
+
+### OTHERS
+
+- **Destination Earth Climate DT** (ECMWF/DestinE; ACM SC'25 paper DOI: 10.1145/3712285.3771790):
+  operational multi-decadal km-scale climate digital twins (5 km production, 1 km demonstrated),
+  6.6 PB portfolio. CITATION-READY as capability record. Relevant as the compute layer that could
+  host a coupled Thwaites wave+pool monitoring product — but note ice sheets are *not* interactive
+  in these ESMs yet; the glacier is a boundary condition, not a component (the climate-modeling
+  suite's Cross-System Coupling stub, still a stub at continental compute scale).
+- **SFU thesis (2025):** statistical emulation of subglacial drainage (GlaDS GP emulator,
+  ~1000× speedup; random-forest Antarctic effective-pressure emulator, 6 orders of magnitude
+  speedup). THESIS — LEAD. Finds structural model error, not parameters, is the binding
+  constraint on subglacial hydrology — independent echo of this audit's core finding.
+
+### New falsifier / gap entries
+
+```
+THW-F7  DAS-class sensing can read subsurface fracture damage at Thwaites scale
+        Refutes if: a deployed DAS array on an Antarctic ice shelf fails to
+        resolve crevasse/icequake damage above noise for one full season
+
+THW-05 (gap)  STATE: unowned. The monthly grounding-line discharge dataset
+        (Davison et al.) is the closest thing to an OIR-style observable
+        indicator, and its continuity is conditional on a single funding line —
+        the same shared node THW-04 flagged. No party owns converting it into
+        a household/authority-readable trigger product.
+```
+
+---
+
+## 12. Correction and counterweight pass (2026-09-24, from the operator's review + citation backlog)
+
+### 12a. Correction: the OIR analogue was an over-transfer — scoped down
+
+The operator's critique is accepted. In section 5 I transferred OIR's miss-filter finding
+(a structural property of a *wetting-order stability check* — a miss flips the pair's sign,
+a false alarm keeps it) onto a hypothetical Thwaites grounding-line-retreat warning rule
+without comparing constraint sets. The repo's own vocabulary (SS_005, TP_008, RCC_008:
+"the machine and human arms are not claimed to share a mechanism") is the discipline that
+says state what they don't share before using the transfer.
+
+**What transfers:** the *asymmetry class* — a warning product whose acceptance check
+constrains misses but not false alarms will cry wolf, and the party who pays for the false
+alarms is the household/worker, not the agency.
+**What does not transfer (until shown):** the specific mechanism (sign-flip on order
+inversion). A grounding-line-retreat rule is a threshold crossing, not a wetting-order
+pair; its failure modes must be derived on its own constraint set.
+**Status:** demoted from "application" to **candidate cross-domain shape, constraint sets
+uncompared**. The report's OIR paragraph is to be read under this scope.
+
+### 12b. Counterweight entered: Höse et al. 2026 cuts against the coupling narrative
+
+**Höse, A., Kreuzer, M., Huiskamp, W., Petri, S., & Feulner, G. (2026).** Simulating the
+impact of an AMOC weakening on the Antarctic Ice Sheet using a coupled climate and ice-sheet
+model. *Earth System Dynamics* 17(4), 1025–1059. DOI: 10.5194/esd-17-1025-2026 (2026-07-30).
+
+In an artificial North Atlantic freshwater-forcing experiment: little subsurface-temperature
+change around most of Antarctica and **no change in total Antarctic ice volume for the first
+eight centuries after AMOC shutdown**; later Ross Sea cooling *reduces* basal melt while
+increased calving offsets it. Model-specific, with declared forcing/coupling limits — not a
+safety guarantee, and not nothing.
+
+Risk-weighted reconciliation (this changes the audit's emphasis, honestly):
+- Sections 7/9's coupling chain ran AMOC→Southern Ocean→Thwaites. Kasuya (paleo mechanism)
+  says the pathway exists; Höse (coupled forward model) says its magnitude is small for
+  centuries. **The two are not in contradiction with Bradley — they reinforce her.** If AMOC
+  forcing adds little, then the committed, internal-dynamics component is even more clearly
+  the load-bearing term. The risk was never "AMOC collapse melts Thwaites"; it is "Thwaites
+  is committed on its own dynamics, and no ocean-state change — including a favorable one —
+  retires that."
+- New falsifier:
+
+```
+THW-F8  The AMOC->Antarctic seesaw pathway is negligible for Thwaites on
+        committed-loss timescales (Höse) versus material (Kasuya mechanism)
+        Refutes the Höse reading if: a coupled run with resolved Amundsen
+        cavities, observed freshwater geometry, and sub-seasonal ocean
+        forcing shows shelf-temperature response within 200 years
+        Refutes the Kasuya-transfer reading if: the pathway's Amundsen
+        magnitude stays below natural ENSO-band variability in such a run
+        (note: ENSO variability is section 9's term — this falsifier pits
+        the two sections against each other deliberately)
+```
+
+### 12c. Backlog items mapped onto the gap register
+
+- **Zeising et al. 2026** (*Comms Earth & Env.* 7, 366; DOI 10.1038/s43247-026-03502-2;
+  "Hard rocks and deep wetlands beneath Thwaites"; vibroseismic + impedance products at
+  PANGAEA 10.1594/PANGAEA.987704) — a **fourth instrument arm** with direct bed contact.
+  Open test against THW-02: whether vibroseismic impedance shares any quantity with radar
+  reflectivity or MT resistivity, or supports a joint inversion. Per the backlog's own
+  discipline: agreement not assumed in advance. If a shared quantity exists, the
+  measurement-fork result weakens; if not, THW-02 hardens from "no shared quantity among
+  three arms" to "among four."
+- **Matsuoka et al. 2026** (*Rev. Geophys.* 64(3), e2022RG000803; 2026-09-02) — review of
+  coastal-zone data gaps and survey priorities; the institutional-side counterpart to THW-02
+  and THW-04. Cross-check which of its proposed Amundsen surveys overlap in measured quantity
+  and which still leave pore pressure unmeasured.
+- **Otosaka et al. 2026** (*Scientific Data* 13, 1301; DOI 10.1038/s41597-026-08088-0;
+  2026-09-16) — regional mass-balance baseline 1970s–2023 with uncertainties; the WAIS product
+  is a constraint for basin-scale bookkeeping, explicitly **not** a Thwaites time series.
+- **Nian date corrected**: publisher 2026-03-27, version of record 2026-03-31 (March, not the
+  April used in section 10).
+- **HAL animal-borne bathymetry record** — held as UNVERIFIED lead (no authorship/venue/DOI
+  established). Noted without use.
+- Repo convergence note: `Simulators/AMOC/research.md` (commit f35e1f5) independently added
+  Kasuya and Nian while these searches ran. Same two papers, two independent routes.
+
+### 12d. The worker-side reading — adopted as the report's audience frame
+
+The operator's reframe is adopted: this document is a risk-management instrument for the
+people who build and maintain what the risk applies to. Consequences carried forward:
+
+1. **Design-life mismatch is the load-bearing sentence.** A 75-year code against a 150-year
+   committed loss means the code is calibrated to a horizon the hazard has already passed.
+   Sayable in a planning meeting; no per-glacier assessment contradicts it (section 5's
+   operator swap is the arithmetic behind the sentence).
+2. **THW-01 is the only gap a worker or community can push alone** (demand the code cite
+   committed loss as floor). THW-02/04 need institutional moves. Priority ordering in any
+   future action section follows this.
+3. **"No shared quantity" means no appeal to cross-check.** The instrument that would let a
+   worker falsify the institutional reading does not exist; terrain-prior reads are the only
+   cross-check available on the ground. This is now stated as a consequence, not just a gap.
+4. **Warning products must carry both rates.** A trigger product with a constrained miss rate
+   and an unconstrained false-alarm rate trains its users to ignore it; the false-alarm side
+   is the worker's problem before it is the agency's (held under the 12a scope note).
+
+---
+
+## 13. Backlog papers through the audit tools (audit first, counterweight second)
+
+All six received declared-frame blocks (accepted by `check_frame.py`). Key per-paper reads:
+
+**Otosaka et al. 2026 (mass balance baseline)** — frame flag: `boundary`. The WAIS product is
+a regional aggregate; assigning it to Thwaites is a boundary error the paper's own regional
+structure warns against. Role in the audit: the denominator — every attribution claim
+downstream inherits its uncertainty budget. `observer_access: verified` — the cleanest frame
+in the whole corpus, because it is a data product with released uncertainties.
+
+**Kasuya et al. 2026 (Patagonian seesaw)** — frame flag: `who_counts`. The mechanism is
+measured *in Patagonia, in the last glacial*; the Antarctic application is a transfer, not a
+measurement. This paper upgrades section 7's transfer gate from UNMEASURED to
+**measured-at-mechanism-level, magnitudes not transferable** — and the frame makes the
+reason visible: boundary conditions differ (geometry, glacial climate state).
+
+**Matsuoka et al. 2026 (coastal-zone review)** — frame flag: `who_counts` = the gap
+inventory itself. A review measures nothing but ranks what is unmeasured; it is the
+institutional-side mirror of THW-02/THW-04. Its Amundsen survey priorities are the checklist
+against which "which proposed observation would actually read pore pressure" can be scored.
+
+**Zeising et al. 2026 (vibroseismic bed)** — run through the measurement-fork as a fourth
+arm (`thwaites_subglacial_v2`). Result:
+
+```
+SAME QUANTITY, DIFFERENT ROUTE
+  none -- the arms share no quantity at all.   (unchanged with arm 4)
+RESIDUAL
+  [COVERED widen] whether acoustic impedance, radar reflectivity, and
+  resistivity can be joint-inverted into one shared physical quantity
+```
+
+THW-02 hardens: "no shared quantity" now holds across **four** instrument arms. The joint
+inversion question is registered in the residual cell — that is where a shared quantity
+would have to be *built*, since none exists by design. Consequence from 12d stands and
+strengthens: the cross-check instrument still does not exist.
+
+**Höse et al. 2026 (AMOC→Antarctic null)** — mapped through `reservoir-chain-coupling`'s
+harness structure: Höse is the **null, high-freeboard branch** of the operator-swap test.
+The swap (max vs sum) is only decisive inside the disagreement band `crest − pool ≤ wave <
+crest`; Höse's result says the AMOC-forcing wave never reaches the Antarctic band on
+committed-loss timescales — freeboard (thermal distance) is too large, so the coupling term
+is genuinely negligible *for that pathway*, and the detector honestly reports REFUTED
+(coupling negligible) rather than firing. Crucially this says nothing about the **pool**:
+Bradley's committed internal loss is the antecedent term and does not need the AMOC wave.
+The two papers occupy different cells of the same harness.
+
+**Nian et al. 2026 (carbon flip)** — frame flag: `boundary`. Carbon-cycle diagnostics are
+not shelf-temperature measurements; the Southern Ocean appears as a carbon reservoir, not an
+ice-forcing term. Usable for AMOC consequence framing, unusable for Thwaites forcing.
+Date corrected: VoR 2026-03-31.
+
+**HAL animal-borne bathymetry record** — not run. UNVERIFIED lead; no authorship/venue/DOI
+established. Held, per the repo rule that an absence is a location, not a finding.
+
+## 14. Counterweight synthesis (post-audit)
+
+Now legitimately, since the audit ran first:
+
+1. **The committed-pool reading survives the counterweight.** Höse weakens the
+   AMOC→Thwaites *forcing* pathway (section 7/9 emphasis was too coupling-forward); it does
+   not touch Bradley's committed internal loss, which needed no ocean forcing in the first
+   place. Net effect of the counterweight: **the audit's central line (committed loss as
+   design floor) is strengthened, and the AMOC coupling is demoted from 'risk amplifier' to
+   'open pathway with a measured paleo mechanism (Kasuya) and a modeled weak magnitude
+   (Höse)'** — exactly the state THW-F8 was written to resolve.
+
+2. **THW-02 is now a four-arm result.** Zeising was the backlog's best candidate to break
+   "no shared quantity" and did not. The residual cell names the only honest route forward:
+   a joint inversion would have to *construct* the shared quantity.
+
+3. **Frame-quality ranking (observer_access as the proxy):** verified — Otosaka, Matsuoka,
+   Zeising (data products and reviews with released data); partial — Kasuya, Höse, Nian
+   (model/proxy dependent). The three most decision-relevant papers for coupling are also
+   the three with the least observer access. Not a flaw — the property of the questions they
+   ask — but it sets the confidence ceiling for any counterweight verdict.
+
+4. **Standing correction to section 7:** the sentence "the margin is not the flux ratio"
+   survives Höse (he says the flux ratio is small and stays small; duration argument becomes
+   moot for AMOC specifically). The committed-loss floor argument does not depend on AMOC
+   and is unchanged.
+
+---
+
+## 15. Citation verification pass (2026-09-23, Claude Code, search-index level)
+
+Scope: the five papers in the results map, located by web search. Publisher pages were
+blocked by the session's egress policy, so each item below is checked against indexed
+abstracts and institutional repository listings (NERC, NSF PAR, UEA, BAS), **not full
+text**. Status for all: CITED_SECONDARY. The same records are carried as data in
+`thwaites_teis_2026.LITERATURE`.
+
+### 15a. Corrections to the results map
+
+| Entry as used above | What the index shows |
+|---|---|
+| "Bradley et al." — committed loss | First author is **Williams, C. R.**; Bradley, A. T. is last of seven. GRL 53(14), doi:10.1029/2026GL122843, published **2026-07-25**. Finding matches: Thwaites keeps losing ice (at a decreasing rate) for 150 yr under zero melt; Pine Island re-advances. |
+| "Phạm (2026)" | Paper is **2025** (GRL, doi:10.1029/2025GL118885); August 2026 was news coverage. 245 of **362** events are near Thwaites' marine edge, 2010–2023; the rate tracks episodic speed-ups of the **frontal ice tongue, 2018–2020**. |
+| "Goldberg, Holland & Naughten (2026)" | A **preprint under review** (EGUsphere, doi:10.5194/egusphere-2026-3779, "Century-scale impacts of ice-sheet model initialization on Amundsen Sea Embayment"). "Comment on egusphere-2026-3779" is the discussion page, not the paper. Initialization-then-forcing finding matches. **"2.6 mm/yr SLE by 2200" was not found in any indexed text** — UNCITED until read; every downstream use (sections 1, 7, worker brief) inherits that. |
+| Pierce et al. | Published **April 2026**. "Homogeneous bed" is the authors' inference from simulated-vs-observed power correlating in **40%** of flight segments; section 4's resolution-floor reading is consistent with that number. |
+| Killingbeck et al. | Matches: TG basin >10 Ωm vs <10 Ωm elsewhere. The index adds that the TG basin is itself **horizontally heterogeneous** (conductive where thick, resistive at GHOST Ridge), so the transfer caution in section 2 already applies within Thwaites. |
+
+### 15b. Two sections carry the same over-transfer that 12a corrected
+
+12a demoted the OIR analogue because constraint sets were never compared. By that rule, two
+earlier results are in the same position:
+
+- **Section 1 (7/7 FAIL).** The `climate-modeling` suite runs its own synthetic
+  `GrassCarbonBalance` vs `CascadeGrass` pair; the numbers (`final_biomass_error`, rmse)
+  are biomass errors on that pair. Goldberg's model was not an input, and the suite returns
+  7/7 FAIL whatever paper it is run beside. What transfers is the *class* (smooth models
+  understate threshold-and-memory cascades); what does not is "7/7" as a result *about*
+  this paper.
+- **Section 5 (4/4 BREACH).** The chain values are declared synthetic, and the method note
+  says so. But the table's BREACH labels are a function of those chosen values, and
+  "coupled physics evaluates `new_forcing + committed_state`" is the premise under test,
+  not a result. The operator-swap argument stands as a design question; "4/4" does not
+  stand as a finding about Thwaites.
+
+Section 4's "no shared quantity" has a milder version of this: it is a property of the
+measurement-fork spec written for the audit, so it holds only as far as that spec lists
+what each instrument constrains.
+
+### 15c. Sources that bear on the TEIS imagery read (not in the list above)
+
+- **Wild et al. 2024**, J. Glaciology, doi:10.1017/jog.2024.64 — the "damage band widens as
+  the ice-thickness minimum spreads during downstream advection" sentence; Sentinel-1
+  2014 to mid-2023; rift propagation, not basal melt, drives TEIS breakup; rapid
+  propagation in austral spring; central-shelf speed 1.65 m/d (2019) → 2.85 m/d (early
+  2023), ~+70%.
+- **Pettit et al. 2021**, AGU Fall Meeting C34A-07 (abstract, not peer reviewed) — the
+  origin of the "2026" date: collapse "may be initiated … as soon as 2026". Not "very
+  likely".
+- **Benn et al. 2022** (The Cryosphere 16, 2545) and **Banerjee et al. 2025** (JGR Earth
+  Surface 130(9), doi:10.1029/2025JF008352) — published positive feedbacks at TEIS
+  (damage↔strain; shear fracturing↔upstream acceleration).
