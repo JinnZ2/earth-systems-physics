@@ -1,4 +1,4 @@
-# Thwaites Glacier September-2026 Papers × JinnZ2/Simulators
+# Thwaites Glacier 2026 Papers (July–September) × JinnZ2/Simulators
 ## Risk-management-weighted audit (worst-case planning, not conservative averaging)
 
 All tools below were **actually cloned and run** from `github.com/JinnZ2/Simulators` (2026-09-23).
@@ -6,17 +6,33 @@ Where a tool takes structured inputs, each paper was encoded as an input file an
 "Risk-weighted" here follows the repo's own rule: report the band, plan against the short end;
 treat committed loss as the floor, not the scenario.
 
+> **REPAIR LOG — 2026-09-23** (citation + method audit against sources)
+>
+> | # | Repair | Status |
+> |---|---|---|
+> | R1 | "Bradley et al." → Williams et al. (Bradley is last author); published July, not September | FIXED |
+> | R2 | Goldberg "2.6 mm/yr by 2200" not found in preprint summary; preprint under review | FLAGGED UNVERIFIED (s1, s7) |
+> | R3 | Pierce "homogeneous under fast western region" not in abstract | s4 RE-DERIVED from abstract; THW-F1 RETIRED |
+> | R4 | 7/7 FAIL and 4/4 BREACH are tool demonstrations on synthetic inputs | RELABELLED DEMONSTRATION |
+> | R5 | One DOI assigned to two author sets (s10, s11) | FLAGGED CONFLICT, both uncitable |
+> | R6 | κ = 0.000 from one model coding twice | FLAGGED INVALID AS RELIABILITY |
+>
+> Still unrepaired: s5 closure-cost verdict restates an auditor-entered input ("availability: present");
+> s5 assumes committed and forced loss superpose linearly and that assessments combine them by `max`
+> — both unsourced. Verified: Williams et al. finding, Killingbeck, Otosaka DOI, s9 ENSO status (CPC 10 Sep, IRI mid-Sep).
+> Central line (committed loss as design floor; THW-01) rests on Williams et al. and survives.
+
 ---
 
 ## Results map
 
 | Paper | Tools run | Headline output |
 |---|---|---|
-| Goldberg et al. (ice-sheet modeling) | `climate-modeling` audit suite; `declared-frame` | **7/7 built audits FAIL**: smooth models are blind to threshold+memory cascades |
+| Goldberg et al. (ice-sheet modeling) | `climate-modeling` audit suite; `declared-frame` | DEMONSTRATION (tool behaviour, not a Thwaites finding): suite's own synthetic cases, 7/7 FAIL; no Goldberg model input was run |
 | Killingbeck et al. (MT groundwater) | `closure-cost` (instrument branch); `declared-frame`; `measurement-fork` | Intermediary (resistivity) is the reading; pore pressure never sampled |
 | Phạm (glacial earthquakes) | `instrument-bias-sims` S1; `declared-frame` | Event-sampled catalog has **null share 0.0000** — baseline reconstructed from events alone |
 | Pierce et al. (radar bed) | `measurement-fork`; `declared-frame` | Radar/MT/seismic arms **share no quantity at all** — no cross-validation exists |
-| Bradley et al. (committed loss) | `closure-cost` (event branch); `reservoir-chain-coupling`; `declared-frame` | "No melt → no loss" was a **closed variable**; coupled chain breaches **4/4 nodes** the per-node view clears |
+| Williams et al. (committed loss) | `closure-cost` (event branch); `reservoir-chain-coupling`; `declared-frame` | "No melt → no loss" was a **closed variable**; DEMONSTRATION: synthetic arbitrary-unit chain; sum ≥ max for non-negative inputs, so the 4/4 breach is an identity, not a Thwaites finding |
 
 ---
 
@@ -38,18 +54,18 @@ Missing Positive Feedback  FAIL  final_biomass_error=283254.5
 SUMMARY: 0 pass, 7 fail
 ```
 
-Every failure mode the suite flags has a direct analogue in the Goldberg paper's own finding:
+(REPAIRED: the analogues below are interpretive mappings, not test results — no Goldberg model was run.) Every failure mode the suite flags has a proposed analogue in the Goldberg preprint's finding:
 **initialization dominates the 21st century** = the model's near-term answer is set by an
 inherited state, not by measured physics (the suite's Stationarity/Omitted-Variable failures);
 **forcing dominates later** = the regime where the model is best validated is the regime that
 matters least for people alive now.
 
 The declared-frame check pins the framing:
-- **horizon**: the headline "2.6 mm/yr by 2200" is scored 175 years out; the 2026–2100 window — the planning horizon of every living structure — is the initialization-dominated window the model is *least* informative in.
+- **horizon**: the headline "2.6 mm/yr by 2200" [UNVERIFIED: figure not found in the preprint summary; source is the other model's citation list. Preprint under review (TC), posted 7 Jul 2026, not peer-reviewed.] is scored 175 years out; the 2026–2100 window — the planning horizon of every living structure — is the initialization-dominated window the model is *least* informative in.
 - **boundary**: modeled ice volume only; MICI-style cliff physics, subglacial hydrology feedbacks (the Killingbeck/Pierce territory), and the downstream WAIS buttressing chain are outside the accounting.
 - **who_counts**: global mean SLE. No coastline, no time-of-arrival distribution; the aggregate absorbs the variance that risk management lives on.
 
-**Risk read:** treat 2.6 mm/yr by 2200 as a *floor with a smooth-model bias*, not a ceiling.
+**Risk read:** (figure UNVERIFIED, see above) treat 2.6 mm/yr by 2200 as a *floor with a smooth-model bias*, not a ceiling.
 The suite's flagship result is that smooth models systematically *understate* cascade speed when
 threshold, feedback, and memory are present — and Thwaites is the canonical threshold+memory system.
 
@@ -136,19 +152,24 @@ quantity — no cell where two instruments measure the same thing by different r
 *no published result from any arm can confirm or refute any other*, and the one variable that
 governs sliding (pore pressure) is in the residual set of all three.
 
-On the paper itself, the declared-frame check flags the load-bearing sentence: "homogeneous
-substrate under fast-moving western regions" is an **instrument-resolution statement that reads as
-a property statement**. Smooth to radar at survey-line spacing ≠ smooth at the scale of basal
-hydrology. The risk-relevant cell — the fast-moving region — is precisely the one with the least
-resolved bed.
+On the paper itself (REPAIRED 2026-09-23): an earlier draft built this section on the sentence
+"homogeneous substrate under fast-moving western regions." That sentence is NOT in the paper's
+abstract; it came from the other model's citation summary. What the abstract states: modeled
+bed-return variation matched the radar data closely in 40% of simulated flight segments
+(read as a relatively homogeneous bed), and in another 40% the fit improved once hydrology or
+substrate transitions were added. No location attribution is given in the abstract.
 
-**Risk read:** the bed beneath the fastest ice is the least characterized; heterogeneity is the
-finding where the ice is slow, homogeneity (read: resolution floor) where it is fast. Plan as if
-the western region's basal conditions are *unknown*, not *favorable*.
+**Risk read (re-derived):** 40% of segments need hydrology or substrate transitions to fit, and
+"homogeneous" in the other 40% is a radar-resolution statement, not a bed-property statement
+(smooth to radar at survey-line spacing is not smooth at basal-hydrology scale). Where the
+remaining 20% sit, and whether the homogeneous segments coincide with fast flow, is UNMEASURED
+from the abstract — check the full paper before any location-specific claim.
 
 ---
 
-## 5. Bradley et al. — mass loss continues without ocean melting
+## 5. Williams et al. — mass loss continues without ocean melting
+
+*Citation (repaired 2026-09-23):* Williams, C. R., Trevers, M., Sun, S., Holland, P. R., Bett, D. T., Arthern, R. J., & Bradley, A. T. (2026). Mass Loss From Thwaites Glacier Continues Even Without Ocean Melting. *GRL* 53(14). DOI 10.1029/2026GL122843. Published 25–28 July 2026 (not September). Earlier drafts named Bradley (last author) as first author.
 
 **Tools: `closure-cost` (event branch), `reservoir-chain-coupling`, `declared-frame`.**
 
@@ -167,7 +188,7 @@ dynamics literature existed for decades; the handling class was never acquired b
 said removing the driver removes the loss. This is the repo's central claim confirmed on this case:
 response failure tracks prior closure, not event severity, not information availability.
 
-Then the chain. Bradley's 150-year committed loss *is* the antecedent pool in
+Then the chain. Williams et al.'s 150-year committed loss *is* the antecedent pool in
 `reservoir-chain-coupling`'s operator swap: per-glacier assessment evaluates `max(new_forcing,
 committed_state)`; coupled physics evaluates `new_forcing + committed_state`. Run on a declared
 synthetic Thwaites→WAIS chain (units arbitrary and labeled):
@@ -198,7 +219,7 @@ chain, with the error's sign fixed: always toward "safer than it is."
 
 ## Cross-paper synthesis (the risk-management view)
 
-1. **The committed pool is the load-bearing input.** Bradley supplies the antecedent state;
+1. **The committed pool is the load-bearing input.** Williams et al. supply the antecedent state;
    Goldberg supplies the arriving wave; the operator swap says combining them by `max` instead of
    `sum` is the standard assessment error, and it never overstates.
 2. **No instrument reads the controlling variable.** Radar (Pierce), MT (Killingbeck), seismic
@@ -206,7 +227,7 @@ chain, with the error's sign fixed: always toward "safer than it is."
    fastest-flowing region has the least-resolved bed.
 3. **The event record has no baseline.** Phạm's catalog is event-triggered (S1: null share 0.0000);
    calm in the record is not calm in the glacier.
-4. **The smooth-model bias is measured, not conjectured.** 7/7 climate-modeling audits FAIL in the
+4. **(REPAIRED) The smooth-model bias is DEMONSTRATED on the suite's own synthetic system, not measured on ice-sheet models.** 7/7 climate-modeling audits FAIL in the
    direction of understated cascade speed — plan on the short end of every band.
 5. **The failure was closure, not information.** Closure-cost: availability ruled out the
    procedure-gap rival. The handling class for committed loss does not exist because the premise
@@ -218,7 +239,7 @@ chain, with the error's sign fixed: always toward "safer than it is."
 GAP_ID   THW-01
 DOMAIN   glaciology / coastal adaptation
 STATE    unowned
-WHAT_EXISTS  committed-loss magnitude (Bradley 2026); SLR ensembles (Goldberg 2026)
+WHAT_EXISTS  committed-loss magnitude (Williams et al. 2026); SLR ensembles (Goldberg 2026)
 WHAT_IS_MISSING  any party whose scope covers translating committed glacier loss
                  into mandatory minimum design basis for coastal infrastructure
 ENTRY_POINT  national adaptation design codes: does any cite committed ice loss as floor?
@@ -277,13 +298,13 @@ GPS/borehole), coded two ways:
 ```
 CODER 1 (generous, shared node = field logistics only):  N_nominal=6  N_eff=3
 CODER 2 (risk-weighted, + funding authorization + processing chains): N_eff=1
-inter-coder Cohen's kappa: 0.000
+inter-coder Cohen's kappa: 0.000  [INVALID AS RELIABILITY: both codings by one model; not independent coders. N_eff values are one coder's choice of shared nodes.]
 ```
 
 Run notes:
 - This also closes a gap the repo's own audit found: the delivered `report()` never calls its
   own `cohen_kappa`, so the two-coder blind protocol had no representation. Here it was called.
-- **κ = 0.000 is the finding, not a defect**: whether the monitoring system has any redundancy
+- (REPAIRED) κ here is not inter-coder reliability — one model coded twice. What survives: **the N_eff answer depends on which shared nodes are counted**: whether the monitoring system has any redundancy
   at all depends entirely on which shared nodes the coder is willing to count. Under the
   risk-weighted coding — same 2–3 national funding programs, same Antarctic logistics (ships,
   fuel, aircraft, a 3-month field season), shared processing chains between the two satellite
@@ -322,13 +343,13 @@ Run results:
 - StommelBox hysteresis: bistable band F ∈ [0.00, 0.228]; collapse spinodal at F ≈ 0.228
   (≈ 0.50 Sv on the declared calibration). Inside the band, which state you occupy depends on
   history; past the spinodal there is no stable overturning branch to return to.
-- Flux arithmetic from the September papers: even Goldberg's 2.6 mm/yr SLE at 2200 is ≈ 0.030 Sv
+- Flux arithmetic from the September papers: even Goldberg's 2.6 mm/yr SLE at 2200 [UNVERIFIED input — this flux line inherits the flag] is ≈ 0.030 Sv
   — well below the collapse threshold *as a magnitude*.
 
 **The risk-weighted point is not magnitude, it is duration.** The framework's own
 `divergence.py` rule: DISCOUNT analog recovery when loading is ocean-sourced and not finite.
 The paleo analogs (8.2ka, Younger Dryas) recovered because their freshwater pulses were finite.
-Bradley 2026 commits the source for 150+ years *under zero melt* — the off-ramp the paleo
+Williams et al. 2026 commits the source for 150+ years *under zero melt* — the off-ramp the paleo
 record used does not exist this time. A sub-threshold flux applied indefinitely across a
 bistable system's history-dependent band is a different risk class than a finite pulse, and the
 tool's honest-gap protocol keeps the Southern-Ocean routing cell marked UNMEASURED rather than
@@ -340,11 +361,11 @@ Registered as watch items — each has a defined observation that would refute i
 
 | ID | Claim under watch | Refutes if |
 |---|---|---|
-| THW-F1 | Radar "homogeneous substrate" under the fast western region is resolution, not property | Higher-resolution or repeat radar still shows no basal structure there |
+| THW-F1 | RETIRED 2026-09-23 — premise not in source. Re-derive after full-text read of Pierce et al.: "radar-homogeneous" segments are resolution, not property | Higher-resolution or repeat radar still shows no basal structure there |
 | THW-F2 | MT high-resistivity basin does not exclude a thin high-pressure water film | A borehole through the basin finds dry/low-pressure conditions at the interface |
 | THW-F3 | Phạm's event-rate trend confounds glacier acceleration with network sensitivity | Trend survives recomputation per unit detection sensitivity |
 | THW-F4 | Per-glacier assessment understates the WAIS chain (operator swap) | A coupled Thwaites→WAIS run on published data shows coupling not load-bearing |
-| THW-F5 | Committed loss is policy-inert (closure persists post-Bradley) | Any national adaptation design code cites committed ice loss as minimum basis within 5 years |
+| THW-F5 | Committed loss is policy-inert (closure persists post-Williams et al.) | Any national adaptation design code cites committed ice loss as minimum basis within 5 years |
 
 F5 is the cheapest to watch and the most diagnostic of the closure-cost mechanism: the
 information is now unmistakably present, so continued absence of the handling class is pure
@@ -377,18 +398,18 @@ melt anomaly of ~+29% of a baseline year per cycle; a 2026-27-scale event at Thw
 magnitude is order 50–60 Gt of added basal melt over the event (~0.15 mm SLE one-time
 pulse) — *on top of* the committed trend, not instead of it.
 
-**Mapping onto the September 2026 papers:**
+**Mapping onto the July–September 2026 papers:**
 
 | Paper | ENSO coupling read (risk-weighted) |
 |---|---|
-| Bradley (committed loss) | The super El Niño is a **wave arriving on the committed pool** — the operator swap again: wave + pool, not max(pool, wave). The event does not replace committed loss; it rides on it |
+| Williams et al. (committed loss) | The super El Niño is a **wave arriving on the committed pool** — the operator swap again: wave + pool, not max(pool, wave). The event does not replace committed loss; it rides on it |
 | Goldberg (modeling) | A forcing pulse in the *initialization-dominated* window — exactly where the model is least informative, and exactly what the climate-modeling suite's `DataAggregationAudit` FAIL warns about: a pulse averaged into a mean disappears from the projection |
 | Phạm (seismic) | Prediction to watch: basal-melt pulse → accelerated flow → capsizing-berg earthquake rate should peak 2027. Falsifier THW-F3 applies — the peak must survive detection-threshold correction before it counts as physics |
 | Pierce / Killingbeck (bed, water) | A sub-seasonal hydrological pulse hitting a system characterized by *snapshot* instruments (single-epoch radar and MT). The event will not be in the maps; any drainage or pressure response is invisible to the existing characterization |
 | THW-04 redundancy | The observing system that would catch this in real time has N_eff = 1 under risk-weighted coding — and the satellites that survive the shared nodes cannot see the basal channel where the pulse acts |
 
 **The compounding chain, stated plainly:**
-committed internal loss (Bradley, 150 yr) + rectified ENSO staircase (each strong event
+committed internal loss (Williams et al., 150 yr) + rectified ENSO staircase (each strong event
 leaves a net step because melt responds asymmetrically) + projected increase in ENSO
 amplitude/variability by 2100 (Cai et al. 2021, 2023) = the forcing term is not a smooth
 ramp but a rising staircase of pulses, each landing on a higher committed pool. The
@@ -438,7 +459,7 @@ September-specific; German, Japanese and Korean sources carried real research.
 - RTBF-covered model study (Jul 2026): 10% collapse probability with emissions frozen — **preprint, not peer-reviewed**
 - GEOMAR "water age" (CFC-12/SF₆) ventilation-decline study (early 2026) — no authors/journal in coverage
 - egusphere-2026-3065 (Jun 2026), GFDL ESM2M AMOC collapse under 2°C stabilization — preprint
-- Astudillo et al. (2026), *Nature*, coastal SL 100–150 cm above hazard-assessment assumptions — DOI 10.1038/s41586-026-10196-1, March, outside window
+- Astudillo et al. (2026), *Nature*, coastal SL 100–150 cm above hazard-assessment assumptions — DOI 10.1038/s41586-026-10196-1, March, outside window [CONFLICT: same DOI assigned to two author sets in this file (Astudillo et al., s10; Seeger & Minderhoud et al., s11). Unresolved — do not cite either until the DOI record is checked.]
 
 ### Updated falsifier watch list addition
 
@@ -478,7 +499,7 @@ THW-F6  The AMOC->Southern Ocean->Amundsen transfer (Kasuya mechanism) operates
   Anthropogenic SLR detectable at 97% of 519 tide-gauge sites; 58% (44–65%) of 21st-century
   extremes attributable. Companion to Dangendorf.
 - **Seeger, K., & Minderhoud, P., et al. (2026).** Sea level much higher than assumed in most
-  coastal hazard assessments. *Nature*. DOI: 10.1038/s41586-026-10196-1. CITATION-READY.
+  coastal hazard assessments. *Nature*. DOI: 10.1038/s41586-026-10196-1. NOT CITATION-READY [CONFLICT: same DOI assigned to two author sets in this file (Astudillo et al., s10; Seeger & Minderhoud et al., s11). Unresolved — do not cite either until the DOI record is checked.]
   Coastal sea levels underestimated ~30 cm on average, >1 m in parts of SE Asia/Indo-Pacific —
   i.e., the *baseline datum itself* is biased low. In repo terms: an instrument-frame error
   upstream of every adaptation calculation (declared-frame `boundary` failure at the datum level).
@@ -600,7 +621,7 @@ safety guarantee, and not nothing.
 Risk-weighted reconciliation (this changes the audit's emphasis, honestly):
 - Sections 7/9's coupling chain ran AMOC→Southern Ocean→Thwaites. Kasuya (paleo mechanism)
   says the pathway exists; Höse (coupled forward model) says its magnitude is small for
-  centuries. **The two are not in contradiction with Bradley — they reinforce her.** If AMOC
+  centuries. **The two are not in contradiction with Williams et al. — they reinforce it.** If AMOC
   forcing adds little, then the committed, internal-dynamics component is even more clearly
   the load-bearing term. The risk was never "AMOC collapse melts Thwaites"; it is "Thwaites
   is committed on its own dynamics, and no ocean-state change — including a favorable one —
@@ -708,7 +729,7 @@ crest`; Höse's result says the AMOC-forcing wave never reaches the Antarctic ba
 committed-loss timescales — freeboard (thermal distance) is too large, so the coupling term
 is genuinely negligible *for that pathway*, and the detector honestly reports REFUTED
 (coupling negligible) rather than firing. Crucially this says nothing about the **pool**:
-Bradley's committed internal loss is the antecedent term and does not need the AMOC wave.
+Williams et al.'s committed internal loss is the antecedent term and does not need the AMOC wave.
 The two papers occupy different cells of the same harness.
 
 **Nian et al. 2026 (carbon flip)** — frame flag: `boundary`. Carbon-cycle diagnostics are
@@ -725,7 +746,7 @@ Now legitimately, since the audit ran first:
 
 1. **The committed-pool reading survives the counterweight.** Höse weakens the
    AMOC→Thwaites *forcing* pathway (section 7/9 emphasis was too coupling-forward); it does
-   not touch Bradley's committed internal loss, which needed no ocean forcing in the first
+   not touch Williams et al.'s committed internal loss, which needed no ocean forcing in the first
    place. Net effect of the counterweight: **the audit's central line (committed loss as
    design floor) is strengthened, and the AMOC coupling is demoted from 'risk amplifier' to
    'open pathway with a measured paleo mechanism (Kasuya) and a modeled weak magnitude
@@ -800,3 +821,52 @@ what each instrument constrains.
 - **Benn et al. 2022** (The Cryosphere 16, 2545) and **Banerjee et al. 2025** (JGR Earth
   Surface 130(9), doi:10.1029/2025JF008352) — published positive feedbacks at TEIS
   (damage↔strain; shear fracturing↔upstream acceleration).
+
+---
+
+## 16. Reconciliation of the two repair passes (2026-09-23, Claude Code)
+
+**Provenance.** Sections 1–14 and the REPAIR LOG (R1–R6) were written by Kimi (Moonshot AI,
+"OKComputer"), which ran the JinnZ2/Simulators tools. Kimi's second pass repaired its own
+text; section 15 is an independent check made without seeing that pass. The two agree on R1,
+R2 and R4. This section records what each caught that the other did not, and what is still
+inconsistent.
+
+### 16a. R5 resolved
+
+DOI 10.1038/s41586-026-10196-1 is **Seeger, K. & Minderhoud, P. S. J. (2026). Sea level much
+higher than assumed in most coastal hazard assessments. *Nature* 652(8110), 667–674**
+(Nature press briefing 3 March 2026). The section 10 attribution to "Astudillo et al." is
+wrong, and so is its magnitude: the paper gives **0.2–0.3 m** on average and more than 1 m in
+Southeast Asia and the Indo-Pacific, not "100–150 cm". Section 11's description matches. A
+published **Addendum** exists (doi:10.1038/s41586-026-11017-1); read it before citing.
+Status: CITED_SECONDARY (search index and RePEc record; full text not opened).
+
+### 16b. Corrections from section 15 not carried in Kimi's pass
+
+- **Phạm is 2025, not 2026** (GRL, doi:10.1029/2025GL118885). THW-03 still reads "Phạm 2026".
+  The catalog has 245 of **362** events near Thwaites' marine edge; the rate tracks speed-ups of
+  the **frontal ice tongue, 2018–2020**, which is narrower than "accelerated ice flow".
+- **Killingbeck:** the Thwaites basin is itself horizontally heterogeneous (conductive where
+  thick, resistive at GHOST Ridge). This strengthens section 2's transfer caution.
+- **"No shared quantity" (sections 4 and 13)** is a property of the measurement-fork spec
+  written for this audit. Adding Zeising as a fourth arm hardens the spec's result, not a fact
+  about the instruments, until someone checks whether the four constrain a common quantity
+  (radar and MT both carry basal-water information).
+
+### 16c. Statements that still contradict the repair log
+
+| Location | Still states | Conflicts with |
+|---|---|---|
+| Synthesis #2 | "the fastest-flowing region has the least-resolved bed" | THW-F1 retired: premise not in source (R3) |
+| Synthesis #4 | "…plan on the short end of every band" | R4: a demonstration cannot set planning guidance |
+| Synthesis #1, 12d.1 | operator swap is "the standard assessment error" / "the arithmetic behind the sentence" | the log's own unrepaired note: `max` combination and linear superposition are unsourced |
+| §1 Risk read | "treat 2.6 mm/yr … as a floor" | R2: figure unverified |
+| §5 output | `VERDICT: LOAD-BEARING` printed as a result | R4: sum ≥ max for non-negative inputs — an identity |
+
+### 16d. What the central line rests on after both passes
+
+The design-life sentence (12d.1) needs neither the operator swap nor 4/4. It rests on
+**Williams et al. 2026 (150 yr of committed loss under zero melt)** against a **75-year design
+life that is still unsourced** (see `intersecting_projects/README.md`). Source the 75 years
+and the sentence stands on two citations. THW-01 is unchanged.
