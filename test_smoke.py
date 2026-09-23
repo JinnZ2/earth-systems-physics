@@ -10720,3 +10720,71 @@ class TestPlanetaryHealthCheck2026:
         with pytest.raises(TypeError):
             planetary_boundary_status(426, 100, 165, 14, 2600, 0.5, 8.07,
                                       0.15, 295, novel_entities=0.9)
+
+
+class TestRiskPosture:
+    """risk_posture.py: same PHC 2026 data, PUBLISHED vs MITIGATION reading."""
+
+    def _reads(self):
+        import risk_posture as rp
+        return {r["cv"]: r for r in map(rp.read, rp.CVS)}
+
+    def test_values_match_phc_module(self):
+        # drift guard: risk_posture carries its own copy of the table
+        import risk_posture as rp
+        from planetary_health_check_2026 import CONTROL_VARIABLES as CV, OZONE_PB_DU
+        pairs = {
+            "climate_co2": "climate_CO2_ppm", "climate_rf": "climate_RF_Wm2",
+            "biosphere_extinction": "biosphere_extinction_E_MSY",
+            "biosphere_hanpp": "biosphere_HANPP_pct",
+            "land_forest": "land_forest_pct_potential",
+            "freshwater_blue": "freshwater_blue_pct_land",
+            "freshwater_green": "freshwater_green_pct_land",
+            "biogeochem_p": "biogeochem_P_Tg_yr", "biogeochem_n": "biogeochem_N_Tg_yr",
+            "ocean_aragonite": "ocean_omega_arag", "aerosol_global": "aerosol_delta_AOD",
+            "aerosol_south_asia": "aerosol_south_asia_AOD",
+        }
+        rows = {r[0]: r for r in rp.CVS}
+        for mine, theirs in pairs.items():
+            _, _, (lo, hi), pb, hr, wih, _ = rows[mine]
+            v = CV[theirs]["value"]
+            v = v if isinstance(v, tuple) else (v, v)
+            assert (lo, hi) == pytest.approx(v), mine
+            assert pb == pytest.approx(CV[theirs]["pb"]), mine
+            assert hr == pytest.approx(CV[theirs]["hr"]), mine
+            assert wih == CV[theirs]["higher_is_worse"], mine
+        assert rows["ozone_extrapolar"][3] == pytest.approx(OZONE_PB_DU)
+
+    def test_r1_reads_adverse_end(self):
+        r = self._reads()
+        assert r["biosphere_extinction"]["mitigation"].endswith("@ 1000")
+        assert "R1_ADVERSE_END" in r["biosphere_hanpp"]["rules"]
+
+    def test_r2_surfaces_unsourced_width(self):
+        r = self._reads()["ocean_aragonite"]
+        assert "R2_THIN_MARGIN" in r["rules"]
+        assert "UNSOURCED" in r["mitigation"]
+
+    def test_r6_flags_carried(self):
+        r = self._reads()
+        assert "PROVISIONAL" in r["freshwater_blue"]["mitigation"]
+        assert "PROPOSED" in r["aerosol_south_asia"]["mitigation"]
+        assert "PRELIMINARY" in r["ozone_extrapolar"]["mitigation"]
+
+    def test_r6_safe_becomes_safe_preliminary(self):
+        import risk_posture as rp
+        row = ("x", "u", (1.0, 1.0), 2.0, 3.0, True, {"pb_preliminary": True})
+        assert rp.read(row)["mitigation"].startswith("SAFE_PRELIMINARY")
+
+    def test_unmeasured_never_safe(self):
+        r = self._reads()
+        assert "UNMEASURED" in r["novel_entities"]["mitigation"]
+        assert not r["ozone_extrapolar"]["mitigation"].startswith("SAFE")
+
+    def test_mitigation_never_less_severe_than_published(self):
+        rank = {"SAFE": 0, "SAFE_PRELIMINARY": 0, "INCREASING_RISK": 1,
+                "CROSSED": 1, "HIGH_RISK": 2}
+        for cv, r in self._reads().items():
+            p, m = r["published"].split()[0], r["mitigation"].split()[0]
+            if p in rank and m in rank:
+                assert rank[m] >= rank[p], cv

@@ -42,7 +42,9 @@ RULES = {
         "the exposed party."),
     "R2_THIN_MARGIN": (
         "When the gap between value and boundary is inside the spread of "
-        "the source's own datasets, treat the boundary as crossed."),
+        "the source's own datasets, treat the boundary as crossed. The "
+        "source publishes no spread; the width used is R2_SPREAD_FRACTION "
+        "of the boundary, which is UNSOURCED and printed with every hit."),
     "R3_UNMEASURED": (
         "What the source says is unmeasured is carried as UNMEASURED, "
         "never as safe."),
@@ -56,6 +58,13 @@ RULES = {
         "A boundary the source calls preliminary is carried with that "
         "flag; a SAFE reading against it is SAFE_PRELIMINARY."),
 }
+
+# R2 width. PHC 2026 publishes no dataset spread for the aragonite CV, so
+# this is a declared choice, not a source value: 0.02 * 2.86 = 0.057 Omega.
+# It is surfaced here and in every R2 output so it can be argued with.
+# (planetary_health_check_2026.ocean_acidification_status uses the
+# reporting resolution, 0.01 Omega, instead; both fire on 2.85.)
+R2_SPREAD_FRACTION = 0.02          # [status: UNSOURCED -- declared rule parameter]
 
 # zones
 SAFE, INCR, HIGH = "SAFE", "INCREASING_RISK", "HIGH_RISK"
@@ -139,9 +148,26 @@ def read(row):
     z = zone(adverse, pb, high, wih)
 
     margin = abs(adverse - pb)
-    if notes.get("multi_dataset") and margin <= 0.02 * abs(pb):
-        z = "CROSSED (within dataset spread, margin %.3g)" % margin
+    spread = R2_SPREAD_FRACTION * abs(pb)
+    if notes.get("multi_dataset") and margin <= spread:
+        z = ("CROSSED (within dataset spread, margin %.3g <= %.3g = "
+             "R2_SPREAD_FRACTION %.3g x boundary, UNSOURCED)"
+             % (margin, spread, R2_SPREAD_FRACTION))
         out["rules"].append("R2_THIN_MARGIN")
+
+    # R6: carry every preliminary / proposed / provisional flag the source
+    # attaches; a SAFE reading against such a boundary is SAFE_PRELIMINARY.
+    flags = []
+    if notes.get("pb_preliminary") or notes.get("pb_proposed"):
+        if z == SAFE:
+            z = "SAFE_PRELIMINARY"
+        flags.append("boundary %s" % ("PROPOSED" if notes.get("pb_proposed")
+                                      else "PRELIMINARY"))
+    if notes.get("high_risk_provisional"):
+        flags.append("high-risk line PROVISIONAL")
+    if flags:
+        z += " | " + " | ".join(flags)
+        out["rules"].append("R6_PRELIMINARY")
 
     if notes.get("regional_override"):
         z += " | regional value governs in-region: see " + \
