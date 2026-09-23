@@ -10788,3 +10788,50 @@ class TestRiskPosture:
             p, m = r["published"].split()[0], r["mitigation"].split()[0]
             if p in rank and m in rank:
                 assert rank[m] >= rank[p], cv
+
+
+class TestThwaitesTEIS2026:
+
+    def test_still_qualitative(self):
+        from thwaites_teis_2026 import quantified_cv, OBSERVED_QUALITATIVE
+        q = quantified_cv()
+        assert q["status"] == OBSERVED_QUALITATIVE
+        assert {"rift_length_km", "crack_count", "dark_area_fraction"} <= set(q["missing"])
+
+    def test_numbers_without_metadata_do_not_upgrade(self):
+        from thwaites_teis_2026 import quantified_cv, OBSERVED_QUALITATIVE
+        q = quantified_cv(12.0, 40, 0.08)
+        assert q["status"] == OBSERVED_QUALITATIVE
+        assert "aoi" in q["missing"]
+
+    def test_full_upgrade(self):
+        from thwaites_teis_2026 import quantified_cv, QUANTIFIED
+        q = quantified_cv(12.0, 40, 0.08, sensor="SAR",
+                          scene_dates=["2026-09-01", "2026-09-13"],
+                          aoi="TEIS shear margin box", detection_threshold="x")
+        assert q["status"] == QUANTIFIED
+        assert "roughness" in q["o3_reading"]["reading"]
+
+    def test_bad_inputs_rejected(self):
+        from thwaites_teis_2026 import quantified_cv
+        with pytest.raises(ValueError):
+            quantified_cv(dark_area_fraction=1.5)
+        with pytest.raises(ValueError):
+            quantified_cv(sensor="lidar")
+
+    def test_mitigation_does_not_claim_breakup_observed(self):
+        from thwaites_teis_2026 import mitigation_reading
+        m = mitigation_reading()
+        assert m["breakup"]["mitigation"].startswith("UNDERWAY")
+        assert "NOT observed" in m["breakup"]["basis"]
+        assert m["flow_speed"]["published"] == "NOT_IN_TEXT"
+
+    def test_unsourced_inputs_stay_uncited(self):
+        from thwaites_teis_2026 import PUBLISHED_INPUTS, O4_PATTERN, UNCITED
+        assert O4_PATTERN["reference_status"] == UNCITED
+        assert all(v["source"] == UNCITED for v in PUBLISHED_INPUTS.values())
+
+    def test_loop_has_falsifier(self):
+        from thwaites_teis_2026 import LOOP_FALSIFIER
+        assert LOOP_FALSIFIER["status"] == "UNTESTED"
+        assert LOOP_FALSIFIER["loop_predicts"] != LOOP_FALSIFIER["common_driver_predicts"]
