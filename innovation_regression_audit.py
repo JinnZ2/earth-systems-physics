@@ -213,7 +213,7 @@ PSYCHOLOGICAL_AUDIT = {
 
 HOPE_DIFFERENTIAL = {
 "observation": (
-"Kavik's insight: The first settlers worked 18+ hours a day AND WERE HOPEFUL. "
+"JinnZ2's insight: The first settlers worked 18+ hours a day AND WERE HOPEFUL. "
 "Enslaved people worked 16-20 hours a day AND WERE NOT. "
 "Same hours. Opposite psychological states. "
 "The variable is not the labor. The variable is the TOPOLOGY."

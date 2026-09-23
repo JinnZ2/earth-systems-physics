@@ -7,7 +7,7 @@ System under audit: "Labor system" as presented by revisionist framing
 Null hypothesis: System was designed to produce completed labor output
 Alt hypothesis:  System was designed to produce permanent dependency
 
-Author: Kavik / Claude collaboration
+Author: JinnZ2 / Claude collaboration
 License: CC0
 """
 

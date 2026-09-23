@@ -16,7 +16,7 @@ The model's clock:
   Ben-Yami states plainly the real forcing rate is faster, so the 25-yr lead
   "could shrink to almost nothing."
 
-The thing Kavik's gut flagged, made explicit:
+The thing JinnZ2's gut flagged, made explicit:
   The spatial markers (northward drift, abrupt jump, DWBC weakening) are VALID.
   The TIMELINE bolted to them is inherited from a forcing regime that does not
   match reality. Real forcing is fast and still accelerating. A system forced
