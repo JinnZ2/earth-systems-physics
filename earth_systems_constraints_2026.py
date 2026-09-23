@@ -82,6 +82,9 @@ COLLAPSE_COMPRESSION_MAX_PCT = 81
 
 CORAL_TIPPING_POINT_CROSSED_2025 = True
 PLANETARY_BOUNDARIES_BREACHED_OF_9 = 7         # incl. ocean acidification (new 2025)
+# Confirmed by Planetary Health Check 2026, Summary Report, PBScience/PIK
+# (released 2026-09-21): 7 of 9, all 7 at highest recorded transgression.
+# Per-CV table and zone logic: planetary_health_check_2026.py.
 
 # A TENTH boundary process is now proposed in the peer-reviewed
 # literature: aquatic deoxygenation (Rose et al. 2024, Nat Ecol Evol

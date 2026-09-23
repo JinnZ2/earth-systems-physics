@@ -10621,3 +10621,217 @@ class TestGlobalTemperatureAugust2026:
                              capture_output=True, text=True, timeout=60)
         assert out.returncode == 0, out.stderr
         assert "ENSO SUPERPOSITION" in out.stdout
+
+
+# ─────────────────────────────────────────────
+# PLANETARY HEALTH CHECK 2026 — control variables, measurand rule, count
+# ─────────────────────────────────────────────
+
+class TestPlanetaryHealthCheck2026:
+
+    def test_source_line_verbatim(self):
+        from planetary_health_check_2026 import SOURCE_LINE
+        assert SOURCE_LINE == (
+            "Planetary Health Check 2026, Summary Report, PBScience/PIK. "
+            "Assessment uses latest available data; some predates 2026.")
+
+    def test_zone_logic_reproduces_report(self):
+        from planetary_health_check_2026 import reproduce_check
+        rc = reproduce_check()
+        assert rc["zones_match"], rc["mismatches"]
+        assert rc["count_derived"] == 7 and rc["total"] == 9
+
+    def test_climate_zone_is_boundary_level(self):
+        from planetary_health_check_2026 import boundary_zones
+        c = boundary_zones()["climate"]
+        assert c["zone"] == "HIGH_RISK"
+        assert c["cvs"]["climate_CO2_ppm"] == "INCREASING_RISK"
+
+    def test_ocean_acid_not_a_hard_binary(self):
+        from planetary_health_check_2026 import ocean_acidification_status
+        r = ocean_acidification_status(2.85)
+        assert r["label"] == "BREACHED_WITHIN_DATASET_SPREAD"
+        assert r["margin"] == pytest.approx(0.01)
+        assert r["crossed"] is True
+        # a clear breach is labelled by zone, not by the spread label
+        assert ocean_acidification_status(2.70)["label"] == "INCREASING_RISK"
+
+    def test_aerosol_regional_scope(self):
+        from planetary_health_check_2026 import aerosol_status
+        assert aerosol_status(0.07)["scope"] == "GLOBAL_ONLY_SCOPE"
+        r = aerosol_status(0.07, 0.32)
+        assert r["zone"] == "SAFE" and r["regionally_transgressed"]
+
+    def test_legacy_cvs_flagged_not_overwritten(self):
+        from layer_6_biosphere import planetary_boundary_status
+        r = planetary_boundary_status(426, 100, 165, 14, 2600, 0.5,
+                                      8.07, 0.15, 295)
+        olds = {m["old"] for m in r["cv_mismatches"]}
+        assert {"ocean_pH", "freshwater_km3", "land_use_fraction",
+                "aerosol_AOD"} <= olds
+        assert r["ocean_acidification"]["cv_status"] == "LEGACY_CV_SUPERSEDED"
+
+    def test_layer6_with_2026_cvs_counts_seven_of_nine(self):
+        from layer_6_biosphere import planetary_boundary_status
+        from planetary_health_check_2026 import layer6_kwargs
+        r = planetary_boundary_status(426, 100, 165, 14, 2600, 0.5,
+                                      8.07, 0.15, 295, **layer6_kwargs())
+        # ozone is the one legacy slot left: its 2026 value is NOT_IN_TEXT
+        assert [m["old"].split()[0] for m in r["cv_mismatches"]] == ["ozone_DU"]
+        assert r["ozone"]["phc_2026"]["value"] == "NOT_IN_TEXT"
+        assert r["boundaries_total"] == 9
+        assert r["boundaries_crossed"] == 7
+
+    def test_n_and_p_count_once(self):
+        from layer_6_biosphere import planetary_boundary_status
+        r = planetary_boundary_status(300, 1, 165, 20, 0, 0.0, 8.2, 0.0,
+                                      300, novel_entities=False)
+        assert r["nitrogen"]["crossed"] and r["phosphorus"]["crossed"]
+        assert r["boundaries_crossed"] == 1
+
+    def test_registry_threshold_not_retuned(self):
+        from assumption_validator.registry import REGISTRY, RiskLevel
+        b = REGISTRY["bio_planetary_boundaries"]
+        assert b.red_threshold == 6
+        assert b.assess(7)[0] == RiskLevel.RED
+
+    def test_land_sink_bias_carried(self):
+        from assumption_validator.registry import REGISTRY
+        assert "OVERESTIMATE" in REGISTRY["bio_NEP_sink"].notes
+
+    def test_ozone_value_not_read_off_chart(self):
+        from planetary_health_check_2026 import OZONE, OZONE_PB_DU, ozone_status
+        assert OZONE["value"] == "NOT_IN_TEXT"
+        assert OZONE_PB_DU == pytest.approx(277.4)       # 292 - 5%
+        assert OZONE["pb_status"] == "PRELIMINARY"
+        r = ozone_status()
+        assert r["zone"] == "SAFE" and r["crossed"] is False
+        assert ozone_status(270.0)["crossed"] is True
+
+    def test_novel_entities_refuses_numbers(self):
+        from planetary_health_check_2026 import novel_entities_status, NOVEL_ENTITIES
+        from layer_6_biosphere import planetary_boundary_status
+        assert NOVEL_ENTITIES["cv"] == "NO_QUANTIFIED_CV"
+        assert novel_entities_status(True) == "TRANSGRESSED_BY_PROXY"
+        assert novel_entities_status("TRANSGRESSED_BY_PROXY") == "TRANSGRESSED_BY_PROXY"
+        for bad in (0.7, 1, 0):
+            with pytest.raises(TypeError):
+                novel_entities_status(bad)
+        with pytest.raises(TypeError):
+            planetary_boundary_status(426, 100, 165, 14, 2600, 0.5, 8.07,
+                                      0.15, 295, novel_entities=0.9)
+
+
+class TestRiskPosture:
+    """risk_posture.py: same PHC 2026 data, PUBLISHED vs MITIGATION reading."""
+
+    def _reads(self):
+        import risk_posture as rp
+        return {r["cv"]: r for r in map(rp.read, rp.CVS)}
+
+    def test_values_match_phc_module(self):
+        # drift guard: risk_posture carries its own copy of the table
+        import risk_posture as rp
+        from planetary_health_check_2026 import CONTROL_VARIABLES as CV, OZONE_PB_DU
+        pairs = {
+            "climate_co2": "climate_CO2_ppm", "climate_rf": "climate_RF_Wm2",
+            "biosphere_extinction": "biosphere_extinction_E_MSY",
+            "biosphere_hanpp": "biosphere_HANPP_pct",
+            "land_forest": "land_forest_pct_potential",
+            "freshwater_blue": "freshwater_blue_pct_land",
+            "freshwater_green": "freshwater_green_pct_land",
+            "biogeochem_p": "biogeochem_P_Tg_yr", "biogeochem_n": "biogeochem_N_Tg_yr",
+            "ocean_aragonite": "ocean_omega_arag", "aerosol_global": "aerosol_delta_AOD",
+            "aerosol_south_asia": "aerosol_south_asia_AOD",
+        }
+        rows = {r[0]: r for r in rp.CVS}
+        for mine, theirs in pairs.items():
+            _, _, (lo, hi), pb, hr, wih, _ = rows[mine]
+            v = CV[theirs]["value"]
+            v = v if isinstance(v, tuple) else (v, v)
+            assert (lo, hi) == pytest.approx(v), mine
+            assert pb == pytest.approx(CV[theirs]["pb"]), mine
+            assert hr == pytest.approx(CV[theirs]["hr"]), mine
+            assert wih == CV[theirs]["higher_is_worse"], mine
+        assert rows["ozone_extrapolar"][3] == pytest.approx(OZONE_PB_DU)
+
+    def test_r1_reads_adverse_end(self):
+        r = self._reads()
+        assert r["biosphere_extinction"]["mitigation"].endswith("@ 1000")
+        assert "R1_ADVERSE_END" in r["biosphere_hanpp"]["rules"]
+
+    def test_r2_surfaces_unsourced_width(self):
+        r = self._reads()["ocean_aragonite"]
+        assert "R2_THIN_MARGIN" in r["rules"]
+        assert "UNSOURCED" in r["mitigation"]
+
+    def test_r6_flags_carried(self):
+        r = self._reads()
+        assert "PROVISIONAL" in r["freshwater_blue"]["mitigation"]
+        assert "PROPOSED" in r["aerosol_south_asia"]["mitigation"]
+        assert "PRELIMINARY" in r["ozone_extrapolar"]["mitigation"]
+
+    def test_r6_safe_becomes_safe_preliminary(self):
+        import risk_posture as rp
+        row = ("x", "u", (1.0, 1.0), 2.0, 3.0, True, {"pb_preliminary": True})
+        assert rp.read(row)["mitigation"].startswith("SAFE_PRELIMINARY")
+
+    def test_unmeasured_never_safe(self):
+        r = self._reads()
+        assert "UNMEASURED" in r["novel_entities"]["mitigation"]
+        assert not r["ozone_extrapolar"]["mitigation"].startswith("SAFE")
+
+    def test_mitigation_never_less_severe_than_published(self):
+        rank = {"SAFE": 0, "SAFE_PRELIMINARY": 0, "INCREASING_RISK": 1,
+                "CROSSED": 1, "HIGH_RISK": 2}
+        for cv, r in self._reads().items():
+            p, m = r["published"].split()[0], r["mitigation"].split()[0]
+            if p in rank and m in rank:
+                assert rank[m] >= rank[p], cv
+
+
+class TestThwaitesTEIS2026:
+
+    def test_still_qualitative(self):
+        from thwaites_teis_2026 import quantified_cv, OBSERVED_QUALITATIVE
+        q = quantified_cv()
+        assert q["status"] == OBSERVED_QUALITATIVE
+        assert {"rift_length_km", "crack_count", "dark_area_fraction"} <= set(q["missing"])
+
+    def test_numbers_without_metadata_do_not_upgrade(self):
+        from thwaites_teis_2026 import quantified_cv, OBSERVED_QUALITATIVE
+        q = quantified_cv(12.0, 40, 0.08)
+        assert q["status"] == OBSERVED_QUALITATIVE
+        assert "aoi" in q["missing"]
+
+    def test_full_upgrade(self):
+        from thwaites_teis_2026 import quantified_cv, QUANTIFIED
+        q = quantified_cv(12.0, 40, 0.08, sensor="SAR",
+                          scene_dates=["2026-09-01", "2026-09-13"],
+                          aoi="TEIS shear margin box", detection_threshold="x")
+        assert q["status"] == QUANTIFIED
+        assert "roughness" in q["o3_reading"]["reading"]
+
+    def test_bad_inputs_rejected(self):
+        from thwaites_teis_2026 import quantified_cv
+        with pytest.raises(ValueError):
+            quantified_cv(dark_area_fraction=1.5)
+        with pytest.raises(ValueError):
+            quantified_cv(sensor="lidar")
+
+    def test_mitigation_does_not_claim_breakup_observed(self):
+        from thwaites_teis_2026 import mitigation_reading
+        m = mitigation_reading()
+        assert m["breakup"]["mitigation"].startswith("UNDERWAY")
+        assert "NOT observed" in m["breakup"]["basis"]
+        assert m["flow_speed"]["published"] == "NOT_IN_TEXT"
+
+    def test_unsourced_inputs_stay_uncited(self):
+        from thwaites_teis_2026 import PUBLISHED_INPUTS, O4_PATTERN, UNCITED
+        assert O4_PATTERN["reference_status"] == UNCITED
+        assert all(v["source"] == UNCITED for v in PUBLISHED_INPUTS.values())
+
+    def test_loop_has_falsifier(self):
+        from thwaites_teis_2026 import LOOP_FALSIFIER
+        assert LOOP_FALSIFIER["status"] == "UNTESTED"
+        assert LOOP_FALSIFIER["loop_predicts"] != LOOP_FALSIFIER["common_driver_predicts"]

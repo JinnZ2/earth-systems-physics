@@ -1,0 +1,12 @@
+{"boundary": "climate", "higher_is_worse": true, "hr": 450.0, "name": "climate_CO2_ppm", "pb": 350.0, "provisional": false, "units": "ppm", "value": 426.0}
+{"boundary": "climate", "higher_is_worse": true, "hr": 1.5, "name": "climate_RF_Wm2", "pb": 1.0, "provisional": false, "units": "W/m2", "value": 3.1}
+{"boundary": "biosphere_integrity", "higher_is_worse": true, "hr": 100.0, "name": "biosphere_extinction_E_MSY", "pb": 10.0, "provisional": false, "units": "E/MSY", "value": [100.0, 1000.0]}
+{"boundary": "biosphere_integrity", "higher_is_worse": true, "hr": 20.0, "name": "biosphere_HANPP_pct", "pb": 10.0, "provisional": false, "units": "% of pre-industrial NPP", "value": [21.0, 30.0]}
+{"boundary": "land_system_change", "higher_is_worse": false, "hr": 54.0, "name": "land_forest_pct_potential", "pb": 78.0, "provisional": false, "units": "% of potential forest", "value": 64.0}
+{"boundary": "freshwater_change", "higher_is_worse": true, "hr": 50.0, "name": "freshwater_blue_pct_land", "pb": 12.9, "provisional": true, "units": "% ice-free land deviated", "value": 22.6}
+{"boundary": "freshwater_change", "higher_is_worse": true, "hr": 50.0, "name": "freshwater_green_pct_land", "pb": 12.4, "provisional": true, "units": "% ice-free land deviated", "value": 22.0}
+{"boundary": "biogeochemical_flows", "higher_is_worse": true, "hr": 11.2, "name": "biogeochem_P_Tg_yr", "pb": 6.2, "provisional": false, "units": "Tg P/yr", "value": 18.2}
+{"boundary": "biogeochemical_flows", "higher_is_worse": true, "hr": 82.0, "name": "biogeochem_N_Tg_yr", "pb": 62.0, "provisional": false, "units": "Tg N/yr", "value": 165.0}
+{"boundary": "ocean_acidification", "higher_is_worse": false, "hr": 2.5, "name": "ocean_omega_arag", "pb": 2.86, "provisional": true, "units": "Omega_aragonite (surface mean)", "value": 2.85}
+{"boundary": "aerosol_loading", "higher_is_worse": true, "hr": 0.25, "name": "aerosol_delta_AOD", "pb": 0.1, "provisional": false, "units": "interhemispheric AOD difference", "value": 0.07}
+{"boundary": "aerosol_loading", "higher_is_worse": true, "hr": 0.5, "name": "aerosol_south_asia_AOD", "pb": 0.25, "provisional": false, "regional": true, "units": "regional AOD (South Asia)", "value": 0.32}

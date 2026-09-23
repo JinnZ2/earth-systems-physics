@@ -30,6 +30,12 @@ from aquatic_deoxygenation import (
     deoxygenation_boundary_status,
     BOUNDARY_INTERACTIONS,
 )
+from planetary_health_check_2026 import (
+    CONTROL_VARIABLES as _PB, CV_MISMATCH, cv_zone,
+    ocean_acidification_status, aerosol_status, GLOBAL_ONLY_SCOPE,
+    ozone_status, novel_entities_status, NOVEL_ENTITIES,
+    layer6_kwargs as _phc2026_cvs, LAND_SINK_NOTE,
+)
 
 # ─────────────────────────────────────────────
 # FUNDAMENTAL CONSTANTS — BIOSPHERE
@@ -106,6 +112,14 @@ def net_ecosystem_productivity(GPP, T_K, T_ref_K=283.0):
     Negative: ecosystem is carbon source
     Sign change is a critical threshold — warming can flip large
     carbon sinks to sources with no mechanism to reverse quickly.
+
+    KNOWN BIAS (OBSERVED, PHC 2026 — noted, not corrected): land carbon
+    uptake excluding land-use change has been stagnant since ~2000, and
+    the report states Earth system models likely OVERESTIMATE land-sink
+    resilience (average plant types, smooth recovery, no mortality
+    spirals). This function has the same structure — one GPP, one
+    Q10-style respiration, no mortality term — so a positive NEP here
+    carries that optimistic bias. See planetary_health_check_2026.
     """
     R_eco = ecosystem_respiration(GPP, T_K, T_ref_K)
     NEP   = GPP - R_eco
@@ -453,12 +467,56 @@ def planetary_boundary_status(CO2_ppm, extinction_rate_relative,
                                freshwater_km3, land_use_fraction,
                                ocean_pH, aerosol_AOD,
                                ozone_DU, novel_entities=True,
-                               anoxic_volume_ratio=None):
+                               anoxic_volume_ratio=None,
+                               radiative_forcing_Wm2=None,
+                               HANPP_pct=None,
+                               P_fertilizer_Tg=None,
+                               forest_cover_pct_potential=None,
+                               blue_water_pct_land=None,
+                               green_water_pct_land=None,
+                               omega_arag=None,
+                               delta_AOD=None,
+                               south_asia_AOD=None,
+                               extrapolar_O3_DU=None):
     """
     Rockstrom planetary boundaries — nine Earth system processes
     with identified safe operating space.
     Crossing boundaries increases risk of abrupt, nonlinear change.
     Multiple boundaries crossed simultaneously: interactions unknown.
+
+    CONTROL VARIABLES — 2026 vs LEGACY
+    Four positional arguments carry control variables (CVs) that the
+    2023/2026 framework has replaced. They are kept as LEGACY fields,
+    marked superseded; a 2026 value must never be passed into them.
+    Pass the 2026 CV through its keyword instead:
+        ocean_pH          -> omega_arag           (aragonite saturation)
+        freshwater_km3    -> blue_water_pct_land + green_water_pct_land
+                             (% of ice-free land deviated)
+        land_use_fraction -> forest_cover_pct_potential
+        aerosol_AOD       -> delta_AOD (interhemispheric) + south_asia_AOD
+        P_cycle_Tg (11, ocean flow) -> P_fertilizer_Tg (6.2, flow to
+                             erodible soils)
+        ozone_DU (global, 276) -> extrapolar_O3_DU (60N-60S, 11-yr mean,
+                             277.4 = 292 - 5%; PHC 2026 value NOT_IN_TEXT,
+                             so the legacy slot stays in use until sourced)
+    novel_entities has NO quantified CV (transgression by proxy). It takes
+    a bool or 'TRANSGRESSED_BY_PROXY'; a numeric input raises TypeError.
+    When the 2026 keyword is None the legacy CV is evaluated as before
+    and the boundary entry carries cv_status "LEGACY_CV_SUPERSEDED" plus
+    a CV_MISMATCH(old, new) marker; 'cv_mismatches' lists them all.
+    Boundaries and high-risk lines for the 2026 CVs, and the observed
+    values, live in planetary_health_check_2026.py
+    (Planetary Health Check 2026, PBScience/PIK).
+
+    NINE, NOT TEN. Nitrogen and phosphorus are two CVs of ONE boundary,
+    biogeochemical flows. 'boundaries_crossed' counts that boundary once
+    (crossed if either CV is crossed). The 'nitrogen' and 'phosphorus'
+    entries remain for per-CV reading. Before 2026-09 the count summed
+    them separately, so it could report up to 10 "of 9".
+
+    radiative_forcing_Wm2 : climate CV 2 (boundary 1.0 W/m2); climate is
+        crossed if CO2 OR RF is crossed
+    HANPP_pct : biosphere-integrity CV 2 (boundary 10 %)
 
     anoxic_volume_ratio : optional control variable for the PROPOSED
         tenth boundary, aquatic deoxygenation (Rose et al. 2024,
@@ -475,27 +533,112 @@ def planetary_boundary_status(CO2_ppm, extinction_rate_relative,
     if anoxic_volume_ratio is not None:
         deox = deoxygenation_boundary_status(anoxic_volume_ratio)
 
-    out = {
-        "climate":          {"value": CO2_ppm,      "boundary": 350,   "crossed": CO2_ppm > 350},
-        "biodiversity":     {"value": extinction_rate_relative,
-                             "boundary": 10,          "crossed": extinction_rate_relative > 10},
-        "nitrogen":         {"value": N_cycle_Tg,   "boundary": 62,    "crossed": N_cycle_Tg > 62},
-        "phosphorus":       {"value": P_cycle_Tg,   "boundary": 11,    "crossed": P_cycle_Tg > 11},
-        "freshwater":       {"value": freshwater_km3,"boundary": 4000,  "crossed": freshwater_km3 > 4000},
-        "land_use":         {"value": land_use_fraction,"boundary": 0.15,"crossed": land_use_fraction > 0.15},
-        "ocean_acidification":{"value": ocean_pH,   "boundary": 8.05,  "crossed": ocean_pH < 8.05},
-        "aerosol_loading":  {"value": aerosol_AOD,  "boundary": 0.25,  "crossed": aerosol_AOD > 0.25},
-        "ozone":            {"value": ozone_DU,      "boundary": 276,   "crossed": ozone_DU < 276},
-        "novel_entities":   {"value": "unknown",     "boundary": "unknown", "crossed": novel_entities},
-        "boundaries_crossed": sum([
-            CO2_ppm > 350, extinction_rate_relative > 10,
-            N_cycle_Tg > 62, P_cycle_Tg > 11,
-            freshwater_km3 > 4000, land_use_fraction > 0.15,
-            ocean_pH < 8.05, aerosol_AOD > 0.25,
-            ozone_DU < 276, novel_entities
-        ]),
-        "note": "6+ boundaries currently crossed — interaction effects unquantified"
+    def _legacy(value, boundary, crossed, old, new):
+        return {"value": value, "boundary": boundary, "crossed": bool(crossed),
+                "cv_status": "LEGACY_CV_SUPERSEDED",
+                "cv_mismatch": CV_MISMATCH(old, new)}
+
+    def _cv(key, value):
+        pb = _PB[key]
+        z = cv_zone(value, pb["pb"], pb["hr"], pb["higher_is_worse"])
+        return {"value": value, "boundary": pb["pb"], "high_risk": pb["hr"],
+                "zone": z, "crossed": z != "SAFE", "cv": key}
+
+    mismatches = []
+
+    # climate — CO2 (unchanged CV) + optional RF
+    climate = {"value": CO2_ppm, "boundary": 350, "crossed": CO2_ppm > 350}
+    if radiative_forcing_Wm2 is not None:
+        climate["radiative_forcing"] = _cv("climate_RF_Wm2", radiative_forcing_Wm2)
+        climate["crossed"] = climate["crossed"] or climate["radiative_forcing"]["crossed"]
+
+    biodiversity = {"value": extinction_rate_relative, "boundary": 10,
+                    "crossed": extinction_rate_relative > 10}
+    if HANPP_pct is not None:
+        biodiversity["HANPP"] = _cv("biosphere_HANPP_pct", HANPP_pct)
+        biodiversity["crossed"] = biodiversity["crossed"] or biodiversity["HANPP"]["crossed"]
+
+    nitrogen = {"value": N_cycle_Tg, "boundary": 62, "crossed": N_cycle_Tg > 62}
+    if P_fertilizer_Tg is not None:
+        phosphorus = _cv("biogeochem_P_Tg_yr", P_fertilizer_Tg)
+        phosphorus["legacy_P_cycle_Tg"] = P_cycle_Tg
+    else:
+        phosphorus = _legacy(P_cycle_Tg, 11, P_cycle_Tg > 11,
+                             "P_cycle_Tg (boundary 11, ocean flow)",
+                             "P_fertilizer_Tg (boundary 6.2, flow to erodible soils)")
+        mismatches.append(phosphorus["cv_mismatch"])
+    biogeochem = {"crossed": nitrogen["crossed"] or phosphorus["crossed"],
+                  "cvs": ["nitrogen", "phosphorus"]}
+
+    if blue_water_pct_land is not None or green_water_pct_land is not None:
+        freshwater = {"crossed": False, "legacy_freshwater_km3": freshwater_km3}
+        if blue_water_pct_land is not None:
+            freshwater["blue"] = _cv("freshwater_blue_pct_land", blue_water_pct_land)
+            freshwater["crossed"] |= freshwater["blue"]["crossed"]
+        if green_water_pct_land is not None:
+            freshwater["green"] = _cv("freshwater_green_pct_land", green_water_pct_land)
+            freshwater["crossed"] |= freshwater["green"]["crossed"]
+    else:
+        freshwater = _legacy(freshwater_km3, 4000, freshwater_km3 > 4000,
+                             "freshwater_km3",
+                             "blue_water_pct_land + green_water_pct_land")
+        mismatches.append(freshwater["cv_mismatch"])
+
+    if forest_cover_pct_potential is not None:
+        land_use = _cv("land_forest_pct_potential", forest_cover_pct_potential)
+        land_use["legacy_land_use_fraction"] = land_use_fraction
+    else:
+        land_use = _legacy(land_use_fraction, 0.15, land_use_fraction > 0.15,
+                           "land_use_fraction", "forest_cover_pct_potential")
+        mismatches.append(land_use["cv_mismatch"])
+
+    if omega_arag is not None:
+        ocean = ocean_acidification_status(omega_arag)
+        ocean["legacy_ocean_pH"] = ocean_pH
+    else:
+        ocean = _legacy(ocean_pH, 8.05, ocean_pH < 8.05, "ocean_pH", "omega_arag")
+        mismatches.append(ocean["cv_mismatch"])
+
+    if delta_AOD is not None:
+        aerosol = aerosol_status(delta_AOD, south_asia_AOD)
+        aerosol["legacy_aerosol_AOD"] = aerosol_AOD
+    else:
+        aerosol = _legacy(aerosol_AOD, 0.25, aerosol_AOD > 0.25, "aerosol_AOD",
+                          "delta_AOD_interhemispheric (+ south_asia_AOD)")
+        aerosol["scope"] = GLOBAL_ONLY_SCOPE
+        mismatches.append(aerosol["cv_mismatch"])
+
+    if extrapolar_O3_DU is not None:
+        ozone = ozone_status(extrapolar_O3_DU)
+        ozone["legacy_ozone_DU"] = ozone_DU
+    else:
+        ozone = _legacy(ozone_DU, 276, ozone_DU < 276,
+                        "ozone_DU (global column, boundary 276 = 290 - 5%)",
+                        "extrapolar_O3_DU (60N-60S, 11-yr mean, boundary 277.4)")
+        ozone["phc_2026"] = ozone_status()   # value NOT_IN_TEXT, zone SAFE
+        mismatches.append(ozone["cv_mismatch"])
+
+    novel_state = novel_entities_status(novel_entities)
+    novel = {"value": None, "cv": NOVEL_ENTITIES["cv"],
+             "boundary": None, "status": novel_state,
+             "proxy": NOVEL_ENTITIES["proxy"],
+             "crossed": novel_state == "TRANSGRESSED_BY_PROXY"}
+
+    nine = {
+        "climate": climate, "biodiversity": biodiversity,
+        "biogeochemical_flows": biogeochem, "freshwater": freshwater,
+        "land_use": land_use, "ocean_acidification": ocean,
+        "aerosol_loading": aerosol, "ozone": ozone, "novel_entities": novel,
     }
+
+    out = dict(nine)
+    out["nitrogen"] = nitrogen
+    out["phosphorus"] = phosphorus
+    out["boundaries_crossed"] = sum(int(bool(b["crossed"])) for b in nine.values())
+    out["boundaries_total"] = len(nine)
+    out["cv_mismatches"] = mismatches
+    out["note"] = ("6+ boundaries currently crossed — interaction effects "
+                   "unquantified; N and P counted once as biogeochemical flows")
 
     if deox is not None:
         out["aquatic_deoxygenation"] = {
@@ -621,16 +764,26 @@ def coupling_state(T_surface_K, CO2_ppm, ocean_pH,
     # anoxic_volume_ratio arrives from L4 (hydrosphere) when the cascade
     # engine runs the full stack; None leaves the proposed tenth boundary
     # out of the report entirely.
+    # The nine canonical boundaries read their 2026 control variables from
+    # the Planetary Health Check 2026 table (planetary_health_check_2026).
+    # Those CVs are OBSERVED and static: they do not respond to a CO2 or
+    # land forcing applied through this call. The legacy positional CVs
+    # (pH from the model, 2600 km3, 0.50, 0.15 AOD) stay as superseded
+    # fields. The model's own omega_aragonite proxy (3.5*exp(2.3*dpH),
+    # ~2.59 at 425.6 ppm) is NOT routed to the boundary: it sits ~0.26
+    # below the observed 2.85, i.e. on the wrong side of a 0.01 margin.
     boundaries  = planetary_boundary_status(
                     CO2_ppm, 100, 150, 14, 2600, 0.50,
                     acidify["current_pH"], 0.15, 295,
-                    anoxic_volume_ratio=anoxic_volume_ratio)
+                    anoxic_volume_ratio=anoxic_volume_ratio,
+                    **_phc2026_cvs())
 
     _O2 = net_biosphere_O2_flux(GPP_GtC_yr, soil_decomp_GtC_yr)
 
     return {
         "NEP_carbon_sink":               NEP["carbon_sink"],
         "NEP_gC_m2_day":                 NEP["NEP_gC_m2_day"],
+        "NEP_land_sink_bias_note":       LAND_SINK_NOTE,
         "permafrost_CO2_GtC_yr":         permafrost["CO2_flux_GtC_yr"],
         "permafrost_CH4_GtC_yr":         permafrost["CH4_flux_GtC_yr"],
         "permafrost_self_amplifying":    permafrost["self_amplifying"],
@@ -642,6 +795,8 @@ def coupling_state(T_surface_K, CO2_ppm, ocean_pH,
         "atmospheric_CO2_accumulation":  budget["ppm_per_year"],
         "CH4_accumulation_GWP":          CH4["GWP_CO2_equivalent"],
         "planetary_boundaries_crossed":  boundaries["boundaries_crossed"],
+        "planetary_boundaries_cv_mismatches": len(boundaries["cv_mismatches"]),
+        "ocean_acidification_label":     boundaries["ocean_acidification"].get("label"),
         "planetary_boundaries_crossed_incl_proposed":
             boundaries.get("boundaries_crossed_incl_proposed",
                            boundaries["boundaries_crossed"]),
@@ -672,7 +827,7 @@ def coupling_state(T_surface_K, CO2_ppm, ocean_pH,
         "hard_thresholds": [
             "permafrost: initiated, accelerating, irreversible",
             "Amazon: ~20% cleared, threshold ~25-40%, unknown interaction",
-            "coral: pH 8.05 boundary crossed, aragonite saturation declining",
+            "coral: aragonite saturation 2.85 vs boundary 2.86 (PHC 2026) — breached within dataset spread",
             "AMOC: weakening signal measurable, collapse timing unknown",
         ],
         "note": "biosphere is not a passive responder — it is an active Earth system driver"
