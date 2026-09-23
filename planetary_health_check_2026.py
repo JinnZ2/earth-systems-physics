@@ -49,7 +49,9 @@ SAFE = "SAFE"
 INCREASING_RISK = "INCREASING_RISK"
 HIGH_RISK = "HIGH_RISK"
 REGIONAL = "REGIONAL_TRANSGRESSION"
-NOT_CAPTURED = "NOT_CAPTURED"
+NOT_IN_TEXT = "NOT_IN_TEXT"            # value exists only on a chart; not read
+TRANSGRESSED_BY_PROXY = "TRANSGRESSED_BY_PROXY"
+NO_QUANTIFIED_CV = "NO_QUANTIFIED_CV"
 
 BREACHED_WITHIN_DATASET_SPREAD = "BREACHED_WITHIN_DATASET_SPREAD"
 GLOBAL_ONLY_SCOPE = "GLOBAL_ONLY_SCOPE"
@@ -79,6 +81,9 @@ CV_MISMATCHES: List[Dict[str, str]] = [
     CV_MISMATCH("aerosol_AOD", "delta_AOD_interhemispheric (+ south_asia_AOD)"),
     CV_MISMATCH("P_cycle_Tg (boundary 11, ocean flow)",
                 "P_fertilizer_Tg (boundary 6.2, flow to erodible soils)"),
+    CV_MISMATCH("ozone_DU (global column, boundary 276 = 290 - 5%)",
+                "extrapolar_O3_DU (60N-60S, 11-yr mean, boundary 277.4 "
+                "= 292 [1964-1980] - 5%)"),
 ]
 
 
@@ -138,12 +143,113 @@ CONTROL_VARIABLES: Dict[str, Dict[str, object]] = {
         "provisional": False, "regional": True},
 }
 
-# Boundaries whose CV the report does not quantify. The zone is what the
-# report states; the value stays NOT_CAPTURED until a sourced CV exists.
-NOT_CAPTURED_BOUNDARIES: Dict[str, str] = {
-    "stratospheric_ozone": SAFE,
-    "novel_entities": HIGH_RISK,
+# ─────────────────────────────────────────────
+# STRATOSPHERIC OZONE — value NOT_IN_TEXT
+# The report shows the extra-polar series only as a chart. A value is
+# NOT read off the chart: it stays NOT_IN_TEXT until a number is sourced
+# from the full report or the Copernicus series. The boundary itself is
+# stated in text (5% below the 1964-1980 baseline) and is derived here.
+# ─────────────────────────────────────────────
+
+OZONE_BASELINE_DU = 292.0              # OBSERVED: 1964-1980 mean, extra-polar
+OZONE_PB_REDUCTION_FRACTION = 0.05     # OBSERVED: stated PRELIMINARY
+OZONE_PB_DU = round(OZONE_BASELINE_DU * (1.0 - OZONE_PB_REDUCTION_FRACTION), 1)
+                                       # DERIVED: 277.4 DU
+
+OZONE: Dict[str, object] = {
+    "boundary": "stratospheric_ozone",
+    "cv": "extra-polar O3 column, 60N-60S, 11-yr mean",
+    "units": "DU",
+    "value": NOT_IN_TEXT,
+    "value_note": "chart-only in the summary report; series ends 2022",
+    "pb": OZONE_PB_DU,
+    "hr": None,
+    "baseline_DU": OZONE_BASELINE_DU,
+    "baseline_period": "1964-1980 mean",
+    "pb_rule": "5% reduction from baseline",
+    "pb_status": "PRELIMINARY",
+    "zone": SAFE,                      # OBSERVED: zone as stated by the report
+    "notes": [
+        "recovery may have plateaued",
+        "current drivers: agricultural N2O; rocket launch / re-entry",
+    ],
+    "sourcing_rule": ("carry NOT_IN_TEXT until a number is sourced from the "
+                      "full report or the Copernicus series; never read a "
+                      "value off a chart"),
 }
+
+# ─────────────────────────────────────────────
+# NOVEL ENTITIES — NO QUANTIFIED CV
+# Transgression is assessed by PROXY: release without adequate safety
+# testing. There is no control variable, so there is no number to score.
+# Correct type is boolean or the enum TRANSGRESSED_BY_PROXY. Any code
+# scoring this boundary on a numeric input is scoring a CV that does not
+# exist. layer_6's `novel_entities=True` flag is structurally closer to
+# the source than a float would be; it is kept, and numbers are refused.
+# ─────────────────────────────────────────────
+
+NOVEL_ENTITIES: Dict[str, object] = {
+    "boundary": "novel_entities",
+    "cv": NO_QUANTIFIED_CV,
+    "value": None,
+    "pb": None,
+    "hr": None,
+    "status": TRANSGRESSED_BY_PROXY,
+    "proxy": "release without adequate safety testing",
+    "zone": HIGH_RISK,                 # OBSERVED: zone as stated by the report
+    "evidence": {
+        "chemicals_and_mixtures_registered": 350_000,   # ~, OBSERVED
+        "fraction_never_measured_in_environment": 0.95, # ~, OBSERVED
+        "fraction_structure_not_known_or_public": 1 / 3,  # ~, OBSERVED
+        "global_monitoring_of_toxic_pressure_on_biota": False,
+    },
+    "correct_type": "bool or enum TRANSGRESSED_BY_PROXY — never float",
+}
+
+UNQUANTIFIED_BOUNDARIES: Dict[str, Dict[str, object]] = {
+    "stratospheric_ozone": OZONE,
+    "novel_entities": NOVEL_ENTITIES,
+}
+
+
+def novel_entities_status(flag) -> str:
+    """
+    Type-checked reading of the novel-entities boundary.
+
+    flag : bool, or the string TRANSGRESSED_BY_PROXY
+    returns: TRANSGRESSED_BY_PROXY, or NOT_TRANSGRESSED_BY_PROXY
+    raises TypeError on any numeric input — there is no quantified CV,
+    so a number here is a measurand that does not exist.
+    """
+    if isinstance(flag, bool):
+        return TRANSGRESSED_BY_PROXY if flag else "NOT_TRANSGRESSED_BY_PROXY"
+    if flag == TRANSGRESSED_BY_PROXY:
+        return TRANSGRESSED_BY_PROXY
+    raise TypeError(
+        f"novel_entities must be bool or {TRANSGRESSED_BY_PROXY!r}, got "
+        f"{type(flag).__name__} {flag!r}: this boundary has no quantified "
+        f"control variable (transgression is assessed by proxy)")
+
+
+def ozone_status(extrapolar_O3_DU=None) -> Dict[str, object]:
+    """
+    Ozone boundary on its 2026 CV (extra-polar 60N-60S, 11-yr mean, DU).
+    extrapolar_O3_DU : a SOURCED value, or None -> value NOT_IN_TEXT and
+        the zone as stated by the report. Supplying a chart-read value
+        defeats the sourcing rule; don't.
+    returns: dict with value, boundary (277.4, DERIVED), zone
+    """
+    out = dict(OZONE)
+    if extrapolar_O3_DU is None:
+        out["crossed"] = OZONE["zone"] != SAFE
+        out["zone_basis"] = "as stated by report (value NOT_IN_TEXT)"
+        return out
+    out["value"] = extrapolar_O3_DU
+    out["zone"] = SAFE if extrapolar_O3_DU >= OZONE_PB_DU else INCREASING_RISK
+    out["crossed"] = out["zone"] != SAFE
+    out["zone_basis"] = "computed from supplied value (no high-risk line published)"
+    return out
+
 
 # Zones as stated by the report, for the reproduce-check below.
 REPORTED_ZONES: Dict[str, str] = {
@@ -324,8 +430,9 @@ def boundary_zones() -> Dict[str, Dict[str, object]]:
     out["aerosol_loading"]["detail"] = aerosol_status(
         CONTROL_VARIABLES["aerosol_delta_AOD"]["value"],
         CONTROL_VARIABLES["aerosol_south_asia_AOD"]["value"])
-    for b, z in NOT_CAPTURED_BOUNDARIES.items():
-        out[b] = {"zone": z, "cvs": {}, "value": NOT_CAPTURED}
+    for b, rec in UNQUANTIFIED_BOUNDARIES.items():
+        out[b] = {"zone": rec["zone"], "cvs": {}, "value": rec["value"],
+                  "detail": rec}
     for entry in out.values():
         entry["transgressed"] = entry["zone"] != SAFE
     return out
@@ -391,6 +498,13 @@ if __name__ == "__main__":
     oa = zones["ocean_acidification"]["detail"]
     print(f"\n  ocean acidification: {oa['label']}, margin {oa['margin']} Omega "
           f"(spread {oa['dataset_spread']}, {oa['spread_basis']})")
+    print(f"  ozone: value {OZONE['value']} ({OZONE['value_note']}); "
+          f"PB {OZONE_PB_DU} DU = {OZONE_BASELINE_DU:.0f} - 5% "
+          f"({OZONE['pb_status']}); zone {OZONE['zone']}")
+    ev = NOVEL_ENTITIES["evidence"]
+    print(f"  novel entities: {NOVEL_ENTITIES['cv']}, {NOVEL_ENTITIES['status']} "
+          f"({NOVEL_ENTITIES['proxy']}); ~{ev['chemicals_and_mixtures_registered']:,} "
+          f"registered, ~95% never measured in environment")
     ae = zones["aerosol_loading"]["detail"]
     print(f"  aerosols: global {ae['zone']}, South Asia {ae['regional_zone']}")
     rc = reproduce_check()

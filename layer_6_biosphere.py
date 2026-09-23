@@ -33,6 +33,7 @@ from aquatic_deoxygenation import (
 from planetary_health_check_2026 import (
     CONTROL_VARIABLES as _PB, CV_MISMATCH, cv_zone,
     ocean_acidification_status, aerosol_status, GLOBAL_ONLY_SCOPE,
+    ozone_status, novel_entities_status, NOVEL_ENTITIES,
     layer6_kwargs as _phc2026_cvs, LAND_SINK_NOTE,
 )
 
@@ -475,7 +476,8 @@ def planetary_boundary_status(CO2_ppm, extinction_rate_relative,
                                green_water_pct_land=None,
                                omega_arag=None,
                                delta_AOD=None,
-                               south_asia_AOD=None):
+                               south_asia_AOD=None,
+                               extrapolar_O3_DU=None):
     """
     Rockstrom planetary boundaries — nine Earth system processes
     with identified safe operating space.
@@ -494,6 +496,11 @@ def planetary_boundary_status(CO2_ppm, extinction_rate_relative,
         aerosol_AOD       -> delta_AOD (interhemispheric) + south_asia_AOD
         P_cycle_Tg (11, ocean flow) -> P_fertilizer_Tg (6.2, flow to
                              erodible soils)
+        ozone_DU (global, 276) -> extrapolar_O3_DU (60N-60S, 11-yr mean,
+                             277.4 = 292 - 5%; PHC 2026 value NOT_IN_TEXT,
+                             so the legacy slot stays in use until sourced)
+    novel_entities has NO quantified CV (transgression by proxy). It takes
+    a bool or 'TRANSGRESSED_BY_PROXY'; a numeric input raises TypeError.
     When the 2026 keyword is None the legacy CV is evaluated as before
     and the boundary entry carries cv_status "LEGACY_CV_SUPERSEDED" plus
     a CV_MISMATCH(old, new) marker; 'cv_mismatches' lists them all.
@@ -601,10 +608,21 @@ def planetary_boundary_status(CO2_ppm, extinction_rate_relative,
         aerosol["scope"] = GLOBAL_ONLY_SCOPE
         mismatches.append(aerosol["cv_mismatch"])
 
-    ozone = {"value": ozone_DU, "boundary": 276, "crossed": ozone_DU < 276,
-             "phc_2026": "NOT_CAPTURED"}
-    novel = {"value": "unknown", "boundary": "unknown",
-             "crossed": bool(novel_entities), "phc_2026": "NOT_CAPTURED"}
+    if extrapolar_O3_DU is not None:
+        ozone = ozone_status(extrapolar_O3_DU)
+        ozone["legacy_ozone_DU"] = ozone_DU
+    else:
+        ozone = _legacy(ozone_DU, 276, ozone_DU < 276,
+                        "ozone_DU (global column, boundary 276 = 290 - 5%)",
+                        "extrapolar_O3_DU (60N-60S, 11-yr mean, boundary 277.4)")
+        ozone["phc_2026"] = ozone_status()   # value NOT_IN_TEXT, zone SAFE
+        mismatches.append(ozone["cv_mismatch"])
+
+    novel_state = novel_entities_status(novel_entities)
+    novel = {"value": None, "cv": NOVEL_ENTITIES["cv"],
+             "boundary": None, "status": novel_state,
+             "proxy": NOVEL_ENTITIES["proxy"],
+             "crossed": novel_state == "TRANSGRESSED_BY_PROXY"}
 
     nine = {
         "climate": climate, "biodiversity": biodiversity,

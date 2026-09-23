@@ -507,6 +507,21 @@ CATALOGS = [
             "km3, cropland fraction, global AOD) are superseded."
         ),
     },
+    {
+        "name": "planetary_health_check_2026_unquantified",
+        "module": "planetary_health_check_2026",
+        "symbol": "UNQUANTIFIED_BOUNDARIES",
+        "description": (
+            "The two PHC 2026 boundaries without a usable number. "
+            "Stratospheric ozone: CV is extra-polar (60N-60S) 11-yr mean "
+            "column in DU; value NOT_IN_TEXT (chart-only, series ends "
+            "2022, never read off the chart); boundary 277.4 DU derived "
+            "as 292 DU (1964-1980) minus 5%, stated PRELIMINARY; zone "
+            "SAFE. Novel entities: NO_QUANTIFIED_CV; status "
+            "TRANSGRESSED_BY_PROXY (release without adequate safety "
+            "testing); correct type is bool or enum, never float."
+        ),
+    },
     # ── state_of_the_climate_2025 (observed state, BAMS 2026) ────
     {
         "name": "state_of_climate_2025_provenance",

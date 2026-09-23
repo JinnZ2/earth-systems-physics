@@ -10676,7 +10676,9 @@ class TestPlanetaryHealthCheck2026:
         from planetary_health_check_2026 import layer6_kwargs
         r = planetary_boundary_status(426, 100, 165, 14, 2600, 0.5,
                                       8.07, 0.15, 295, **layer6_kwargs())
-        assert r["cv_mismatches"] == []
+        # ozone is the one legacy slot left: its 2026 value is NOT_IN_TEXT
+        assert [m["old"].split()[0] for m in r["cv_mismatches"]] == ["ozone_DU"]
+        assert r["ozone"]["phc_2026"]["value"] == "NOT_IN_TEXT"
         assert r["boundaries_total"] == 9
         assert r["boundaries_crossed"] == 7
 
@@ -10696,3 +10698,25 @@ class TestPlanetaryHealthCheck2026:
     def test_land_sink_bias_carried(self):
         from assumption_validator.registry import REGISTRY
         assert "OVERESTIMATE" in REGISTRY["bio_NEP_sink"].notes
+
+    def test_ozone_value_not_read_off_chart(self):
+        from planetary_health_check_2026 import OZONE, OZONE_PB_DU, ozone_status
+        assert OZONE["value"] == "NOT_IN_TEXT"
+        assert OZONE_PB_DU == pytest.approx(277.4)       # 292 - 5%
+        assert OZONE["pb_status"] == "PRELIMINARY"
+        r = ozone_status()
+        assert r["zone"] == "SAFE" and r["crossed"] is False
+        assert ozone_status(270.0)["crossed"] is True
+
+    def test_novel_entities_refuses_numbers(self):
+        from planetary_health_check_2026 import novel_entities_status, NOVEL_ENTITIES
+        from layer_6_biosphere import planetary_boundary_status
+        assert NOVEL_ENTITIES["cv"] == "NO_QUANTIFIED_CV"
+        assert novel_entities_status(True) == "TRANSGRESSED_BY_PROXY"
+        assert novel_entities_status("TRANSGRESSED_BY_PROXY") == "TRANSGRESSED_BY_PROXY"
+        for bad in (0.7, 1, 0):
+            with pytest.raises(TypeError):
+                novel_entities_status(bad)
+        with pytest.raises(TypeError):
+            planetary_boundary_status(426, 100, 165, 14, 2600, 0.5, 8.07,
+                                      0.15, 295, novel_entities=0.9)
