@@ -529,7 +529,11 @@ REGISTRY: Dict[str, AssumptionBoundary] = {
         source_layer    = 6,
         layer_key       = "NEP_carbon_sink",
         couplings       = ["atmo_CO2_growth", "bio_permafrost", "bio_amazon"],
-        notes           = "Ecosystem flips to carbon source — self-amplifying loop initiates"
+        notes           = ("Ecosystem flips to carbon source — self-amplifying loop initiates. "
+                           "PHC 2026 (OBSERVED): land uptake excl. land-use change stagnant "
+                           "since ~2000; ESMs likely OVERESTIMATE land-sink resilience "
+                           "(average plant types, smooth recovery, no mortality spirals). "
+                           "A GREEN reading here carries that bias — noted, not corrected.")
     ),
 
     "bio_permafrost_flux": AssumptionBoundary(
@@ -574,7 +578,10 @@ REGISTRY: Dict[str, AssumptionBoundary] = {
         layer_key       = "ocean_pH",
         couplings       = ["bio_coral", "bio_marine_productivity", "bio_ocean_carbon"],
         rate_of_change  = -0.002,
-        notes           = "26% more acidic since industrial — aragonite saturation threshold"
+        notes           = ("26% more acidic since industrial — aragonite saturation threshold. "
+                           "pH is a model-validity envelope here, NOT the planetary-boundary CV: "
+                           "since 2023 the boundary is aragonite saturation (see "
+                           "planetary_health_check_2026). CV_MISMATCH(ocean_pH, omega_arag).")
     ),
 
     "bio_coral_dissolution": AssumptionBoundary(
@@ -648,7 +655,11 @@ REGISTRY: Dict[str, AssumptionBoundary] = {
         layer_key       = "planetary_boundaries_crossed",
         couplings       = ["all"],
         rate_of_change  = 0.1,
-        notes           = "Interaction effects between crossed boundaries unquantified"
+        notes           = ("Interaction effects between crossed boundaries unquantified. "
+                           "Observed 7 of 9 (Planetary Health Check 2026, PBScience/PIK; "
+                           "ocean acidification newest, 2025; all 7 at highest recorded "
+                           "transgression). red_threshold 6 is crossed and deliberately "
+                           "NOT retuned. Count treats N+P as one boundary.")
     ),
 
     # ── LAYER 4 — SOUTHERN OCEAN CDW (Lanham 2026 observation) ───────

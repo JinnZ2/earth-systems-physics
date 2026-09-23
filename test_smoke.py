@@ -10621,3 +10621,78 @@ class TestGlobalTemperatureAugust2026:
                              capture_output=True, text=True, timeout=60)
         assert out.returncode == 0, out.stderr
         assert "ENSO SUPERPOSITION" in out.stdout
+
+
+# ─────────────────────────────────────────────
+# PLANETARY HEALTH CHECK 2026 — control variables, measurand rule, count
+# ─────────────────────────────────────────────
+
+class TestPlanetaryHealthCheck2026:
+
+    def test_source_line_verbatim(self):
+        from planetary_health_check_2026 import SOURCE_LINE
+        assert SOURCE_LINE == (
+            "Planetary Health Check 2026, Summary Report, PBScience/PIK. "
+            "Assessment uses latest available data; some predates 2026.")
+
+    def test_zone_logic_reproduces_report(self):
+        from planetary_health_check_2026 import reproduce_check
+        rc = reproduce_check()
+        assert rc["zones_match"], rc["mismatches"]
+        assert rc["count_derived"] == 7 and rc["total"] == 9
+
+    def test_climate_zone_is_boundary_level(self):
+        from planetary_health_check_2026 import boundary_zones
+        c = boundary_zones()["climate"]
+        assert c["zone"] == "HIGH_RISK"
+        assert c["cvs"]["climate_CO2_ppm"] == "INCREASING_RISK"
+
+    def test_ocean_acid_not_a_hard_binary(self):
+        from planetary_health_check_2026 import ocean_acidification_status
+        r = ocean_acidification_status(2.85)
+        assert r["label"] == "BREACHED_WITHIN_DATASET_SPREAD"
+        assert r["margin"] == pytest.approx(0.01)
+        assert r["crossed"] is True
+        # a clear breach is labelled by zone, not by the spread label
+        assert ocean_acidification_status(2.70)["label"] == "INCREASING_RISK"
+
+    def test_aerosol_regional_scope(self):
+        from planetary_health_check_2026 import aerosol_status
+        assert aerosol_status(0.07)["scope"] == "GLOBAL_ONLY_SCOPE"
+        r = aerosol_status(0.07, 0.32)
+        assert r["zone"] == "SAFE" and r["regionally_transgressed"]
+
+    def test_legacy_cvs_flagged_not_overwritten(self):
+        from layer_6_biosphere import planetary_boundary_status
+        r = planetary_boundary_status(426, 100, 165, 14, 2600, 0.5,
+                                      8.07, 0.15, 295)
+        olds = {m["old"] for m in r["cv_mismatches"]}
+        assert {"ocean_pH", "freshwater_km3", "land_use_fraction",
+                "aerosol_AOD"} <= olds
+        assert r["ocean_acidification"]["cv_status"] == "LEGACY_CV_SUPERSEDED"
+
+    def test_layer6_with_2026_cvs_counts_seven_of_nine(self):
+        from layer_6_biosphere import planetary_boundary_status
+        from planetary_health_check_2026 import layer6_kwargs
+        r = planetary_boundary_status(426, 100, 165, 14, 2600, 0.5,
+                                      8.07, 0.15, 295, **layer6_kwargs())
+        assert r["cv_mismatches"] == []
+        assert r["boundaries_total"] == 9
+        assert r["boundaries_crossed"] == 7
+
+    def test_n_and_p_count_once(self):
+        from layer_6_biosphere import planetary_boundary_status
+        r = planetary_boundary_status(300, 1, 165, 20, 0, 0.0, 8.2, 0.0,
+                                      300, novel_entities=False)
+        assert r["nitrogen"]["crossed"] and r["phosphorus"]["crossed"]
+        assert r["boundaries_crossed"] == 1
+
+    def test_registry_threshold_not_retuned(self):
+        from assumption_validator.registry import REGISTRY, RiskLevel
+        b = REGISTRY["bio_planetary_boundaries"]
+        assert b.red_threshold == 6
+        assert b.assess(7)[0] == RiskLevel.RED
+
+    def test_land_sink_bias_carried(self):
+        from assumption_validator.registry import REGISTRY
+        assert "OVERESTIMATE" in REGISTRY["bio_NEP_sink"].notes

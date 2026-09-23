@@ -491,6 +491,22 @@ CATALOGS = [
             "Not a verbatim transcription of that paper's Table 1."
         ),
     },
+    # ── planetary_health_check_2026 (PBScience/PIK, 2026-09-21) ──
+    {
+        "name": "planetary_health_check_2026_cvs",
+        "module": "planetary_health_check_2026",
+        "symbol": "CONTROL_VARIABLES",
+        "description": (
+            "Planetary-boundary control variables as reported by the "
+            "Planetary Health Check 2026 (PBScience/PIK; some data "
+            "predates 2026). Each record gives the boundary process, "
+            "the observed value (point or low/high range), the "
+            "planetary boundary (pb), the high-risk line (hr), units, "
+            "direction, and whether the high-risk line is provisional. "
+            "These are the 2026 CVs; legacy CVs (ocean pH, freshwater "
+            "km3, cropland fraction, global AOD) are superseded."
+        ),
+    },
     # ── state_of_the_climate_2025 (observed state, BAMS 2026) ────
     {
         "name": "state_of_climate_2025_provenance",
