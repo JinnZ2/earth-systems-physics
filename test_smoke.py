@@ -10838,12 +10838,36 @@ class TestThwaitesTEIS2026:
         m = mitigation_reading()
         assert m["breakup"]["mitigation"].startswith("UNDERWAY")
         assert "NOT observed" in m["breakup"]["basis"]
-        assert m["flow_speed"]["published"] == "NOT_IN_TEXT"
+        assert m["flow_speed"]["published"] == "2.85 m/d (early 2023)"
+        assert m["flow_speed"]["mitigation"].startswith("FLOOR")
 
-    def test_unsourced_inputs_stay_uncited(self):
-        from thwaites_teis_2026 import PUBLISHED_INPUTS, O4_PATTERN, UNCITED
-        assert O4_PATTERN["reference_status"] == UNCITED
-        assert all(v["source"] == UNCITED for v in PUBLISHED_INPUTS.values())
+    def test_published_carries_source_wording_not_read_wording(self):
+        from thwaites_teis_2026 import PUBLISHED_INPUTS
+        b = PUBLISHED_INPUTS["breakup_forecast"]
+        assert b["value"] == "may be initiated as soon as 2026"
+        assert b["read_wording"] == "very likely 2026"
+        assert b["peer_reviewed"] is False
+
+    def test_every_reference_resolves_and_is_graded(self):
+        from thwaites_teis_2026 import (PUBLISHED_INPUTS, O4_PATTERN, LITERATURE,
+                                        LOOP_PUBLISHED_ANALOGUES, CITED_SECONDARY)
+        keys = [O4_PATTERN["reference"], *LOOP_PUBLISHED_ANALOGUES,
+                *(v["source"] for v in PUBLISHED_INPUTS.values())]
+        for k in keys:
+            assert k in LITERATURE, k
+        # nothing is marked fully CITED until the full text has been read
+        assert all(v["status"] == CITED_SECONDARY for v in LITERATURE.values())
+
+    def test_supplied_papers_not_on_teis(self):
+        from thwaites_teis_2026 import LITERATURE
+        for k in ("williams_2026", "pham_2025", "killingbeck_2026",
+                  "pierce_2026", "goldberg_preprint_2026"):
+            assert LITERATURE[k]["on_teis"] is False
+        assert "PREPRINT" in LITERATURE["goldberg_preprint_2026"]["correction"]
+
+    def test_flow_speed_conversion(self):
+        from thwaites_teis_2026 import FLOW_SPEED_M_PER_YR
+        assert FLOW_SPEED_M_PER_YR == 1041
 
     def test_loop_has_falsifier(self):
         from thwaites_teis_2026 import LOOP_FALSIFIER
