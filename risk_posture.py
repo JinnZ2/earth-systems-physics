@@ -26,7 +26,12 @@ Scope limit, stated up front:
   are expected to emerge" -- PHC 2026 Summary, s1.2). MITIGATION does not
   move the boundaries. It changes how RANGES, THIN MARGINS, UNMEASURED
   items, REGIONAL vs GLOBAL scope, and SOURCE-STATED MODEL BIAS are
-  resolved. Nothing else.
+  resolved, and it dates each published figure against the latest
+  observation (R9). Nothing else.
+
+Rule numbering is shared with thwaites_teis_2026.py, which declares
+R7_PRECURSORS_ACTIVE and R8_STALE_RATE_FLOOR; the latency rule here is
+therefore R9.
 
 Source: Planetary Health Check 2026, Summary Report, PBScience/PIK,
 released 2026-09-21. Assessment uses latest available data; some
@@ -57,7 +62,29 @@ RULES = {
     "R6_PRELIMINARY": (
         "A boundary the source calls preliminary is carried with that "
         "flag; a SAFE reading against it is SAFE_PRELIMINARY."),
+    "R9_LATENCY": (
+        "When a published data window ends before the latest available "
+        "observation, the observation governs CURRENT state and the "
+        "published figure becomes the PRIOR. Marked 2026-09-23."),
 }
+
+# ---------------------------------------------------------------------------
+# LATENCY RECORD (R9) -- published data window vs latest observation.
+# Dates only; no value is carried forward or invented. Sibling of
+# thwaites_teis_2026.R8_STALE_RATE_FLOOR (that rule floors a RATE; this
+# one re-dates a STATE).
+# ---------------------------------------------------------------------------
+LATENCY = [
+    # item, data window ends, published, latest observation, status
+    ("IMBIE ice-sheet mass balance", "2023", "2026-09-16",
+     "imagery, late Sept 2026", "OBSERVED"),
+    ("Thwaites glacial quakes", "2023", "2026-08", "-", "OBSERVED"),
+    ("Thwaites eastern shelf flow", "2026-01", "2026-05",
+     "imagery read late Sept 2026: cracks lengthening + multiplying, "
+     "more dark area, thinning along existing cracks", "OBSERVED"),
+    ("ESA Thwaites image", "2026-02", "2026-09",
+     "-", "OBSERVED (labelled illustrative by ESA)"),
+]
 
 # R2 width. PHC 2026 publishes no dataset spread for the aragonite CV, so
 # this is a declared choice, not a source value: 0.02 * 2.86 = 0.057 Omega.
@@ -191,6 +218,12 @@ def main():
     print("STATED MODEL BIAS (R5, direction only):")
     for k, v in STATED_BIAS.items():
         print("  %s: %s" % (k, v))
+    print()
+    print("LATENCY (R9): data window -> published -> latest observation")
+    for item, win, pub, obs, st in LATENCY:
+        print("  %-30s window %-8s pub %-10s [%s]" % (item, win, pub, st))
+        if obs != "-":
+            print("  %-30s latest: %s" % ("", obs))
     print()
     print("RULES:")
     for k, v in RULES.items():

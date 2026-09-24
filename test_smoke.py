@@ -10789,6 +10789,20 @@ class TestRiskPosture:
             if p in rank and m in rank:
                 assert rank[m] >= rank[p], cv
 
+    def test_rule_ids_unique_across_family(self):
+        # thwaites_teis_2026 extends the same rule numbering (R7, R8)
+        import risk_posture as rp
+        import thwaites_teis_2026 as tt
+        ids = [k.split("_")[0] for k in list(rp.RULES) + list(tt.RULES)]
+        assert len(ids) == len(set(ids)), ids
+
+    def test_r9_latency_window_precedes_publication(self):
+        import risk_posture as rp
+        assert "R9_LATENCY" in rp.RULES
+        for item, window, published, _obs, status in rp.LATENCY:
+            assert window <= published, item   # ISO prefixes compare lexically
+            assert status.startswith("OBSERVED"), item
+
 
 class TestThwaitesTEIS2026:
 
