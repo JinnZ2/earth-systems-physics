@@ -115,3 +115,88 @@ Searched also: r_effective, net energy sink, margin stack, energy flow rate,
 financial metabolism. Found only the locations above, plus
 `thermodynamic_price_guard.eroei_check`, which uses "net energy sink" for
 EROEI < 1. That is a production process, not finance.
+
+---
+
+## The instrument (Tasks B-E)
+
+`financial_energy_footprint.py` -- one module, stdlib only, CC0. It imports
+the layer values from `dollar_energy_metabolism.py` rather than copying them,
+and edits nothing in that file. The five discrepancies A-1..A-5 above are
+left in place there.
+
+```text
+python financial_energy_footprint.py                 strict reading
+python financial_energy_footprint.py --mode carried  carried reading
+python financial_energy_footprint.py --choices       the 8 declared choices
+python financial_energy_footprint.py --json
+python test_financial_energy_footprint.py            23 checks (also pytest)
+```
+
+### Scope
+
+```text
+base unit        M = (E_delivered - E_waste - E_hidden) / dt       energy per time
+overhead         E_total = E_base / (1 - r_effective)
+r_effective      sum of r_i over metabolism layers + dependency chain   [CHOICE 1]
+join             metabolism layers -> E_waste ; chain -> E_hidden    [CHOICE 3]
+                 E_delivered = E_base                                [CHOICE 2]
+output           bands (lo, hi) for r_effective, E_total, E_waste, E_hidden, M;
+                 three sink conditions, each TRUE / FALSE / UNDETERMINED
+not in scope     any default energy-per-dollar figure (the source's 5.7 MJ/$ is
+                 unsourced; E_base is an input, default 1.0 = per unit delivered)
+```
+
+### Measured vs floored vs unmeasured
+
+```text
+MEASURED            nothing. No r value in any reachable repository has a
+                    measurement record.
+CARRIED_UNSOURCED   the five metabolism layers' r_low / r_high; the leverage
+                    3-10x positions range. Summed only in --mode carried, and
+                    every carried result is labelled as resting on them.
+FLOOR               banking ~2 % of global electricity. Held as a Floor object;
+                    as_total() raises. Excludes the dependency chain, embodied
+                    energy, the leverage multiplier, non-electric energy.
+UNMEASURED          every dependency-chain item (developers, security
+                    engineering, settlement rails, exchanges, transaction-chip
+                    fab, HFT colocation, compliance stack, embodied
+                    infrastructure); energy per leverage position. Range fields
+                    are None. No number was supplied.
+```
+
+An UNMEASURED term is never read as zero. It removes the upper bound on
+r_effective and E_total, and it turns M into an upper bound.
+
+### What the two readings return (E_base = 1, dt = 1)
+
+```text
+                      strict          carried (rests on unsourced values)
+r_effective           0 .. UNBOUNDED  0.54 .. UNBOUNDED
+E_total               1 .. UNBOUNDED  2.1739 .. UNBOUNDED
+M (least overhead)    <= 1.0          <= -0.1739
+any layer r >= 1      UNDETERMINED    UNDETERMINED (margin_stack 0.23-1.40 straddles)
+r_effective > 0.5     UNDETERMINED    TRUE
+r_effective >= 1      UNDETERMINED    UNDETERMINED
+```
+
+In the carried reading, even the low end of the carried layer values gives a
+negative net flow before any dependency-chain term enters. That result is a
+property of numbers with no source. It is not a measurement.
+
+### Open gaps (in-line as `GAP G-n` in the module)
+
+```text
+G-1   every metabolism-layer r unmeasured; carried values unsourced
+G-2   r_effective weighting: source says "weighted", defines no weights
+G-3   margin capture (money) -> r (energy) conversion not derivable
+G-4   leverage positions -> energy: energy per position unmeasured
+G-5   every dependency-chain r unmeasured; logged_under carried, unverified
+G-6   embodied energy of finance infrastructure unmeasured
+G-7   bounds assume r_i >= 0 and E_hidden >= 0
+G-8   no disjointness check between layers and chain items (double counting)
+G-9   2 % figure: unsourced, electricity only, a floor
+G-10  recursion split between E_waste and E_hidden assumed proportional
+G-11  referent reduced from the Money Equation; dropped terms unvalued
+G-12  "net energy sink" has three conditions here; none is picked
+```
