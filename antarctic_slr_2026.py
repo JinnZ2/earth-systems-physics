@@ -256,7 +256,13 @@ def calibration_inside_predictable_regime() -> Dict:
 
 OPEN_CHECKS: List[Tuple[str, str, str]] = [
     ("S1", "What exactly is the 7 -> 13 mm/yr scenario in M (quantity, years, source)?",
-     "resolves start_rate_vs_observed RENDERING_CONFLICT"),
+     "resolves start_rate_vs_observed RENDERING_CONFLICT. Where to look: AR6 "
+     "Ch9 Box 9.4 and Tables 9.8/9.9 (rates of GMSL rise by period). Not "
+     "reached 2026-10-28: the fetch tool truncates the chapter PDF at 100k "
+     "characters (stops in 9.2.2) and direct download is egress-blocked. "
+     "Candidate, UNVERIFIED: 7 -> 13 mm/yr has the size of a TOTAL GMSL rate "
+     "under high emissions mid- to late-century, not an Antarctic-only 2025 "
+     "rate. Do not adopt without the table."),
     ("S2", "L's DOI and its 2300 and low-emissions numbers.",
      "INFERRED -> STATED"),
     ("S3", "Do M and L draw on the same ice-sheet ensemble (ISMIP6 or other)?",
