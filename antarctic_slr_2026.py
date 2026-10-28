@@ -157,6 +157,52 @@ def start_rate_vs_observed() -> Dict:
             "status": RENDERING_CONFLICT}
 
 
+# IPCC AR6 WG1 Chapter 9 (Fox-Kemper et al. 2021), read through a fetch of
+# ipcc.ch on 2026-10-28 (executive summary / body text; Box 9.4 not in the
+# text returned). CITED_SECONDARY. Pointed at by Kavik pasting the chapter
+# outline into the session.
+AR6: Dict[str, Dict] = {
+    "antarctic_mass_loss_2010_2019_gt_yr": {
+        "value": (148.0, 94.0, 202.0), "grade": STATED,
+        "note": "'148 [94 to 202] Gt yr-1 over the period 2010-2019'"},
+    "gmsl_rate_2006_2018_mm_yr": {
+        "value": (3.7, 3.2, 4.2), "grade": STATED},
+    "antarctic_2100_ssp585_likely_m": {
+        "value": (0.03, 0.34), "grade": STATED, "note": "cumulative, not a rate"},
+    "high_end_storyline_2100": {
+        "value": "'more than one additional metre of sea level rise by 2100'",
+        "grade": STATED, "note": "Box 9.4; cumulative, not a rate"},
+    "box_9_4_rates": {"value": None, "grade": NOT_IN_TEXT},
+}
+
+# Ocean area 3.618e14 m^2 -> 1 mm of global mean sea level = 361.8 Gt of
+# water. Standard conversion; stated so the number can be checked.
+GT_PER_MM_GMSL = 361.8
+
+
+def ar6_anchor_check() -> Dict:
+    """M's 7 mm/yr 'Antarctic alone' start against AR6's observed Antarctic term.
+
+    AR6: 148 [94-202] Gt/yr over 2010-2019 = 0.41 [0.26-0.56] mm/yr. A 2025
+    Antarctic-only rate of 7 mm/yr would be ~17x the AR6 central value and
+    ~12.5x its upper bound, and ~1.9x AR6's whole observed GMSL rate
+    (3.7 mm/yr, 2006-2018). This sharpens RENDERING_CONFLICT: the press
+    'Antarctic alone' reading needs Antarctica to have jumped an order of
+    magnitude in under a decade. The 7 -> 13 pair is far likelier a total
+    GMSL rate, a later-century rate, or a different scenario quantity.
+    Not resolved: AR6 Box 9.4's rates were not in the text read (S1).
+    """
+    c, lo, hi = AR6["antarctic_mass_loss_2010_2019_gt_yr"]["value"]
+    mm = tuple(x / GT_PER_MM_GMSL for x in (c, lo, hi))
+    r0 = REPORTED["M_ruled_out_rate_2025_mm_yr"]["value"]
+    g = AR6["gmsl_rate_2006_2018_mm_yr"]["value"][0]
+    return {"ar6_antarctic_mm_yr": mm,
+            "x_ar6_antarctic_central": r0 / mm[0],
+            "x_ar6_antarctic_upper": r0 / mm[2],
+            "x_ar6_gmsl": r0 / g,
+            "grade": DERIVED, "status": RENDERING_CONFLICT}
+
+
 def lin_kopp_2100_mm() -> Dict[str, float]:
     """L's 2100 high-emissions Antarctic figures, inches -> mm (DERIVED)."""
     v = REPORTED["L_2100_high_emissions_in"]["value"]
@@ -238,6 +284,11 @@ def summary() -> str:
                  f"{c['predictable_through'][0]}-{c['predictable_through'][1]}; link "
                  f"dissolves ~{c['link_dissolves']}; L projects to {c['L_projection_year']}"
                  f"  [{c['grade']}]")
+    a = ar6_anchor_check()
+    lines.append(f"  AR6 observed Antarctic 2010-2019: {a['ar6_antarctic_mm_yr'][0]:.2f} "
+                 f"[{a['ar6_antarctic_mm_yr'][1]:.2f}-{a['ar6_antarctic_mm_yr'][2]:.2f}] mm/yr; "
+                 f"7 mm/yr = x{a['x_ar6_antarctic_central']:.0f} central, "
+                 f"x{a['x_ar6_antarctic_upper']:.1f} upper")
     lines.append("  open checks: " + ", ".join(x[0] for x in OPEN_CHECKS))
     return "\n".join(lines)
 

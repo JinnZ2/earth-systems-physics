@@ -69,3 +69,12 @@ def test_unresolved_items_stay_unresolved():
 def test_summaries_run():
     assert "RENDERING_CONFLICT" in slr.summary()
     assert "Breid Bay" in si.summary()
+
+
+def test_ar6_anchor_sharpens_conflict():
+    a = slr.ar6_anchor_check()
+    assert a["ar6_antarctic_mm_yr"][0] == pytest.approx(0.409, abs=1e-3)
+    assert a["x_ar6_antarctic_central"] == pytest.approx(17.1, abs=0.1)
+    assert a["x_ar6_antarctic_upper"] > 10
+    assert a["status"] == slr.RENDERING_CONFLICT
+    assert slr.AR6["box_9_4_rates"]["value"] is None
