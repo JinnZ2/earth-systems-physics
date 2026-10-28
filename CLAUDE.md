@@ -99,6 +99,7 @@ earth-systems-physics/
 ├── intersecting_projects/             # FURTHER RESEARCH NEEDED: 7 intersecting working docs (warning cards, worker brief, redundancy, automation audits), verbatim + flags in README
 ├── research.md                        # Thwaites 2026 papers × JinnZ2/Simulators audit: secs 1-14 by Kimi, R1-R6 repair log by a Claude session, sec 15 independent Claude Code citation check, sec 16 reconciliation
 ├── thwaites_teis_2026.py              # TEIS Sept 2026 imagery read (Kavik): O1-O4 qualitative, coupling loop + falsifier, upgrade path to a quantified CV
+├── aaiw_reversal_2026.py              # AAIW 2016-2024 reversal (Mishra/Gayen/Naveira Garabato 2026, press depth): meltwater drop 6600 km^3/yr = 63x layer_4's CDW basal-melt term; open checks C1-C5; not wired
 ├── risk_posture.py                   # Same PHC 2026 data read two ways: PUBLISHED vs MITIGATION under 6 declared rules + R9 latency dating
 ├── planetary_health_check_2026.py     # PHC 2026 (PBScience/PIK) planetary-boundary CV table; 7 of 9; CV_MISMATCH map for legacy CVs
 ├── global_temperature_august_2026.py  # Observed Aug 2026: warmest August (ERA5/NOAA/NASA), ERA5 joint warmest month; the ENSO half of the 2025 superposition
