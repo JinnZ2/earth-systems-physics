@@ -3,7 +3,7 @@ BUFFER-SENSOR CORRUPTION DETECTOR
 
 Models how incentive structures corrupt sensor networks.
 
-Core principle (Kavik): A sensor incentivized to report stability
+Core principle (JinnZ2): A sensor incentivized to report stability
 will report stability until catastrophic failure. The incentive
 structure IS the corruption mechanism.
 

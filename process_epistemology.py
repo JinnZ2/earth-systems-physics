@@ -3,7 +3,7 @@ PROCESS EPISTEMOLOGY ENGINE
 
 State-based vs Process-based knowledge frameworks.
 
-Core insight (Kavik):
+Core insight (JinnZ2):
 English:  "The truck is red."     -> fixed property of object
 Ojibwe:   "The truck is redding." -> temporal process, headed somewhere
 

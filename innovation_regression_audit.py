@@ -5,7 +5,7 @@ If the stated purpose was productivity, measure the productivity.
 Compare: Free settler output vs. extraction system output.
 Measure: What did choosing slavery COST in innovation?
 
-Core thesis (Kavik): Going backward is definitionally not innovation.
+Core thesis (JinnZ2): Going backward is definitionally not innovation.
 If you must force a system to persist, the system has already failed
 the market test that innovation is supposed to win.
 
