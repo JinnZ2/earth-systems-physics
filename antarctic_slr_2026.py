@@ -159,7 +159,7 @@ def start_rate_vs_observed() -> Dict:
 
 # IPCC AR6 WG1 Chapter 9 (Fox-Kemper et al. 2021), read through a fetch of
 # ipcc.ch on 2026-10-28 (executive summary / body text; Box 9.4 not in the
-# text returned). CITED_SECONDARY. Pointed at by Kavik pasting the chapter
+# text returned). CITED_SECONDARY. Pointed at by JinnZ2 pasting the chapter
 # outline into the session.
 AR6: Dict[str, Dict] = {
     "antarctic_mass_loss_2010_2019_gt_yr": {

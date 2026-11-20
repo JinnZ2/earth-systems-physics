@@ -6,7 +6,7 @@
 # observations, with the DIRECTION of each miss recorded, so that "mostly
 # underestimated" is a count with its denominator rather than an impression.
 #
-# Co-authored, human + Claude, 2026-10-28. Asked for by Kavik after the
+# Co-authored, human + Claude, 2026-10-28. Asked for by JinnZ2 after the
 # Antarctic 2026 reads ("every estimate they run seems to end up
 # underestimated ... the cascade effects end up getting lost").
 #

@@ -3,7 +3,7 @@ CONSEQUENCE VELOCITY ENGINE
 
 The missing variable in every institutional model.
 
-Core principle (Kavik): Consequence doesn't sit still when deferred.
+Core principle (JinnZ2): Consequence doesn't sit still when deferred.
 It compounds. It couples with other deferred consequences.
 It phase-shifts into something you can't price because it's
 no longer the original consequence — it's the consequence

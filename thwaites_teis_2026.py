@@ -8,7 +8,7 @@
 #
 # SOURCE
 # ------
-# Imagery read by Kavik, September 2026 (late austral winter). Sensor,
+# Imagery read by JinnZ2, September 2026 (late austral winter). Sensor,
 # scene IDs, acquisition dates and area of interest are NOT recorded
 # in the read; they are fields below, left None until supplied.
 #
